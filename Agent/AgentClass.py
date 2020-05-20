@@ -4,8 +4,6 @@ with its MDP, store the results of the interaction, and update
 its performance 
 '''
 
-import collections
-
 class Agent():
 	def __init__(self, 
 				 mdp,
@@ -26,7 +24,7 @@ class Agent():
 		self.mdp = mdp
 		self._current_state = mdp.get_init_state()
 		self.policy = policy
-		self.q_table = collections.defaultdict(dict)
+		self.q_table = {}
 
 	def act(self):
 		'''
