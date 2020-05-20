@@ -3,6 +3,8 @@ Defines the MDP class, which is a container for the actions,
 transition function, reward function, and state info 
 '''
 
+import abc 
+
 class MDP():
 	def __init__(self,
 				 actions, 
@@ -33,6 +35,8 @@ class MDP():
 	def get_init_state(self):
 		return self.init_state 
 
+	#@abc.abstractmethod
+	#def transition(self, state, action):
 
 	# --------------
 	# Main functions 
