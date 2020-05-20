@@ -6,7 +6,7 @@ GridWorldMDP
 from MDP.StateClass import State
 
 class GridWorldState(State):
-	def __init__(self, x, y):
+	def __init__(self, x, y, is_terminal=False):
 		'''
 		Represents state as grid point (x,y) with (0,0) being
 		the lower-left hand corner 
@@ -15,7 +15,7 @@ class GridWorldState(State):
 			x:int 
 			y:int
 		'''
-		super().__init__(data=[x,y])
+		super().__init__([x,y], is_terminal)
 		self.x = x
 		self.y = y
 

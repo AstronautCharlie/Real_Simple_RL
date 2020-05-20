@@ -8,13 +8,13 @@ import abc
 class MDP():
 	def __init__(self,
 				 actions, 
-				 transition_func,
-				 reward_func,
+				 #transition_func,
+				 #reward_func,
 				 init_state,
 				 gamma):
 		self.actions = actions 
-		self.transition_func = transition_func
-		self.reward_func = reward_func
+		#self.transition_func = transition_func
+		#self.reward_func = reward_func
 		self.init_state = init_state 
 		self.gamma = gamma 
 		'''
@@ -41,7 +41,31 @@ class MDP():
 	# --------------
 	# Main functions 
 	# --------------
-	def apply_transition(self, state, action):
+	
+	@abc.abstractmethod 
+	def transition(self, state, action):
+		'''
+		Parameters:
+			state:State
+			action:Enum
+
+		Returns:
+			next_state:State
+		'''
+
+	@abc.abstractmethod 
+	def reward(self, state, action, next_state):
+		'''
+		Parameters:
+			state:State
+			action:Enum
+			next_state:State
+
+		Returns:
+			reward:float
+		'''
+
+	#def apply_transition(self, state, action):
 		'''
 		Parameters: 
 			state: State
@@ -54,9 +78,9 @@ class MDP():
 		result
 		'''
 
-		return self.transition_func(state, action, self)
+		#return self.transition_func(state, action, self)
 
-	def get_reward(self, state, action, next_state):
+	#def get_reward(self, state, action, next_state):
 		'''
 		Parameters:
 			state: State
@@ -68,5 +92,5 @@ class MDP():
 		Query reward function and return the result 
 		'''
 
-		return self.reward_func(state, action, next_state, self)
+		#return self.reward_func(state, action, next_state, self)
 

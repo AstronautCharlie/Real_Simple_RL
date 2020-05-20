@@ -21,4 +21,4 @@ class State():
 		return self.data
 
 	def set_terminal(self, value):
-		self.is_terminal = value  
+		self._is_terminal = value  

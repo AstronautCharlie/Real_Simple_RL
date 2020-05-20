@@ -26,7 +26,7 @@ def go_up_right(state):
 def main(): 
 	grid_mdp = GridWorldMDP(slip_prob=0.0)
 	agent = Agent(grid_mdp, go_up_right)
-	for i in range(20):
+	for i in range(25):
 		agent.act()
 
 if __name__ == '__main__':
