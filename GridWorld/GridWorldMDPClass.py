@@ -40,6 +40,22 @@ class GridWorldMDP(MDP):
 		self.goal_value=goal_value
 		self.walls=[]
 
+	# -----------------
+	# Utility functions 
+	# -----------------
+
+	def is_goal_state(self, state):
+		'''
+		Checks if state is in goal location
+
+		Parameters:
+			state:State
+
+		Returns:
+			boolean
+		'''
+		return (state.x, state.y) in self.goal_location
+
 	# -------------------------------
 	# Transition and reward functions 
 	# -------------------------------
@@ -57,7 +73,7 @@ class GridWorldMDP(MDP):
 		next_state = state
 		# If terminal, do nothing
 		if state.is_terminal():
-			return next_state
+			return self.init_state
 
 		# Apply slip probability and change action if applicable
 		if random.random() < self.slip_prob:
@@ -79,7 +95,7 @@ class GridWorldMDP(MDP):
 		# If the next state takes the agent into the goal location, 
 		# return initial state 
 		if (next_state.x, next_state.y) in self.goal_location:
-			next_state = self.init_state
+			next_state.set_terminal(True)
 
 		return next_state
 
@@ -130,6 +146,8 @@ class GridWorldMDP(MDP):
 		Given a state and an action (both supplied by the Agent), return the 
 		next state and the reward gotten from that next state 
 
+		If the agent reaches the goal state, reset to initial state
+
 		Parameters:
 			state:State
 			action:Enum
@@ -138,7 +156,13 @@ class GridWorldMDP(MDP):
 			next_state:State
 			reward:float 
 		'''
+		# Apply the transition and reward functions
 		next_state = self.transition(state, action)
 		reward = self.reward(state, action, next_state)
+
+		# If the next state is in the goal locaton, set next_state
+		# to initial state and return that 
+		#if self.is_goal_state(next_state):
+		#	next_state = self.init_state
 
 		return next_state, reward 

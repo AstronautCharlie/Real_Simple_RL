@@ -50,6 +50,7 @@ class Agent():
 		print("Reward:", reward)
 
 		self.set_current_state(next_state)
+		print()
 
 
 	def update(self, state, action, next_state):
