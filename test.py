@@ -4,12 +4,14 @@ from Functions import *
 from ActionEnums import Dir 
 from AgentClass import Agent 
 
+def go_right(state):
+	return Dir.RIGHT
+
 def main(): 
 	grid_mdp = GridWorldMDP()
-	init = grid_mdp.get_init_state()
-	action = Dir.RIGHT
-	state, reward = grid_mdp.act(init, action)
-	print(state, reward)
+	agent = Agent(grid_mdp, go_right)
+	for i in range(5):
+		agent.act()
 
 if __name__ == '__main__':
 	main()

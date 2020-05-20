@@ -42,9 +42,26 @@ class GridWorldMDP(MDP):
 	# -------------------------------
 
 	def apply_transition(self, state, action):
+		'''
+		Query self's transition function for the result of the given 
+		state/value pair 
+
+		Parameters:
+			state:State
+			action:Enum
+		'''
 		return self.transition_func(state, action, self)
 
 	def get_reward(self, state, action, next_state):
+		'''
+		Query self's reward function for the result of the given
+		state/value/next-state tuple 
+
+		Parameters:
+			state:State
+			action:Enum
+			next_state:State
+		'''
 		return self.reward_func(state, action, next_state, self)
 
 	def act(self, state, action):

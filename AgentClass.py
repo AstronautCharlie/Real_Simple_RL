@@ -4,6 +4,8 @@ with its MDP, store the results of the interaction, and update
 its performance 
 '''
 
+import collections
+
 class Agent():
 	def __init__(self, 
 				 mdp,
@@ -14,7 +16,7 @@ class Agent():
 
 		Parameters:
 			mdp: MDP
-			policy: Policy
+			policy: Policy 
 
 		Notes:
 			collections.defaultdict(dict) creates an empty nested
@@ -22,21 +24,33 @@ class Agent():
 			dictionaries; similar to what David used
 		'''
 		self.mdp = mdp
-		self.current_state = mdp.get_init_state()
+		self._current_state = mdp.get_init_state()
 		self.policy = policy
 		self.q_table = collections.defaultdict(dict)
 
-	def act(self, state):
+	def act(self):
 		'''
-		Apply the agent's policy to the given state and return the 
+		Apply the agent's policy to its current state and return the 
 		action dictated by that policy
 
 		Parameters: 
-			state: State
+			None
 
 		Returns: 
 			action: Enum 
 		'''
+		current_state = self.get_current_state()
+		print("Currently at:", str(current_state))
+
+		action = self.policy(current_state)
+		print("Policy dictates:", str(action))
+
+		next_state, reward = self.mdp.act(current_state, action)
+		print("Next state is:", str(next_state))
+		print("Reward:", reward)
+
+		self.set_current_state(next_state)
+
 
 	def update(self, state, action, next_state):
 		'''
@@ -47,3 +61,14 @@ class Agent():
 			action: Enum
 			next_state: State
 		'''
+		return 
+
+	# -------------------
+	# Getters and setters  
+	# -------------------
+
+	def set_current_state(self, next_state):
+		self._current_state = next_state 
+
+	def get_current_state(self):
+		return self._current_state
