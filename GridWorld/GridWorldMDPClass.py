@@ -8,6 +8,7 @@ from GridWorld.ActionEnums import Dir
 from GridWorld.GridWorldStateClass import GridWorldState
 #from GridWorld.GridWorldFunctions import GridWorldTransition, GridWorldReward
 import random 
+import math 
 
 class GridWorldMDP(MDP):
 	def __init__(self, 
@@ -19,7 +20,8 @@ class GridWorldMDP(MDP):
 				 gamma=0.99,
 				 slip_prob=0.05,
 				 goal_location=[(11,11)],
-				 goal_value=1.0
+				 goal_value=1.0,
+				 build_walls=True
 				 ):
 		'''
 		Do we want to explicitly set the walls or have functions
@@ -33,12 +35,15 @@ class GridWorldMDP(MDP):
 						 #reward_func=reward_func,
 						 init_state=GridWorldState(init_state[0], init_state[1]),
 						 gamma=gamma)
-		self.height=height
-		self.width=width
-		self.slip_prob=slip_prob
-		self.goal_location=goal_location
-		self.goal_value=goal_value
-		self.walls=[]
+		self.height = height
+		self.width = width
+		self.slip_prob = slip_prob
+		self.goal_location = goal_location
+		self.goal_value = goal_value
+		self.walls = []
+
+		if build_walls:
+			self.walls = self._compute_walls()
 
 	# -----------------
 	# Utility functions 
@@ -56,6 +61,32 @@ class GridWorldMDP(MDP):
 		'''
 		return (state.x, state.y) in self.goal_location
 
+	def _compute_walls(self):
+		'''
+		Calculate the locations of walls; taken from David Abel's
+		simple_rl package 
+		'''
+		walls = [] 
+
+		half_width = math.ceil(self.width / 2)
+		half_height = math.ceil(self.height / 2)
+
+		# Calculate left-to-right walls 
+		for i in range(1, self.width+1):
+			if i == half_width:
+				half_height -= 1 
+			if i+1 == math.ceil(self.width / 3) or i == math.ceil((2 * self.width) / 3):
+				continue
+			walls.append((i, half_height))
+
+		# Calculate top-to-bottom walls 
+		for j in range(1, self.height+1):
+			if j+1 == math.ceil(self.height / 3) or j == math.ceil((2 * self.height) / 3):
+				continue
+			walls.append((half_width, j))
+
+		return walls 
+
 	# -------------------------------
 	# Transition and reward functions 
 	# -------------------------------
@@ -70,6 +101,8 @@ class GridWorldMDP(MDP):
 		Returns:
 			state:GridWorldState
 		'''
+		print("transitioning from state", str(state), 
+				"with action", action)
 		next_state = state
 		# If terminal, do nothing
 		if state.is_terminal():

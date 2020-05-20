@@ -28,6 +28,7 @@ def main():
 	agent = Agent(grid_mdp, go_up_right)
 	for i in range(30):
 		agent.act()
+	print(grid_mdp.walls)
 
 if __name__ == '__main__':
 	main()
