@@ -3,10 +3,10 @@ This class extends MDP to be specific to GridWorld, including a
 goal-location, specific actions, dimensions, and walls 
 '''
 
-from MDPClass import MDP 
-from ActionEnums import Dir
-from GridWorldStateClass import GridWorldState
-from Functions import GridWorldTransition, GridWorldReward 
+from MDP.MDPClass import MDP
+from GridWorld.ActionEnums import Dir
+from GridWorld.GridWorldStateClass import GridWorldState
+from GridWorld.GridWorldFunctions import GridWorldTransition, GridWorldReward
 
 class GridWorldMDP(MDP):
 	def __init__(self, 
