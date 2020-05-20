@@ -1,8 +1,7 @@
 # Imports 
-from GridWorldMDPClass import GridWorldMDP
-from Functions import * 
-from ActionEnums import Dir 
-from AgentClass import Agent 
+from GridWorld.GridWorldMDPClass import GridWorldMDP
+from GridWorld.ActionEnums import Dir
+
 
 def main(): 
 	grid_mdp = GridWorldMDP()
