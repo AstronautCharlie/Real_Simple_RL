@@ -46,6 +46,16 @@ class GridWorldMDP(MDP):
 			self.walls = self._compute_walls()
 
 	# -----------------
+	# Getters & setters 
+	# -----------------
+	def get_init_state(self):
+		'''
+		Return GridWorldState with data = self.init_state
+		'''
+		return self.init_state
+
+
+	# -----------------
 	# Utility functions 
 	# -----------------
 
@@ -54,7 +64,7 @@ class GridWorldMDP(MDP):
 		Checks if state is in goal location
 
 		Parameters:
-			state:State
+			state:GridWorldState
 
 		Returns:
 			boolean
@@ -101,8 +111,8 @@ class GridWorldMDP(MDP):
 		Returns:
 			state:GridWorldState
 		'''
-		print("transitioning from state", str(state), 
-				"with action", action)
+		#print("transitioning from state", str(state), 
+		#		"with action", action)
 		next_state = state
 		# If terminal, do nothing
 		if state.is_terminal():
@@ -135,9 +145,9 @@ class GridWorldMDP(MDP):
 	def reward(self, state, action, next_state):
 		'''
 		Parameters:
-			state:State
+			state:GridWorldState
 			action:Enum
-			next_state:State
+			next_state:GridWorldState
 
 		Returns:
 			reward:float
@@ -146,29 +156,6 @@ class GridWorldMDP(MDP):
 			return self.goal_value
 		else:
 			return 0.0
-
-	#def apply_transition(self, state, action):
-		'''
-		Query self's transition function for the result of the given 
-		state/value pair 
-
-		Parameters:
-			state:State
-			action:Enum
-		'''
-		#return self.transition_func(state, action, self)
-
-	#def get_reward(self, state, action, next_state):
-		'''
-		Query self's reward function for the result of the given
-		state/value/next-state tuple 
-
-		Parameters:
-			state:State
-			action:Enum
-			next_state:State
-		'''
-		#return self.reward_func(state, action, next_state, self)
 
 	# -----------------
 	# Main act function
@@ -182,11 +169,11 @@ class GridWorldMDP(MDP):
 		If the agent reaches the goal state, reset to initial state
 
 		Parameters:
-			state:State
+			state:GridWorldState
 			action:Enum
 
 		Returns:
-			next_state:State
+			next_state:GridWorldState
 			reward:float 
 		'''
 		# Apply the transition and reward functions

@@ -27,7 +27,9 @@ class Agent():
 		self._current_state = mdp.get_init_state()
 		self.policy = policy
 		# This will store q-values associated with (state, action) pairs 
-		self.q_table = defaultdict(lambda : 0)
+		self._q_table = defaultdict(lambda : 0.0)
+		self._alpha = alpha
+
 
 	# ---------------------
 	# Exploration functions
@@ -42,8 +44,10 @@ class Agent():
 
 	def act(self):
 		'''
-		Apply the agent's policy to its current state and return the 
-		action dictated by that policy
+		Apply the agent's policy to its current state, perform the 
+		action dictated by the policy, get the reward and next
+		state given by the mdp, and update the agent's q-table 
+		with the results 
 
 		Parameters: 
 			None
@@ -61,8 +65,23 @@ class Agent():
 		print("Next state is:", str(next_state))
 		print("Reward:", reward)
 
+		self.update(current_state, action, next_state, reward)
 		self.set_current_state(next_state)
 		print()
+
+	def apply_action(self, action):
+		'''
+		Apply the given action to agent's current state, get 
+		the reward and next state from the mdp, and update the 
+		agent's q-table with the results 
+
+		Parameters:
+			action:Enum
+		'''
+		current_state = self.get_current_state() 
+		next_state, reward = self.mdp.act(current_state, action)
+		self.update(current_state, action, next_state, reward)
+		self.set_current_state(next_state) 
 
 
 	def update(self, state, action, next_state, reward):
@@ -70,22 +89,37 @@ class Agent():
 		Update the Agent's internal q-table with the new info based
 		on Bellman Equation: 
 			q(s,a) <- q(s,a) + alpha * [r + gamma * max_a(s',a) - q(s,a))]
-
+			q(s,a) <- q(s,a) + 0.5 * [r + max_a(s',a) - q(s,a)]
+				   <- 0.5 * [r + max_a(s',a) + q(s,a))]
 		Parameters: 
 			state: State
 			action: Enum
 			next_state: State
 		'''
+		old_q_value = self.get_q_value(state, action)
+		best_next_action_value = self.get_best_action_value(next_state)
+		new_q_value = old_q_value + self._alpha * (reward 
+						+ self.mdp.gamma * best_next_action_value - old_q_value)
+		self._set_q_value(state, action, new_q_value)
 		
 
 	# -------------------
 	# Getters and setters  
 	# -------------------
 
-	def set_current_state(self, next_state):
-		self._current_state = next_state 
+	def set_current_state(self, new_state):
+		'''
+		Set current state of agent to given state
+
+		Parameters:
+			new_state:State
+		'''
+		self._current_state = new_state 
 
 	def get_current_state(self):
+		'''
+		Get current state of agent 
+		'''
 		return self._current_state
 
 	def get_best_action_value_pair(self, state):
@@ -103,7 +137,7 @@ class Agent():
 		max_val = float("-inf")
 		best_action = None 
 		for action in self.mdp.actions:
-			q_value = self.q_table[(state, action)]
+			q_value = self._q_table[(state, action)]
 			if q_value > max_val:
 				max_val = q_value 
 				best_action = action 
@@ -119,7 +153,7 @@ class Agent():
 		Returns:
 			best_action:Enum
 		'''
-		best_action, _ = self.get_best_action_value_pair(state)[0]
+		best_action, _ = self.get_best_action_value_pair(state)
 		return best_action 
 
 	def get_best_action_value(self, state):
@@ -133,5 +167,49 @@ class Agent():
 		Returns:
 			reward:float 
 		'''
-		_, reward = self.get_best_action_value_pair(state)[1]
+		_, reward = self.get_best_action_value_pair(state)
 		return reward 
+
+	def get_action_values(self, state):
+		'''
+		Get all the action-value pairs for the given state and
+		return them as a list of tuples
+
+		Parameters:
+			state:State
+		
+		Returns:
+			action_value_list:list 
+		'''
+		action_value_list = [] 
+		for action in self.mdp.actions:
+			pair = tuple([action, self.get_q_value(state, action)])
+			action_value_list.append(pair)
+		return action_value_list
+
+	def get_q_value(self, state, action):
+		'''
+		Query the q-table for the value of the given state-action 
+		pair 
+
+		Parameters:
+			state:State
+			action:Enum
+
+		returns:
+			q-value:float
+		'''
+		return self._q_table[(state, action)]
+
+	def _set_q_value(self, state, action, new_value):
+		'''
+		Set the q-value of the given state-action pair to the new
+		value
+
+		Parameters:
+			state:State
+			action:Enum
+			new_value:float
+		'''
+		self._q_table[(state, action)] = new_value 
+		
