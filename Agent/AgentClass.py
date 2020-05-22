@@ -6,12 +6,15 @@ its performance
 
 # Used to initialize q-table 
 from collections import defaultdict
+import random 
+import numpy as np 
+import copy 
 
 class Agent():
 	def __init__(self, 
 				 mdp,
-				 policy,
-				 alpha=0.5):
+				 alpha=1.0,
+				 epsilon=1.0):
 		'''
 		Parameters:
 			mdp: MDP
@@ -25,18 +28,45 @@ class Agent():
 		'''
 		self.mdp = mdp
 		self._current_state = mdp.get_init_state()
-		self.policy = policy
-		# This will store q-values associated with (state, action) pairs 
 		self._q_table = defaultdict(lambda : 0.0)
 		self._alpha = alpha
-
+		self._init_alpha = alpha 
+		self._epsilon = epsilon
+		self._init_epsilon = epsilon 
 
 	# ---------------------
 	# Exploration functions
 	# ---------------------
-	#def epsilon_greedy(self, state):
+	def epsilon_greedy(self, state):
+		'''
+		Take best action with probability 1-epsilon and random action
+		with probability epsilon. 
+		Parameters:
+			state:GridWorldState
 
-	#def 
+		Returns:
+			action:Enum
+		'''
+		action = None 
+
+		# Flip a 'coin'. If it comes up less than epsilon, take
+		# random action. Otherwise pick best action 
+		if random.random() < self._epsilon:
+			action = np.random.choice(self.mdp.actions)
+		else: 
+			action = self.get_best_action(state)
+
+		return action 
+
+	def _update_learning_parameters(self):
+		'''
+		Update the self._epsilon and self._alpha parameters after 
+		taking an epsilon-greedy step 
+
+		""" This is a stub! """
+		'''
+		self._epsilon *= 1.0
+		self._alpha *= 0.98
 
 	# ---------------------------
 	# Main act & update functions
@@ -44,30 +74,32 @@ class Agent():
 
 	def act(self):
 		'''
-		Apply the agent's policy to its current state, perform the 
-		action dictated by the policy, get the reward and next
-		state given by the mdp, and update the agent's q-table 
-		with the results 
-
-		Parameters: 
-			None
+		Apply epsilon-greedy 
 
 		Returns: 
-			action: Enum 
+			current_state:GridWorldState, the state the agent was in 
+				before taking action 
+			action:Enum, the action taken
+			next_state:GridWorldState, the state the agent ended up in
+				after taking the action 
+			reward:float, the reward received  
 		'''
+		# Get current state, apply action, and query MDP for result 
+		# of applying action on state 
 		current_state = self.get_current_state()
-		print("Currently at:", str(current_state))
-
-		action = self.policy(current_state)
-		print("Policy dictates:", str(action))
-
+		action = self.epsilon_greedy(current_state)
 		next_state, reward = self.mdp.act(current_state, action)
-		print("Next state is:", str(next_state))
-		print("Reward:", reward)
 
+		# Update q-table, current_state, and learning parameters
 		self.update(current_state, action, next_state, reward)
-		self.set_current_state(next_state)
-		print()
+		if (next_state.x, next_state.y) in self.mdp.goal_location:
+			self.set_current_state(self.mdp.get_init_state())
+		else:
+			self.set_current_state(next_state)
+		if self.get_q_value(current_state, action) != 0:
+			self._update_learning_parameters()
+
+		return current_state, action, next_state, reward 
 
 	def apply_action(self, action):
 		'''
@@ -81,16 +113,18 @@ class Agent():
 		current_state = self.get_current_state() 
 		next_state, reward = self.mdp.act(current_state, action)
 		self.update(current_state, action, next_state, reward)
-		self.set_current_state(next_state) 
+		if (next_state.x, next_state.y) in self.mdp.goal_location:
+			self.set_current_state(self.mdp.get_init_state())
+		else: 
+			self.set_current_state(next_state) 
 
 
 	def update(self, state, action, next_state, reward):
 		'''
-		Update the Agent's internal q-table with the new info based
-		on Bellman Equation: 
+		Update the Agent's internal q-table with the state-action-
+		next state-reward info according to the Bellman Equation: 
 			q(s,a) <- q(s,a) + alpha * [r + gamma * max_a(s',a) - q(s,a))]
-			q(s,a) <- q(s,a) + 0.5 * [r + max_a(s',a) - q(s,a)]
-				   <- 0.5 * [r + max_a(s',a) + q(s,a))]
+	
 		Parameters: 
 			state: State
 			action: Enum
@@ -98,8 +132,7 @@ class Agent():
 		'''
 		old_q_value = self.get_q_value(state, action)
 		best_next_action_value = self.get_best_action_value(next_state)
-		new_q_value = old_q_value + self._alpha * (reward 
-						+ self.mdp.gamma * best_next_action_value - old_q_value)
+		new_q_value = old_q_value + self._alpha * (reward + self.mdp.gamma * best_next_action_value - old_q_value)
 		self._set_q_value(state, action, new_q_value)
 		
 
@@ -134,10 +167,17 @@ class Agent():
 			best_action:Enum
 			max_val:float 
 		'''
+		# Initialize best action to be a random choice (in case no )
 		max_val = float("-inf")
 		best_action = None 
-		for action in self.mdp.actions:
-			q_value = self._q_table[(state, action)]
+
+		# Iterate through actions and find action with highest q-value
+		# in q-table. Shuffle actions so that if best actions have 
+		# the same value, a random one is chosen
+		shuffled_actions = self.mdp.actions.copy()
+		np.random.shuffle(shuffled_actions)
+		for action in shuffled_actions:
+			q_value = self.get_q_value(state, action)
 			if q_value > max_val:
 				max_val = q_value 
 				best_action = action 

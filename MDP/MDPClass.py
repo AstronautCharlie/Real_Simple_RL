@@ -64,33 +64,3 @@ class MDP():
 		Returns:
 			reward:float
 		'''
-
-	#def apply_transition(self, state, action):
-		'''
-		Parameters: 
-			state: State
-			action: Enum
-		Returns: 
-			next_state: State
-
-		Given a state and an action (remember current state is stored
-		in the agent), query the transition function and return the
-		result
-		'''
-
-		#return self.transition_func(state, action, self)
-
-	#def get_reward(self, state, action, next_state):
-		'''
-		Parameters:
-			state: State
-			action: Enum
-			next_state: State 
-		Returns:
-			reward: float 
-
-		Query reward function and return the result 
-		'''
-
-		#return self.reward_func(state, action, next_state, self)
-

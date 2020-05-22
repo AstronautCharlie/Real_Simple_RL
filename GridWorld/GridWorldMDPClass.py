@@ -6,39 +6,35 @@ goal-location, specific actions, dimensions, and walls
 from MDP.MDPClass import MDP
 from GridWorld.ActionEnums import Dir
 from GridWorld.GridWorldStateClass import GridWorldState
-#from GridWorld.GridWorldFunctions import GridWorldTransition, GridWorldReward
 import random 
 import math 
 
 class GridWorldMDP(MDP):
 	def __init__(self, 
-				 #transition_func,
-				 #reward_func,
 				 height=11,
 				 width=11,
 				 init_state=(1,1),
 				 gamma=0.99,
 				 slip_prob=0.05,
-				 goal_location=[(11,11)],
+				 goal_location=None,
 				 goal_value=1.0,
-				 build_walls=True
+				 build_walls=False
 				 ):
 		'''
 		Do we want to explicitly set the walls or have functions
 		to calculate the walls? 
 		'''
-		#transition_func = GridWorldTransition(slip_prob)
-		#reward_func = GridWorldReward(goal_value)
 
-		super().__init__(actions=Dir, 
-						 #transition_func=transition_func,
-						 #reward_func=reward_func,
+		super().__init__(actions=list(Dir), 
 						 init_state=GridWorldState(init_state[0], init_state[1]),
 						 gamma=gamma)
 		self.height = height
 		self.width = width
 		self.slip_prob = slip_prob
-		self.goal_location = goal_location
+		if goal_location is None:
+			self.goal_location = [(width, height)]
+		else:
+			self.goal_location = goal_location
 		self.goal_value = goal_value
 		self.walls = []
 

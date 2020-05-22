@@ -4,6 +4,7 @@ from GridWorld.ActionEnums import Dir
 from GridWorld.GridWorldStateClass import GridWorldState
 from Agent.AgentClass import Agent 
 import random 
+import numpy as np 
 
 
 def go_right(state):
@@ -51,11 +52,38 @@ def apply_trajectory(agent, action_list):
 
 def main(): 
 
-	grid_mdp = GridWorldMDP(slip_prob=0.0, gamma=1.0)
+	grid_mdp = GridWorldMDP(height=3, width=2, slip_prob=0.0, gamma=0.95)
 
-	agent = Agent(grid_mdp, None)
-	agent.set_current_state(GridWorldState(9,9))
+	agent = Agent(grid_mdp)
+	agent.set_current_state(GridWorldState(1,1))
 
+	print(grid_mdp.goal_location)
+
+	# Testing if epsilon-greedy policy works properly 
+	trajectory = [] 
+	for i in range(100):
+		print("At step", i)
+		print("parameters are", agent._alpha, agent.mdp.gamma)
+		current_state, action, next_state, _ = agent.act()
+		print("At", str(current_state), "took action", action, "got to", str(next_state))
+		print("Values learned for", str(current_state), "is")
+		print_action_values(agent.get_action_values(current_state))
+		trajectory.append(current_state)
+		print()
+
+	#print("Went through the following states:")
+	#for state in trajectory:
+	#	print(str(state))
+	already_printed = [] 
+	for state in trajectory:
+		if state not in already_printed:
+			print("values learned at state", state)
+			print_action_values(agent.get_action_values(state))
+			already_printed.append(state)
+
+	# Testing a few trajectories to make sure the q-table updates
+	# properly 
+	'''
 	test_trajectory = [Dir.UP, Dir.RIGHT, Dir.UP, Dir.RIGHT]
 	for i in range(5):
 		apply_trajectory(agent, test_trajectory)
@@ -67,6 +95,7 @@ def main():
 
 	test_trajectory = [Dir.UP, Dir.UP, Dir.RIGHT, Dir.RIGHT]
 	apply_trajectory(agent, test_trajectory)
+	'''
 	
 	# Testing motion, reward at goal state, and reset to 
 	# initial state at terminal state 
