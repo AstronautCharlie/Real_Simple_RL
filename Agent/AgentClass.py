@@ -66,15 +66,16 @@ class Agent():
 		""" This is a stub! """
 		'''
 		self._epsilon *= 1.0
-		self._alpha *= 0.98
+		self._alpha *= 0.999
 
-	# ---------------------------
-	# Main act & update functions
-	# ---------------------------
+	# --------------
+	# Main functions
+	# --------------
 
-	def act(self):
+	def explore(self):
 		'''
-		Apply epsilon-greedy 
+		Apply epsilon-greedy exploration and update q-table with 
+		with the resulting data 
 
 		Returns: 
 			current_state:GridWorldState, the state the agent was in 
@@ -101,6 +102,23 @@ class Agent():
 
 		return current_state, action, next_state, reward 
 
+	def apply_best_action(self):
+		'''
+		Apply the best action based on the agent's current q-table
+		values. Does not update the agent's q-table 
+		'''	
+		current_state = self.get_current_state() 
+		best_action = self.get_best_action(current_state)
+		next_state, reward = self.mdp.act(current_state, best_action)
+
+		if (next_state.x, next_state.y) in self.mdp.goal_location:
+			self.set_current_state(self.mdp.get_init_state())
+		else: 
+			self.set_current_state(next_state)
+
+		return current_state, best_action, next_state
+
+
 	def apply_action(self, action):
 		'''
 		Apply the given action to agent's current state, get 
@@ -112,11 +130,12 @@ class Agent():
 		'''
 		current_state = self.get_current_state() 
 		next_state, reward = self.mdp.act(current_state, action)
-		self.update(current_state, action, next_state, reward)
+		#self.update(current_state, action, next_state, reward)
 		if (next_state.x, next_state.y) in self.mdp.goal_location:
 			self.set_current_state(self.mdp.get_init_state())
 		else: 
 			self.set_current_state(next_state) 
+		return current_state, action, next_state
 
 
 	def update(self, state, action, next_state, reward):
@@ -136,9 +155,16 @@ class Agent():
 		self._set_q_value(state, action, new_q_value)
 		
 
-	# -------------------
-	# Getters and setters  
-	# -------------------
+	# --------------------------
+	# Getters, setters & utility
+	# --------------------------
+
+	def reset_to_init(self):
+		'''
+		Reset the agent's current state to the initial state in the 
+		mdp 
+		'''
+		self.set_current_state(self.mdp.get_init_state())
 
 	def set_current_state(self, new_state):
 		'''

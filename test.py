@@ -52,7 +52,7 @@ def apply_trajectory(agent, action_list):
 
 def main(): 
 
-	grid_mdp = GridWorldMDP(height=3, width=2, slip_prob=0.0, gamma=0.95)
+	grid_mdp = GridWorldMDP(height=9, width=9, slip_prob=0.0, gamma=0.95, build_walls=True)
 
 	agent = Agent(grid_mdp)
 	agent.set_current_state(GridWorldState(1,1))
@@ -61,15 +61,15 @@ def main():
 
 	# Testing if epsilon-greedy policy works properly 
 	trajectory = [] 
-	for i in range(100):
-		print("At step", i)
-		print("parameters are", agent._alpha, agent.mdp.gamma)
-		current_state, action, next_state, _ = agent.act()
-		print("At", str(current_state), "took action", action, "got to", str(next_state))
-		print("Values learned for", str(current_state), "is")
-		print_action_values(agent.get_action_values(current_state))
+	for i in range(10000):
+		#print("At step", i)
+		#print("parameters are", agent._alpha, agent.mdp.gamma)
+		current_state, action, next_state, _ = agent.explore()
+		#print("At", str(current_state), "took action", action, "got to", str(next_state))
+		#print("Values learned for", str(current_state), "is")
+		#print_action_values(agent.get_action_values(current_state))
 		trajectory.append(current_state)
-		print()
+		#print()
 
 	#print("Went through the following states:")
 	#for state in trajectory:
@@ -77,9 +77,16 @@ def main():
 	already_printed = [] 
 	for state in trajectory:
 		if state not in already_printed:
-			print("values learned at state", state)
-			print_action_values(agent.get_action_values(state))
+			#print("values learned at state", state)
+			#print_action_values(agent.get_action_values(state))
 			already_printed.append(state)
+	#print(grid_mdp.walls)
+
+	agent.reset_to_init()
+
+	for i in range(25):
+		current_state, action, next_state = agent.apply_best_action()
+		print('At', str(current_state), 'taking action', str(action), 'now at', str(next_state))
 
 	# Testing a few trajectories to make sure the q-table updates
 	# properly 
