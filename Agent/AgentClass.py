@@ -88,14 +88,11 @@ class Agent():
 		# of applying action on state 
 		current_state = self.get_current_state()
 		action = self.epsilon_greedy(current_state)
-		next_state, reward = self.mdp.act(current_state, action)
+		next_state, reward = self.mdp.act(action)
 
 		# Update q-table, current_state, and learning parameters
 		self.update(current_state, action, next_state, reward)
-		if (next_state.x, next_state.y) in self.mdp.goal_location:
-			self.set_current_state(self.mdp.get_init_state())
-		else:
-			self.set_current_state(next_state)
+
 		if self.get_q_value(current_state, action) != 0:
 			self._update_learning_parameters()
 
@@ -108,13 +105,7 @@ class Agent():
 		'''	
 		current_state = self.get_current_state() 
 		best_action = self.get_best_action(current_state)
-		next_state, reward = self.mdp.act(current_state, best_action)
-
-		if (next_state.x, next_state.y) in self.mdp.goal_location:
-			self.set_current_state(self.mdp.get_init_state())
-		else: 
-			self.set_current_state(next_state)
-
+		next_state, reward = self.mdp.act(best_action)
 		return current_state, best_action, next_state
 
 
@@ -127,13 +118,8 @@ class Agent():
 		Parameters:
 			action:Enum
 		'''
-		current_state = self.get_current_state() 
-		next_state, reward = self.mdp.act(current_state, action)
-		#self.update(current_state, action, next_state, reward)
-		if (next_state.x, next_state.y) in self.mdp.goal_location:
-			self.set_current_state(self.mdp.get_init_state())
-		else: 
-			self.set_current_state(next_state) 
+		next_state, reward = self.mdp.act(action)
+		self.update(current_state, action, next_state, reward)
 		return current_state, action, next_state
 
 
@@ -165,14 +151,17 @@ class Agent():
 		'''
 		self.mdp.reset_to_init()
 
-	def set_current_state(self, new_state):
+
+	# Seems like Agent shouldn't have the ability to set the state 
+	# of the MDP 
+	#def set_current_state(self, new_state):
 		'''
 		Set current state of agent to given state
 
 		Parameters:
 			new_state:State
 		'''
-		self.mdp.set_current_state(new_state)
+	#	self.mdp.set_current_state(new_state)
 
 	def get_current_state(self):
 		'''
@@ -265,7 +254,7 @@ class Agent():
 			q-value:float
 		'''
 		return self._q_table[(state, action)]
-		
+
 	def get_mdp(self):
 		return self.mdp
 

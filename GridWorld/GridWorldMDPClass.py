@@ -18,7 +18,7 @@ class GridWorldMDP(MDP):
 				 slip_prob=0.05,
 				 goal_location=None,
 				 goal_value=1.0,
-				 build_walls=False
+				 build_walls=True
 				 ):
 		'''
 		Do we want to explicitly set the walls or have functions
@@ -127,9 +127,6 @@ class GridWorldMDP(MDP):
 		#print("transitioning from state", str(state), 
 		#		"with action", action)
 		next_state = state
-		# If terminal, do nothing
-		if state.is_terminal():
-			return self.init_state
 
 		# Apply slip probability and change action if applicable
 		if random.random() < self.slip_prob:
@@ -174,10 +171,11 @@ class GridWorldMDP(MDP):
 	# Main act function
 	# -----------------
 
-	def act(self, state, action):
+	def act(self, action):
 		'''
-		Given a state and an action (both supplied by the Agent), return the 
-		next state and the reward gotten from that next state 
+		Given an action supplied by the agent, apply the action to the current state
+		via the transition function, update the current state to the next state,
+		and return the next state and the reward gotten from that next state 
 
 		If the agent reaches the goal state, reset to initial state
 
@@ -190,6 +188,7 @@ class GridWorldMDP(MDP):
 			reward:float 
 		'''
 		# Apply the transition and reward functions
+		state = self.current_state
 		next_state = self.transition(state, action)
 		reward = self.reward(state, action, next_state)
 
