@@ -16,6 +16,7 @@ class MDP():
 		#self.transition_func = transition_func
 		#self.reward_func = reward_func
 		self.init_state = init_state 
+		self.current_state = init_state 
 		self.gamma = gamma 
 		'''
 		I think it makes sense to store the goal state (if any) 

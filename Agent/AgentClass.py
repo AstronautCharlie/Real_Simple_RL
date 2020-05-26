@@ -27,7 +27,6 @@ class Agent():
 			dictionaries; similar to what David used
 		'''
 		self.mdp = mdp
-		self._current_state = mdp.get_init_state()
 		self._q_table = defaultdict(lambda : 0.0)
 		self._alpha = alpha
 		self._init_alpha = alpha 
@@ -164,7 +163,7 @@ class Agent():
 		Reset the agent's current state to the initial state in the 
 		mdp 
 		'''
-		self.set_current_state(self.mdp.get_init_state())
+		self.mdp.reset_to_init()
 
 	def set_current_state(self, new_state):
 		'''
@@ -173,13 +172,13 @@ class Agent():
 		Parameters:
 			new_state:State
 		'''
-		self._current_state = new_state 
+		self.mdp.set_current_state(new_state)
 
 	def get_current_state(self):
 		'''
 		Get current state of agent 
 		'''
-		return self._current_state
+		return self.mdp.get_current_state()
 
 	def get_best_action_value_pair(self, state):
 		'''
@@ -266,6 +265,7 @@ class Agent():
 			q-value:float
 		'''
 		return self._q_table[(state, action)]
+		
 	def get_mdp(self):
 		return self.mdp
 

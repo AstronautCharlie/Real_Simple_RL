@@ -46,14 +46,21 @@ class GridWorldMDP(MDP):
 	# -----------------
 	def get_height(self):
 		return self.height
+
 	def get_width(self):
 		return self.width
+
 	def get_init_state(self):
 		'''
 		Return GridWorldState with data = self.init_state
 		'''
 		return self.init_state
 
+	def get_current_state(self):
+		return self.current_state 
+
+	def set_current_state(self, state):
+		self.current_state = state 
 
 	# -----------------
 	# Utility functions 
@@ -96,6 +103,12 @@ class GridWorldMDP(MDP):
 			walls.append((half_width, j))
 
 		return walls 
+
+	def reset_to_init(self):
+		'''
+		Reset current state to initial state 
+		'''
+		self.set_current_state(self.get_init_state())
 
 	# -------------------------------
 	# Transition and reward functions 
@@ -180,9 +193,12 @@ class GridWorldMDP(MDP):
 		next_state = self.transition(state, action)
 		reward = self.reward(state, action, next_state)
 
-		# If the next state is in the goal locaton, set next_state
-		# to initial state and return that 
-		#if self.is_goal_state(next_state):
-		#	next_state = self.init_state
+		# Update current state to the result of the transition
+		self.set_current_state(next_state)
+
+		# If the next state is in the goal locaton, set current_state 
+		# to initial state. Still returns next state  
+		if self.is_goal_state(next_state):
+			self.reset_to_init()
 
 		return next_state, reward

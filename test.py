@@ -80,8 +80,8 @@ def main():
 	already_printed = [] 
 	for state in trajectory:
 		if state not in already_printed:
-			#print("values learned at state", state)
-			#print_action_values(agent.get_action_values(state))
+			print("values learned at state", state)
+			print_action_values(agent.get_action_values(state))
 			already_printed.append(state)
 	#print(grid_mdp.walls)
 
