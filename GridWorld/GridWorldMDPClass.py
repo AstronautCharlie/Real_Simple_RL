@@ -44,6 +44,10 @@ class GridWorldMDP(MDP):
 	# -----------------
 	# Getters & setters 
 	# -----------------
+	def get_height(self):
+		return self.height
+	def get_width(self):
+		return self.width
 	def get_init_state(self):
 		'''
 		Return GridWorldState with data = self.init_state
@@ -181,4 +185,4 @@ class GridWorldMDP(MDP):
 		#if self.is_goal_state(next_state):
 		#	next_state = self.init_state
 
-		return next_state, reward 
+		return next_state, reward

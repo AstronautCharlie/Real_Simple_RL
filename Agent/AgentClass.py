@@ -266,6 +266,8 @@ class Agent():
 			q-value:float
 		'''
 		return self._q_table[(state, action)]
+	def get_mdp(self):
+		return self.mdp
 
 	def _set_q_value(self, state, action, new_value):
 		'''

@@ -50,7 +50,10 @@ def apply_trajectory(agent, action_list):
 		print_action_values(agent.get_action_values(state))
 		print()
 
-def main(): 
+
+
+
+def main():
 
 	grid_mdp = GridWorldMDP(height=9, width=9, slip_prob=0.0, gamma=0.95, build_walls=True)
 
