@@ -1,4 +1,4 @@
-from  Vizualizer.GridWorldVisualizer import GridWorldVisualizer
+from Visualizer.GridWorldVisualizer import GridWorldVisualizer
 from GridWorld.GridWorldMDPClass import GridWorldMDP
 from Agent.AgentClass import Agent
 from GridWorld.GridWorldStateClass import GridWorldState
