@@ -23,11 +23,20 @@ class MDP():
 			gamma: float 
 		'''
 
-	# -------
-	# Getters 
-	# -------
+	# -----------------
+	# Getters & setters
+	# -----------------
 	def get_init_state(self):
 		return self.init_state 
+
+	def get_current_state(self):
+		return self.current_state
+
+	def set_current_state(self, state):
+		'''
+		:param state:State
+		'''
+		self.current_state = state
 
 	#@abc.abstractmethod
 	#def transition(self, state, action):

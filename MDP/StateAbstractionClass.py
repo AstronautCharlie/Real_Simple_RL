@@ -34,3 +34,30 @@ class StateAbstraction():
 			return self.abstr_dict[state]
 		else:
 			return state 
+
+	def __str__(self):
+		abstr_states_temp = list(self.abstr_dict.values())
+
+		abstr_states = [] 
+		for state in abstr_states_temp:
+			if state not in abstr_states:
+				abstr_states.append(state)
+
+		result = "" 
+
+		abstr_states.sort()
+		for state in abstr_states:
+			for key in self.abstr_dict.keys():
+				if self.abstr_dict[key] == state:
+					result += 'ground -> abstr: ' + str(key) + ' -> ' + str(self.abstr_dict[key])
+					result += '\n'
+		return result 
+		'''
+		for state in abstr_dict.keys():
+			if 
+		result = "" 
+		for key in self.abstr_dict.keys():
+			result += "ground -> abstr: " + str(key) + ' -> ' + str(self.abstr_dict[key])
+			result += "\n"
+		return result
+		'''

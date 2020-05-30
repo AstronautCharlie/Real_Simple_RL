@@ -20,12 +20,7 @@ class GridWorldMDP(MDP):
 				 goal_value=1.0,
 				 build_walls=True
 				 ):
-		'''
-		Do we want to explicitly set the walls or have functions
-		to calculate the walls? 
-		'''
-
-		super().__init__(actions=list(Dir), 
+		super().__init__(actions=list(Dir),
 						 init_state=GridWorldState(init_state[0], init_state[1]),
 						 gamma=gamma)
 		self.height = height

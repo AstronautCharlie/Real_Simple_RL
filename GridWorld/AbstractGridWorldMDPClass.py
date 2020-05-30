@@ -46,6 +46,14 @@ class AbstractGridWorldMDP(GridWorldMDP):
 		'''
 		self.state_abstr.get_abstr_from_ground(state) 
 
+	# -------
+	# Utility
+	# -------
+	def __str__(self):
+		result = '' 
+		for key in self.state_abstr.keys():
+			result += str(key) + ' : ' + str(self.state_abstr[key]) + '\n'
+
 	# -----------------
 	# Main act function 
 	# -----------------

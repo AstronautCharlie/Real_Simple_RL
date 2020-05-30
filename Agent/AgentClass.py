@@ -13,8 +13,8 @@ import copy
 class Agent():
 	def __init__(self, 
 				 mdp,
-				 alpha=1.0,
-				 epsilon=1.0):
+				 alpha=0.1,
+				 epsilon=0.1):
 		'''
 		Parameters:
 			mdp: MDP
@@ -32,6 +32,7 @@ class Agent():
 		self._init_alpha = alpha 
 		self._epsilon = epsilon
 		self._init_epsilon = epsilon 
+		self._step_counter = 0 
 
 	# ---------------------
 	# Exploration functions
@@ -62,10 +63,11 @@ class Agent():
 		Update the self._epsilon and self._alpha parameters after 
 		taking an epsilon-greedy step 
 
-		""" This is a stub! """
+		Currently taken from David Abel's _anneal function, assumes 
+		episode number is always 1 
 		'''
-		self._epsilon *= 1.0
-		self._alpha *= 0.999
+		self._epsilon = self._init_epsilon / (1.0 + (self._step_counter / 2000000))
+		self._alpha = self._init_alpha / (1.0 + (self._step_counter / 2000000))
 
 	# --------------
 	# Main functions
@@ -95,6 +97,7 @@ class Agent():
 
 		if self.get_q_value(current_state, action) != 0:
 			self._update_learning_parameters()
+		self._step_counter += 1 
 
 		return current_state, action, next_state, reward 
 
@@ -150,6 +153,8 @@ class Agent():
 		mdp 
 		'''
 		self.mdp.reset_to_init()
+		self._alpha = self._init_alpha
+		self._epsilon = self._init_epsilon
 
 
 	# Seems like Agent shouldn't have the ability to set the state 
@@ -194,7 +199,7 @@ class Agent():
 			q_value = self.get_q_value(state, action)
 			if q_value > max_val:
 				max_val = q_value 
-				best_action = action 
+				best_action = action
 		return best_action, max_val 
 
 	def get_best_action(self, state):
@@ -257,6 +262,9 @@ class Agent():
 
 	def get_mdp(self):
 		return self.mdp
+
+	def get_q_table(self):
+		return self._q_table
 
 	def _set_q_value(self, state, action, new_value):
 		'''
