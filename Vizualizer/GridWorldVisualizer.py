@@ -10,7 +10,7 @@ GREEN = (34, 139, 34)
 RED = (255, 0, 0)
 DARK_RED = (89, 6, 16)
 class GridWorldVisualizer():
-    def __init__(self,mdp,agent, screen_width=1000, screen_height=1000,cell_size=30,margin=1):
+    def __init__(self,mdp,agent, screen_width=1000, screen_height=1000,cell_size=50,margin=1):
         self.mdp =mdp
         self.agent = agent
         self.screen_width = screen_width
@@ -159,9 +159,6 @@ class GridWorldVisualizer():
             screen.blit(mdp_and_action, (0, 0))
             pygame.display.flip()
 
-
-
-
     def visualizeExploration(self,steps,alpha_gain=10):
         #TODO add another surface visualizing distribution of policies
         """
@@ -195,7 +192,7 @@ class GridWorldVisualizer():
 
     def visualizeLearnedPolicy(self):
         """
-        Run after a pollicy is learnt, visualized the best policy learned by the agent so far
+        Run after a policy is learnt, visualized the best policy learned by the agent so far
         :return:
         """
 
