@@ -13,8 +13,8 @@ import copy
 class Agent():
 	def __init__(self, 
 				 mdp,
-				 alpha=1.0,
-				 epsilon=1.0):
+				 alpha=0.1,
+				 epsilon=0.1):
 		'''
 		Parameters:
 			mdp: MDP
@@ -27,12 +27,12 @@ class Agent():
 			dictionaries; similar to what David used
 		'''
 		self.mdp = mdp
-		self._current_state = mdp.get_init_state()
 		self._q_table = defaultdict(lambda : 0.0)
 		self._alpha = alpha
 		self._init_alpha = alpha 
 		self._epsilon = epsilon
 		self._init_epsilon = epsilon 
+		self._step_counter = 0 
 
 	# ---------------------
 	# Exploration functions
@@ -63,10 +63,11 @@ class Agent():
 		Update the self._epsilon and self._alpha parameters after 
 		taking an epsilon-greedy step 
 
-		""" This is a stub! """
+		Currently taken from David Abel's _anneal function, assumes 
+		episode number is always 1 
 		'''
-		self._epsilon *= 1.0
-		self._alpha *= 0.999
+		self._epsilon = self._init_epsilon / (1.0 + (self._step_counter / 2000000))
+		self._alpha = self._init_alpha / (1.0 + (self._step_counter / 2000000))
 
 	# --------------
 	# Main functions
@@ -89,16 +90,14 @@ class Agent():
 		# of applying action on state 
 		current_state = self.get_current_state()
 		action = self.epsilon_greedy(current_state)
-		next_state, reward = self.mdp.act(current_state, action)
+		next_state, reward = self.mdp.act(action)
 
 		# Update q-table, current_state, and learning parameters
 		self.update(current_state, action, next_state, reward)
-		if (next_state.x, next_state.y) in self.mdp.goal_location:
-			self.set_current_state(self.mdp.get_init_state())
-		else:
-			self.set_current_state(next_state)
+
 		if self.get_q_value(current_state, action) != 0:
 			self._update_learning_parameters()
+		self._step_counter += 1 
 
 		return current_state, action, next_state, reward 
 
@@ -109,13 +108,7 @@ class Agent():
 		'''	
 		current_state = self.get_current_state() 
 		best_action = self.get_best_action(current_state)
-		next_state, reward = self.mdp.act(current_state, best_action)
-
-		if (next_state.x, next_state.y) in self.mdp.goal_location:
-			self.set_current_state(self.mdp.get_init_state())
-		else: 
-			self.set_current_state(next_state)
-
+		next_state, reward = self.mdp.act(best_action)
 		return current_state, best_action, next_state
 
 
@@ -128,13 +121,8 @@ class Agent():
 		Parameters:
 			action:Enum
 		'''
-		current_state = self.get_current_state() 
-		next_state, reward = self.mdp.act(current_state, action)
-		#self.update(current_state, action, next_state, reward)
-		if (next_state.x, next_state.y) in self.mdp.goal_location:
-			self.set_current_state(self.mdp.get_init_state())
-		else: 
-			self.set_current_state(next_state) 
+		next_state, reward = self.mdp.act(action)
+		self.update(current_state, action, next_state, reward)
 		return current_state, action, next_state
 
 
@@ -164,22 +152,27 @@ class Agent():
 		Reset the agent's current state to the initial state in the 
 		mdp 
 		'''
-		self.set_current_state(self.mdp.get_init_state())
+		self.mdp.reset_to_init()
+		self._alpha = self._init_alpha
+		self._epsilon = self._init_epsilon
 
-	def set_current_state(self, new_state):
+
+	# Seems like Agent shouldn't have the ability to set the state 
+	# of the MDP 
+	#def set_current_state(self, new_state):
 		'''
 		Set current state of agent to given state
 
 		Parameters:
 			new_state:State
 		'''
-		self._current_state = new_state 
+	#	self.mdp.set_current_state(new_state)
 
 	def get_current_state(self):
 		'''
 		Get current state of agent 
 		'''
-		return self._current_state
+		return self.mdp.get_current_state()
 
 	def get_best_action_value_pair(self, state):
 		'''
@@ -206,7 +199,7 @@ class Agent():
 			q_value = self.get_q_value(state, action)
 			if q_value > max_val:
 				max_val = q_value 
-				best_action = action 
+				best_action = action
 		return best_action, max_val 
 
 	def get_best_action(self, state):
@@ -266,8 +259,12 @@ class Agent():
 			q-value:float
 		'''
 		return self._q_table[(state, action)]
+
 	def get_mdp(self):
 		return self.mdp
+
+	def get_q_table(self):
+		return self._q_table
 
 	def _set_q_value(self, state, action, new_value):
 		'''

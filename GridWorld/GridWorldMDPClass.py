@@ -18,14 +18,9 @@ class GridWorldMDP(MDP):
 				 slip_prob=0.05,
 				 goal_location=None,
 				 goal_value=1.0,
-				 build_walls=False
+				 build_walls=True
 				 ):
-		'''
-		Do we want to explicitly set the walls or have functions
-		to calculate the walls? 
-		'''
-
-		super().__init__(actions=list(Dir), 
+		super().__init__(actions=list(Dir),
 						 init_state=GridWorldState(init_state[0], init_state[1]),
 						 gamma=gamma)
 		self.height = height
@@ -46,14 +41,21 @@ class GridWorldMDP(MDP):
 	# -----------------
 	def get_height(self):
 		return self.height
+
 	def get_width(self):
 		return self.width
+
 	def get_init_state(self):
 		'''
 		Return GridWorldState with data = self.init_state
 		'''
 		return self.init_state
 
+	def get_current_state(self):
+		return self.current_state 
+
+	def set_current_state(self, state):
+		self.current_state = state 
 
 	# -----------------
 	# Utility functions 
@@ -97,6 +99,12 @@ class GridWorldMDP(MDP):
 
 		return walls 
 
+	def reset_to_init(self):
+		'''
+		Reset current state to initial state 
+		'''
+		self.set_current_state(self.get_init_state())
+
 	# -------------------------------
 	# Transition and reward functions 
 	# -------------------------------
@@ -114,9 +122,6 @@ class GridWorldMDP(MDP):
 		#print("transitioning from state", str(state), 
 		#		"with action", action)
 		next_state = state
-		# If terminal, do nothing
-		if state.is_terminal():
-			return self.init_state
 
 		# Apply slip probability and change action if applicable
 		if random.random() < self.slip_prob:
@@ -161,10 +166,11 @@ class GridWorldMDP(MDP):
 	# Main act function
 	# -----------------
 
-	def act(self, state, action):
+	def act(self, action):
 		'''
-		Given a state and an action (both supplied by the Agent), return the 
-		next state and the reward gotten from that next state 
+		Given an action supplied by the agent, apply the action to the current state
+		via the transition function, update the current state to the next state,
+		and return the next state and the reward gotten from that next state 
 
 		If the agent reaches the goal state, reset to initial state
 
@@ -177,12 +183,16 @@ class GridWorldMDP(MDP):
 			reward:float 
 		'''
 		# Apply the transition and reward functions
+		state = self.current_state
 		next_state = self.transition(state, action)
 		reward = self.reward(state, action, next_state)
 
-		# If the next state is in the goal locaton, set next_state
-		# to initial state and return that 
-		#if self.is_goal_state(next_state):
-		#	next_state = self.init_state
+		# Update current state to the result of the transition
+		self.set_current_state(next_state)
+
+		# If the next state is in the goal locaton, set current_state 
+		# to initial state. Still returns next state  
+		if self.is_goal_state(next_state):
+			self.reset_to_init()
 
 		return next_state, reward

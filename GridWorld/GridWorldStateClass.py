@@ -27,3 +27,13 @@ class GridWorldState(State):
 
 	def __eq__(self, other):
 		return isinstance(other, GridWorldState) and self.x == other.x and self.y == other.y
+
+	def __lt__(self, other):
+		'''
+		Required to for numpy.unique() to work. Arbitrarily defined
+		as that one state is 'less' than another if the x coordinate
+		is smaller or if the x coordinates are the same and the y 
+		coordinate is smaller 
+		'''
+		return self.x < other.x or (self.x == other.x and self.y < other.y)
+	
