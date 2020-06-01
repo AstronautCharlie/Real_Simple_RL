@@ -1,6 +1,7 @@
 import pygame
 import sys
 from GridWorld.ActionEnums import Dir
+from GridWorld.GridWorldStateClass import  GridWorldState
 
 # Define some colors
 BLACK = (0, 0, 0)
@@ -189,7 +190,8 @@ class GridWorldVisualizer():
 
     def visualizeLearnedTrajectory(self, steps, alpha_gain=10):
         """
-        Run after a policy is learnt, visualized the best policy learned by the agent so far
+        Run after a policy is learnt, visualize the the trajectory learned (starting at initial state) and taking
+        the given number of steps
         :return:
         """
         screen = pygame.display.set_mode([self.screen_width, self.screen_height])
@@ -212,6 +214,40 @@ class GridWorldVisualizer():
             mdp_and_agent_and_action = self.placeAction(action_img,current_state,mdp_and_agent)
             screen.blit(mdp_and_agent_and_action, (0, 0))
             pygame.display.flip()
+
+
+    def visualizeLearnedPolicy(self):
+        """
+        Shows best action learned at each state of the MDP
+        :return:
+        """
+        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
+        mdp_env = self.createGridWorldMDP()
+        agent = self.createGridWorldAgent()
+        WIDTH_DIM = self.mdp.get_width()
+        HEIGHT_DIM = self.mdp.get_height()
+        walls = self.mdp._compute_walls()
+        pygame.init()
+        complete_viz = False
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: sys.exit()
+            if (not complete_viz):
+                for col_idx, column in enumerate(range(1, HEIGHT_DIM + 1, 1)):
+                    for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
+                        if(not (column, row) in walls):
+                            state = GridWorldState(column,row)
+                            print(state)
+                            best_action = self.agent.get_best_action(state)
+                            action_img = self.createAction(best_action)
+                            mdp_and_action = self.placeAction(action_img, state, mdp_env)
+                            screen.blit(mdp_and_action, (0, 0))
+                            pygame.display.flip()
+            complete_viz = True
+
+
+
+
 
 
 
