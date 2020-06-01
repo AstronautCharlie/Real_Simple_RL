@@ -108,7 +108,7 @@ class GridWorldVisualizer():
         :param action:
         :return:
         """
-        right_arrow = pygame.image.load("resources/arrow-icon-arrow-right.jpg")
+        right_arrow = pygame.image.load("viz_resources/arrow-icon-arrow-right.jpg")
         right_arrow = pygame.transform.scale(right_arrow,(self.agent_size,self.agent_size))
         if action==Dir.RIGHT:
             return right_arrow
