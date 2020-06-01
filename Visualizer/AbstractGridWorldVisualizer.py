@@ -92,3 +92,69 @@ class AbstractGridWorldVisualizer():
 
                 screen.blit(mdp_env, (0, 0))
                 pygame.display.flip()
+
+    def createAction(self,action):
+        """
+        Creates and returns a pygame surface representing the given action
+        :param action:
+        :return:
+        """
+        right_arrow = pygame.image.load("viz_resources/right_arrow.png")
+        right_arrow = pygame.transform.scale(right_arrow,(self.agent_size,self.agent_size))
+        if action==Dir.RIGHT:
+            return right_arrow
+        up_arrow = right_arrow.copy()
+        up_arrow = pygame.transform.rotate(up_arrow, 90)
+        if action==Dir.UP:
+            return up_arrow
+        left_arrow = up_arrow.copy()
+        left_arrow = pygame.transform.rotate(left_arrow, 90)
+        if action == Dir.LEFT:
+            return left_arrow
+        down_arrow = left_arrow.copy()
+        down_arrow = pygame.transform.rotate(down_arrow, 90)
+        return down_arrow
+
+    def placeAction(self,action_surface,ground_state,mdpSurface):
+        """
+        Returns a PyGame surface with the given action placed on the given fround state in the mdp
+        :param action: the action we want to display
+        :return:
+        """
+        action_rect = action_surface.get_rect()
+        mdp_env_rect = mdpSurface.get_rect()
+
+        action_rect.left = ((self.margin + self.cell_size) * (ground_state.x - 1)) + self.margin
+        # since indexing for state starts on bottom left
+        action_rect.top = (mdp_env_rect.height - ((self.margin + self.cell_size) * (ground_state.y))) + self.margin
+        mdpSurface.blit(action_surface, action_rect)
+        return mdpSurface
+    def visualizeLearnedPolicy(self):
+        """
+        Shows best action learned at each state of the MDP
+        :return:
+        """
+        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
+        mdp_env = self.createAbstractGridWorldMDP()
+        WIDTH_DIM = self.mdp.get_width()
+        HEIGHT_DIM = self.mdp.get_height()
+        walls = self.mdp._compute_walls()
+        pygame.init()
+        complete_viz = False
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: sys.exit()
+            if (not complete_viz):
+                for col_idx, column in enumerate(range(1, HEIGHT_DIM + 1, 1)):
+                    for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
+                        if(not (column, row) in walls):
+                            ground_state = GridWorldState(column, row)
+                            abs_state = self.mdp.get_abstr_from_ground(ground_state)
+                            print("abs_state", abs_state)
+                            best_action = self.agent.get_best_action(abs_state)
+                            print(best_action)
+                            action_img = self.createAction(best_action)
+                            mdp_and_action = self.placeAction(action_img, ground_state, mdp_env)
+                            screen.blit(mdp_and_action, (0, 0))
+                            pygame.display.flip()
+            complete_viz = True

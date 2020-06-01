@@ -14,5 +14,12 @@ for i in range(100000):
     current_state, action, next_state, _ = agent.explore()
 state_abstr = make_abstr(agent.get_q_table(), Abstr_type.Q_STAR, epsilon=0.05)
 abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=state_abstr)
-abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,agent)
-abs_g_viz.displayAbstractMDP()
+abs_agent = Agent(abstr_grid_mdp)
+abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,abs_agent)
+#abs_g_viz.displayAbstractMDP()
+for i in range(100000):
+    if i % 1000 == 0:
+        print("epsilon, alpha:", agent._epsilon, agent._alpha)
+    current_state, action, next_state,_  = abs_agent.explore()
+
+abs_g_viz.visualizeLearnedPolicy()

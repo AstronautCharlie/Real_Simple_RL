@@ -223,7 +223,6 @@ class GridWorldVisualizer():
         """
         screen = pygame.display.set_mode([self.screen_width, self.screen_height])
         mdp_env = self.createGridWorldMDP()
-        agent = self.createGridWorldAgent()
         WIDTH_DIM = self.mdp.get_width()
         HEIGHT_DIM = self.mdp.get_height()
         walls = self.mdp._compute_walls()
