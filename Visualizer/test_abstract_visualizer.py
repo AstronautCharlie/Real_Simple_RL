@@ -13,10 +13,6 @@ for i in range(100000):
         print("epsilon, alpha:", agent._epsilon, agent._alpha)
     current_state, action, next_state, _ = agent.explore()
 state_abstr = make_abstr(agent.get_q_table(), Abstr_type.Q_STAR, epsilon=0.05)
-print(state_abstr.abstr_dict[GridWorldState(1,1)])
-# abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=state_abstr)
-# print(abstr_grid_mdp.get_abstr_from_ground(GridWorldState(1,1)))
-#
-
-# abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,agent)
-# abs_g_viz.displayAbstractMDP()
+abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=state_abstr)
+abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,agent)
+abs_g_viz.displayAbstractMDP()

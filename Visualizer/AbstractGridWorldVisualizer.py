@@ -57,16 +57,16 @@ class AbstractGridWorldVisualizer():
                 else:
                     ground_state = GridWorldState(column,row)
                     abs_state = self.mdp.get_abstr_from_ground(ground_state)
-                    print(ground_state)
+                    print("ground state", ground_state)
+                    print("abstract state", abs_state)
 
-                    if ( abs_state in abs_to_color.keys()):
-                        color = abs_to_color[abs_state]
+                    if (abs_state in abs_to_color):
+                        new_color = abs_to_color[abs_state]
                     else:
                         new_color = rand_color.generate()
                         while ( new_color in abs_to_color.values()):
                             new_color = rand_color.generate()
                         abs_to_color[abs_state] = new_color
-                    print(new_color[0])
                     color = pygame.Color(new_color[0])
                 pygame.draw.rect(screen,
                                  color,
