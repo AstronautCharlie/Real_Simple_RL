@@ -126,8 +126,8 @@ class Agent():
 			action:Enum
 		'''
 		next_state, reward = self.mdp.act(action)
-		self.update(current_state, action, next_state, reward)
-		return current_state, action, next_state
+		#self.update(current_state, action, next_state, reward)
+		return action, next_state
 
 
 	def update(self, state, action, next_state, reward):
@@ -163,14 +163,14 @@ class Agent():
 
 	# Seems like Agent shouldn't have the ability to set the state 
 	# of the MDP 
-	#def set_current_state(self, new_state):
+	def set_current_state(self, new_state):
 		'''
 		Set current state of agent to given state
 
 		Parameters:
 			new_state:State
 		'''
-	#	self.mdp.set_current_state(new_state)
+		self.mdp.set_current_state(new_state)
 
 	def get_current_state(self):
 		'''
