@@ -8,7 +8,8 @@ its performance
 from collections import defaultdict
 import random 
 import numpy as np 
-import copy 
+import copy
+from GridWorld.GridWorldStateClass import GridWorldState
 
 class Agent():
 	def __init__(self, 
@@ -53,8 +54,11 @@ class Agent():
 		# random action. Otherwise pick best action 
 		if random.random() < self._epsilon:
 			action = np.random.choice(self.mdp.actions)
-		else: 
+		else:
+
 			action = self.get_best_action(state)
+			# if(state.__eq__(GridWorldState(1,1))):
+			# 	print(action)
 
 		return action 
 

@@ -115,7 +115,7 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 
 
 			# If they are a match, map them both to the same 
-			# unqiue abstract stated, identified by a 
+			# unique abstract stated, identified by a
 			# number 
 			if is_match:
 				print("matching", str(state), "to", str(other_state))
