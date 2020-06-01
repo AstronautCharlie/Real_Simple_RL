@@ -52,10 +52,10 @@ class GridWorldMDP(MDP):
 		return self.init_state
 
 	def get_current_state(self):
-		return self.current_state 
+		return self.current_state
 
 	def set_current_state(self, state):
-		self.current_state = state 
+		self.current_state = state
 
 	# -----------------
 	# Utility functions 

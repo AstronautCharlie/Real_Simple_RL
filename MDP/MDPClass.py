@@ -11,8 +11,8 @@ class MDP():
 				 init_state,
 				 gamma):
 		self.actions = actions 
-		self.init_state = init_state 
-		self.current_state = init_state 
+		self.init_state = init_state
+		self.current_state = init_state
 		self.gamma = gamma 
 		'''
 		Parameters: 
@@ -27,7 +27,7 @@ class MDP():
 	# Getters & setters
 	# -----------------
 	def get_init_state(self):
-		return self.init_state 
+		return self.init_state
 
 	def get_current_state(self):
 		return self.current_state
