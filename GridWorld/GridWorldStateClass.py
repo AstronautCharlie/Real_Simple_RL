@@ -36,4 +36,12 @@ class GridWorldState(State):
 		coordinate is smaller 
 		'''
 		return self.x < other.x or (self.x == other.x and self.y < other.y)
-	
+
+	# -----------------
+	# Getters & setters
+	# -----------------
+	def get_x(self):
+		return self.x
+
+	def get_y(self):
+		return self.y

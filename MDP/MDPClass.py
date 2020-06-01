@@ -67,3 +67,14 @@ class MDP():
 		Returns:
 			reward:float
 		'''
+
+	@abc.abstractmethod
+	def act(self, action):
+		'''
+		Take in an action, apply the transition function to the action
+		and current state, update the current state to the resulting
+		next state, and return the next state and reward
+		:param action:Enum
+		:return: next_state:State (specific to MDP)
+		:return: reward:float
+		'''

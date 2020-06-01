@@ -23,7 +23,7 @@ class AbstractGridWorldMDP(GridWorldMDP):
 							init_state=init_state,
 							gamma=gamma,
 							slip_prob=slip_prob,
-							goal_location=None,
+							goal_location=goal_location,
 							goal_value=goal_value,
 							build_walls=build_walls)
 		self.state_abstr = state_abstr 

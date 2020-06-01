@@ -2,4 +2,7 @@
 Test the TaxiMDP class
 '''
 
-from Taxi
+from GridWorld.TaxiMDPClass import TaxiMDP
+
+taxi = TaxiMDP()
+print(taxi)
