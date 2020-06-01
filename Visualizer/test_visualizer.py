@@ -25,7 +25,7 @@ for i in range(100000):
 #g_viz.visualizeExploration(100000)
 #g_viz.visualizeLearnedTrajectory(200)
 
-g_viz.visualizeLearnedPolicy()
+#g_viz.visualizeLearnedPolicy()
 
 
 

@@ -19,7 +19,6 @@ it started)
 '''
 
 from MDP.MDPClass import MDP
-from GridWorld.GridWorldStateClass import GridWorldState
 from GridWorld.TaxiActionEnums import Act
 from GridWorld.TaxiStateClass import TaxiState
 import random
@@ -51,15 +50,17 @@ class TaxiMDP(MDP):
 
         # MDP-specific fields, including passenger init and goal states
         # for bookkeeping
-        self._slip_prob = slip_prob
-        self._passenger_init = passenger_init
-        self._goal = goal
+        self.slip_prob = slip_prob
+        self.passenger_init = passenger_init
+        self.goal = goal
 
     # -----------------
     # Getters & setters
     # -----------------
     def has_passenger(self):
-        return self._current_state.get_passenger_loc() == (0,0)
+        return self.current_state.get_passenger_loc() == (0,0)
+
+    def 
 
     # --------------
     # Main functions
@@ -141,7 +142,7 @@ class TaxiMDP(MDP):
             result += "Passenger in taxi" + '\n'
         else:
             result += "Passenger at: " + str(self.passenger_init) + '\n'
-        result += "Drop off at " + str(self.passenger_goal)
+        result += "Drop off at " + str(self.goal)
 
         return result
 
