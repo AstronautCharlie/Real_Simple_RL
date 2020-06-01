@@ -38,7 +38,6 @@ class GridWorldVisualizer():
         screen = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGTH))
         window = pygame.Rect(0, 0, WINDOW_HEIGTH, WINDOW_WIDTH)
         walls = self.mdp._compute_walls()
-        print(walls)
         # draw background
         pygame.draw.rect(screen,
                          BLACK,
@@ -47,8 +46,6 @@ class GridWorldVisualizer():
 
         for col_idx, column in enumerate(range(1, HEIGHT_DIM + 1, 1)):
             for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
-                print(row_idx, col_idx)
-                print(row, column)
                 color = WHITE
                 if (column, row) in walls:
                     color = BLACK
@@ -110,7 +107,7 @@ class GridWorldVisualizer():
         :param action:
         :return:
         """
-        right_arrow = pygame.image.load("resources/arrow-icon-arrow-right.jpg")
+        right_arrow = pygame.image.load("C:/Users/Apra Gupta/Desktop/GRAIL/Real_Simple_RL/resources/arrow-icon-arrow-right.jpg")
         right_arrow = pygame.transform.scale(right_arrow,(self.agent_size,self.agent_size))
         if action==Dir.RIGHT:
             return right_arrow
@@ -134,10 +131,10 @@ class GridWorldVisualizer():
         """
         action_rect = action_surface.get_rect()
         mdp_env_rect = mdpSurface.get_rect()
-        cur_state = self.agent.get_current_state()
-        action_rect.left = ((self.margin + self.cell_size) * (cur_state.x - 1)) + self.margin
+
+        action_rect.left = ((self.margin + self.cell_size) * (state.x - 1)) + self.margin
         # since indexing for state starts on bottom left
-        action_rect.top = (mdp_env_rect.height - ((self.margin + self.cell_size) * (cur_state.y))) + self.margin
+        action_rect.top = (mdp_env_rect.height - ((self.margin + self.cell_size) * (state.y))) + self.margin
         mdpSurface.blit(action_surface, action_rect)
         return mdpSurface
 
@@ -182,19 +179,40 @@ class GridWorldVisualizer():
         for i in range(steps):
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: sys.exit()
+            mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
             current_state, action, next_state, _ = self.agent.explore()
             action_img = self.createAction(action)
             action_img.set_alpha(15)
-            mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
             mdp_and_agent_and_action = self.placeAction(action_img,current_state,mdp_and_agent)
             screen.blit(mdp_and_agent_and_action, (0, 0))
             pygame.display.flip()
 
-    def visualizeLearnedPolicy(self):
+    def visualizeLearnedPolicy(self, steps, alpha_gain=10):
         """
         Run after a policy is learnt, visualized the best policy learned by the agent so far
         :return:
         """
+        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
+        mdp_env = self.createGridWorldMDP()
+        agent = self.createGridWorldAgent()
+        agent.set_alpha(alpha_gain)
+        # see how often each state is visited
+
+
+
+        mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
+        pygame.init()
+        for i in range(steps):
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: sys.exit()
+            mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
+            current_state, action, next_state,  = self.agent.apply_best_action()
+            action_img = self.createAction(action)
+            action_img.set_alpha(15)
+            mdp_and_agent_and_action = self.placeAction(action_img,current_state,mdp_and_agent)
+            screen.blit(mdp_and_agent_and_action, (0, 0))
+            pygame.display.flip()
+
 
 
 
