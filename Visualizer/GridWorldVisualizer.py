@@ -187,7 +187,7 @@ class GridWorldVisualizer():
             screen.blit(mdp_and_agent_and_action, (0, 0))
             pygame.display.flip()
 
-    def visualizeLearnedPolicy(self, steps, alpha_gain=10):
+    def visualizeLearnedTrajectory(self, steps, alpha_gain=10):
         """
         Run after a policy is learnt, visualized the best policy learned by the agent so far
         :return:

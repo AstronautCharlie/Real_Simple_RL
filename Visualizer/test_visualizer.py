@@ -23,7 +23,7 @@ g_viz = GridWorldVisualizer(grid_mdp,agent)
 
 
 g_viz.visualizeExploration(100000)
-g_viz.visualizeLearnedPolicy(200)
+g_viz.visualizeLearnedTrajectory(200)
 
 
 
