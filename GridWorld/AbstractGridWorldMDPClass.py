@@ -44,7 +44,7 @@ class AbstractGridWorldMDP(GridWorldMDP):
 		'''
 		Get the abstr state corresponding to the given ground state 
 		'''
-		self.state_abstr.get_abstr_from_ground(state) 
+		return self.state_abstr.get_abstr_from_ground(state)
 
 	# -------
 	# Utility
