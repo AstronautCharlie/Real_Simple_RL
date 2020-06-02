@@ -2,9 +2,11 @@ from collections import defaultdict
 import numpy as np
 
 class ValueIteration():
-    def __init__(self,mdp, gamma):
+    def __init__(self,mdp, gamma, delta):
         self.mdp = mdp
         self.gamma = gamma
+        #stop when the learned q-values for all state action pairs are within delta of each other
+        self.delta = delta
         self._q_table = defaultdict(lambda: 0.0)
 
     def get_best_action_value_pair(self, state):
@@ -110,21 +112,25 @@ class ValueIteration():
 
     def doValueIteration(self,steps):
         all_states = self.mdp.get_all_possible_states()
-
+        stop = False
         for i in range(steps):
             #q table at i + 1'th iteration
-            Q_i = defaultdict(lambda: 0.0)
-            for state in all_states:
-                for action in self.mdp.actions:
-                    next_states = self.mdp.next_possible_states(state,action)
-                    q_value = 0
-                    for next_state in next_states.keys():
-                        next_state_cur_value = self.get_best_action_value(next_state)
-                        transition_prob = next_states[next_state]
-                        reward = self.mdp.reward(state,action,next_state)
-                        q_value += transition_prob*(reward + self.gamma*next_state_cur_value)
-                    Q_i[(state, action)] = q_value
-            self.update_q_table(Q_i)
+            if(stop == False):
+                print(i)
+                Q_i = defaultdict(lambda: 0.0)
+                stop = True
+                for state in all_states:
+                    for action in self.mdp.actions:
+                        next_states = self.mdp.next_possible_states(state,action)
+                        q_value = 0
+                        for next_state in next_states.keys():
+                            next_state_cur_value = self.get_best_action_value(next_state)
+                            transition_prob = next_states[next_state]
+                            reward = self.mdp.reward(state,action,next_state)
+                            q_value += transition_prob*(reward + self.gamma*next_state_cur_value)
+                        Q_i[(state, action)] = q_value
+                        stop = stop and (abs(q_value - self.get_q_value(state,action)) < self.delta )
+                self.update_q_table(Q_i)
 
 
 
