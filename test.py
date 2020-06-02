@@ -58,6 +58,11 @@ def apply_trajectory(agent, action_list):
 		print()
 
 
+
+
+
+
+
 # ---------
 # Main test 
 # ---------

@@ -147,6 +147,104 @@ class GridWorldMDP(MDP):
 
 		return next_state
 
+	def next_possible_states(self,state,action):
+		"""
+		For value iteration, part of model: given a state and an action, outputs a dictionary of State->probability
+		that gives each state that the agent can end up in from the given state if they took the given action and with what probability
+		:param state: State
+		:param action: ActionEnum
+		:return: dictionary of State->Float (probability, should be less than one)
+		"""
+		next_state_probs = {}
+		#set the probability of ending back at the current state as 0, so it can be incremented later
+		next_state_probs[state] = 0
+		up_state = GridWorldState(state.x, state.y + 1)
+		down_state = GridWorldState(state.x, state.y - 1)
+		left_state = GridWorldState(state.x - 1, state.y)
+		right_state = GridWorldState(state.x + 1, state.y)
+		#can the agent move left?
+		left_cond = (state.x > 1 and (state.x - 1, state.y) not in self.walls)
+		# can the agent move right?
+		right_cond = (state.x < self.width and (state.x + 1, state.y) not in self.walls)
+		# can the agent move down?
+		down_cond = (state.y > 1 and (state.x, state.y - 1) not in self.walls)
+		# can the agent move up
+		up_cond = (state.y < self.height and (state.x, state.y + 1) not in self.walls)
+		if action == Dir.UP:
+			if(up_cond):
+				next_state_probs[up_state] = 1 - self.slip_prob
+			else:
+				next_state_probs[state] += (1 - self.slip_prob)
+			#what if it slips?: it would either slip right or left
+			if(left_cond):
+				next_state_probs[left_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+			if (right_cond):
+				next_state_probs[right_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+		elif action == Dir.DOWN:
+			if(down_cond):
+				next_state_probs[down_state] = (1 - self.slip_prob)
+			else:
+				next_state_probs[state] += (1 - self.slip_prob)
+			#what if it slips?: it would either slip right or left
+			if(left_cond):
+				next_state_probs[left_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+			if (right_cond):
+				next_state_probs[right_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+		elif action == Dir.LEFT:
+			if(left_cond):
+				next_state_probs[left_state] = (1 - self.slip_prob)
+			else:
+				next_state_probs[state] += (1 - self.slip_prob)
+			#what if it slips?: it would either slip up or down
+			if(up_cond):
+				next_state_probs[up_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+			if (down_cond):
+				next_state_probs[down_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+		elif action == Dir.RIGHT:
+			if(right_cond):
+				next_state_probs[right_state] = 1 - self.slip_prob
+			else:
+				next_state_probs[state] += (1 - self.slip_prob)
+			#what if it slips?: it would either slip up or down
+			if(up_cond):
+				next_state_probs[up_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+			if (down_cond):
+				next_state_probs[down_state] = self.slip_prob/2
+			else:
+				next_state_probs[state] += self.slip_prob/2
+
+			#In the end remove keys whose value is 0
+		next_state_probs  = {k: v for k, v in next_state_probs.items() if v}
+		return next_state_probs
+
+	def get_all_possible_states(self):
+		"""
+		Returns a list containing all the possible states in the MDP
+		:return: List of GridWorldState
+		"""
+		listOfStates = []
+		walls = self._compute_walls()
+		for col_idx, column in enumerate(range(1, self.height + 1, 1)):
+			for row_idx, row in enumerate(range(self.width, 0, -1)):
+				if (not (column, row) in walls):
+					state = GridWorldState(column, row)
+					listOfStates.append(state)
+		return listOfStates
+
 	def reward(self, state, action, next_state):
 		'''
 		Parameters:

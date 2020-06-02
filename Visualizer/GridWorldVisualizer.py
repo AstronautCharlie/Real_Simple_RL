@@ -108,7 +108,7 @@ class GridWorldVisualizer():
         :param action:
         :return:
         """
-        right_arrow = pygame.image.load("viz_resources/arrow-icon-arrow-right.jpg")
+        right_arrow = pygame.image.load("Visualizer/viz_resources/arrow-icon-arrow-right.jpg")
         right_arrow = pygame.transform.scale(right_arrow,(self.agent_size,self.agent_size))
         if action==Dir.RIGHT:
             return right_arrow
@@ -236,7 +236,7 @@ class GridWorldVisualizer():
                     for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
                         if(not (column, row) in walls):
                             state = GridWorldState(column,row)
-                            print(state)
+
                             best_action = self.agent.get_best_action(state)
                             action_img = self.createAction(best_action)
                             mdp_and_action = self.placeAction(action_img, state, mdp_env)

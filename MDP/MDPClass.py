@@ -78,3 +78,19 @@ class MDP():
 		:return: next_state:State (specific to MDP)
 		:return: reward:float
 		'''
+	@abc.abstractmethod
+	def next_possible_states(self,state,action):
+		"""
+		Given a state, return a dictionary containing all states that can result from taking the given action on it along
+		with the probability of ending up in that state
+		:param state: State
+		:param action: Enum
+		:return: dictionary of State -> Float (probability, so needs to be less than one)
+		"""
+	@abc.abstractmethod
+
+	def get_all_possible_states(self):
+		"""
+		Returns a list containing all the possible states in this MDP
+		:return: List of States
+		"""
