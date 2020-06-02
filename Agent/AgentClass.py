@@ -280,5 +280,12 @@ class Agent():
 			action:Enum
 			new_value:float
 		'''
-		self._q_table[(state, action)] = new_value 
+		self._q_table[(state, action)] = new_value
+
+
+
+
+
+
+
 		

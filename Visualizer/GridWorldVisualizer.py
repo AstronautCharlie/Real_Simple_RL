@@ -223,7 +223,6 @@ class GridWorldVisualizer():
         """
         screen = pygame.display.set_mode([self.screen_width, self.screen_height])
         mdp_env = self.createGridWorldMDP()
-        agent = self.createGridWorldAgent()
         WIDTH_DIM = self.mdp.get_width()
         HEIGHT_DIM = self.mdp.get_height()
         walls = self.mdp._compute_walls()
@@ -237,7 +236,7 @@ class GridWorldVisualizer():
                     for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
                         if(not (column, row) in walls):
                             state = GridWorldState(column,row)
-                            print(state)
+
                             best_action = self.agent.get_best_action(state)
                             action_img = self.createAction(best_action)
                             mdp_and_action = self.placeAction(action_img, state, mdp_env)
