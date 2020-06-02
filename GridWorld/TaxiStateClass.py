@@ -1,13 +1,13 @@
 '''
-This extends the GridWorldState to be specific to the Taxi environment
+This extends the State class to be specific to the Taxi environment
 by adding a 'has_passenger' flag to indicate whether or not the
 passenger is aboard
 '''
 
-from GridWorld.GridWorldStateClass import GridWorldState
+from MDP.StateClass import State
 import random
 
-class TaxiState(GridWorldState):
+class TaxiState(State):
     '''
     Taxi_loc, passenger_loc, and goal_loc are all assumed to be tuples
     where the first element is the x coordinate and the second element
@@ -63,12 +63,13 @@ class TaxiState(GridWorldState):
         else:
             self._goal_loc = goal_loc
 
-        super().__init__(taxi_loc[0], taxi_loc[1], is_terminal)
+        super().__init__([taxi_loc, passenger_loc, goal_loc], is_terminal)
 
     def __str__(self):
-        result = 'Taxi at ' + str(self.get_taxi_loc()) + '\n'
-        result += 'Passenger at ' + str(self.get_passenger_loc()) + '\n'
-        result += 'Goal location is ' + str(self.get_goal_loc())
+        result = 'Taxi, Passenger, Goal : '
+        result += str(self.get_taxi_loc()) + ' '
+        result += str(self.get_passenger_loc()) + ' '
+        result += str(self.get_goal_loc())
         return result
 
     def __eq__(self, other):
@@ -80,11 +81,13 @@ class TaxiState(GridWorldState):
         '''
         return self.get_taxi_loc() == other.get_taxi_loc() and self.get_passenger_loc() == self.get_passenger_loc() and self.get_goal_loc() == other.get_goal_loc()
 
+    def __hash__(self):
+        return hash(tuple(self.data))
     # -----------------
     # Getters & setters
     # -----------------
     def get_taxi_loc(self):
-        return (self.get_x(), self.get_y())
+        return self._taxi_loc[0], self._taxi_loc[1]
 
     def get_passenger_loc(self):
         return self._passenger_loc

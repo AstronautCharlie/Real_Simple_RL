@@ -30,7 +30,7 @@ class StateAbstraction():
 		If the given state does not occur in abstr_dict, return
 		the state itself 
 		'''
-		if state in self.abstr_dict.keys():
+		if self.abstr_dict is not None and state in self.abstr_dict.keys():
 			return self.abstr_dict[state]
 		else:
 			return state 

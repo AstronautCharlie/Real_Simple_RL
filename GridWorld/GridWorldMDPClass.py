@@ -119,8 +119,6 @@ class GridWorldMDP(MDP):
 		Returns:
 			state:GridWorldState
 		'''
-		#print("transitioning from state", str(state), 
-		#		"with action", action)
 		next_state = state
 
 		# Apply slip probability and change action if applicable

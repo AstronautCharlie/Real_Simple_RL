@@ -197,8 +197,8 @@ class Agent():
 		# Iterate through actions and find action with highest q-value
 		# in q-table. Shuffle actions so that if best actions have 
 		# the same value, a random one is chosen
-		shuffled_actions = self.mdp.actions.copy()
-		np.random.shuffle(shuffled_actions)
+		shuffled_actions = list(copy.copy(self.mdp.actions))
+		random.shuffle(shuffled_actions)
 		for action in shuffled_actions:
 			q_value = self.get_q_value(state, action)
 			if q_value > max_val:
