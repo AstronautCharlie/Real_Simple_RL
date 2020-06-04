@@ -99,7 +99,7 @@ class AbstractGridWorldVisualizer():
         :param action:
         :return:
         """
-        right_arrow = pygame.image.load("viz_resources/right_arrow.png")
+        right_arrow = pygame.image.load("Visualizer/viz_resources/right_arrow.png")
         right_arrow = pygame.transform.scale(right_arrow,(self.agent_size,self.agent_size))
         if action==Dir.RIGHT:
             return right_arrow

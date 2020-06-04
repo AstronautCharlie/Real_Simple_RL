@@ -145,7 +145,17 @@ class Agent():
 		best_next_action_value = self.get_best_action_value(next_state)
 		new_q_value = old_q_value + self._alpha * (reward + self.mdp.gamma * best_next_action_value - old_q_value)
 		self._set_q_value(state, action, new_q_value)
-		
+
+
+	def evaluate(self, instances, episodes, steps):
+		'''
+		Run the agent on its mdp (instances) times and track the rate of learning by
+		:param instances:
+		:param episodes:
+		:param steps:
+		:return:
+		'''
+
 
 	# --------------------------
 	# Getters, setters & utility
@@ -281,6 +291,7 @@ class Agent():
 			new_value:float
 		'''
 		self._q_table[(state, action)] = new_value
+
 
 
 

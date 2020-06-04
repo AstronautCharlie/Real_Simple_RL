@@ -121,6 +121,10 @@ class GridWorldMDP(MDP):
 		'''
 		next_state = state
 
+		# If MDP is already in the goal state, no actions should be available
+		if self.is_goal_state(state):
+			return state
+
 		# Apply slip probability and change action if applicable
 		if random.random() < self.slip_prob:
 			if action in [Dir.UP, Dir.DOWN]:
@@ -253,7 +257,12 @@ class GridWorldMDP(MDP):
 		Returns:
 			reward:float
 		'''
-		if (next_state.x, next_state.y) in self.goal_location:
+		# This is to handle the case when we're in the goal state and taking an action
+		# In this case, we want the agent to receive no reward
+		if self.is_goal_state(state):
+			return 0.0
+		# If agent moves from non-goal state to the goal state, return reward
+		elif (next_state.x, next_state.y) in self.goal_location:
 			return self.goal_value
 		else:
 			return 0.0
