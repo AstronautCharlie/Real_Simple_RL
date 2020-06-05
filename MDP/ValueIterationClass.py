@@ -101,7 +101,6 @@ class ValueIteration():
     def get_q_table(self):
         return self._q_table
 
-
     def update_q_table(self, new_q_table):
         """
         Update the entire q_table to a new one
@@ -146,6 +145,7 @@ class ValueIteration():
                             transition_prob = next_states[next_state]
                             reward = self.mdp.reward(state,action,next_state)
                             q_value += transition_prob*(reward + self.gamma*next_state_cur_value)
+                            print(q_value)
                         Q_i[(state, action)] = q_value
                         stop = stop and (abs(q_value - self.get_q_value(state,action)) < self.delta )
                 self.update_q_table(Q_i)
