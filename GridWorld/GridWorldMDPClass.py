@@ -158,8 +158,18 @@ class GridWorldMDP(MDP):
 		:return: dictionary of State->Float (probability, should be less than one)
 		"""
 		next_state_probs = {}
+
+		# if we are in the goal state, every action will take us back to the goal state
+		if (self.is_goal_state(state)):
+			next_state_probs[state] = 1
+			return next_state_probs
+
 		#set the probability of ending back at the current state as 0, so it can be incremented later
 		next_state_probs[state] = 0
+
+
+
+
 		up_state = GridWorldState(state.x, state.y + 1)
 		down_state = GridWorldState(state.x, state.y - 1)
 		left_state = GridWorldState(state.x - 1, state.y)
