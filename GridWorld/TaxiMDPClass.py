@@ -205,9 +205,9 @@ class TaxiMDP(MDP):
         :param next_state: TaxiState
         :return: reward: float
         '''
-        taxi_loc = self.get_taxi_loc()
-        passenger_loc = self.get_passenger_loc()
-        goal_loc = self.get_goal_loc()
+        taxi_loc = state.get_taxi_loc()
+        passenger_loc = state.get_passenger_loc()
+        goal_loc = state.get_goal_loc()
 
         if state.is_terminal():
             return 0.0
@@ -216,7 +216,7 @@ class TaxiMDP(MDP):
         if action == Act.DROPOFF:
             # If passenger is aboard and the taxi is in the goal location,
             # return +20. Otherwise, -10 for illegal drop off
-            if passenger_loc == (0,0) and taxi_loc == goal_loc:
+            if passenger_loc == (0, 0) and taxi_loc == goal_loc:
                 return 20.0
             else:
                 return -10.0
@@ -255,7 +255,7 @@ class TaxiMDP(MDP):
         # If the next state is in the goal locaton, set current_state
         # to initial state. Still returns next state
 
-        if self.is_goal_state(state, action):
+        if state.is_terminal():
             self.reset_to_init()
 
         return next_state, reward
@@ -341,11 +341,13 @@ class TaxiMDP(MDP):
             next_pickup = state
 
 
-        # Next state after pickup
+        # Next state after pickup. If the Taxi can drop off the passenger, then the next
+        # state is the goal location and the result should be terminal
         if can_dropoff:
             next_dropoff = TaxiState(taxi_loc,
                                      passenger_loc=taxi_loc,
-                                     goal_loc=goal_loc)
+                                     goal_loc=goal_loc,
+                                     is_terminal=True)
         else:
             next_dropoff = state
 
@@ -442,5 +444,6 @@ class TaxiMDP(MDP):
         self.set_current_state(TaxiState((taxi_x, taxi_y),
                                          passenger_init,
                                          goal))
+
 
 

@@ -120,14 +120,19 @@ class Agent():
 		'''
 		Apply the given action to agent's current state, get 
 		the reward and next state from the mdp, and update the 
-		agent's q-table with the results 
+		agent's q-table with the results
+
+		Only ever used for testing
 
 		Parameters:
 			action:Enum
+		Returns:
+			next_state:State
+			reward:float
 		'''
 		next_state, reward = self.mdp.act(action)
 		#self.update(current_state, action, next_state, reward)
-		return action, next_state
+		return next_state, reward
 
 
 	def update(self, state, action, next_state, reward):
@@ -146,20 +151,16 @@ class Agent():
 		new_q_value = old_q_value + self._alpha * (reward + self.mdp.gamma * best_next_action_value - old_q_value)
 		self._set_q_value(state, action, new_q_value)
 
-
-	def evaluate(self, instances, episodes, steps):
-		'''
-		Run the agent on its mdp (instances) times and track the rate of learning by
-		:param instances:
-		:param episodes:
-		:param steps:
-		:return:
-		'''
-
-
 	# --------------------------
 	# Getters, setters & utility
 	# --------------------------
+
+	def reset_mdp(self):
+		'''
+		Reset the MDP to its initial state
+		:return: None
+		'''
+		self.mdp.reset_to_init()
 
 	def reset_to_init(self):
 		'''

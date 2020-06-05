@@ -1,10 +1,11 @@
 from collections import defaultdict
 import numpy as np
+import copy
 
 class ValueIteration():
-    def __init__(self,mdp, gamma, delta):
+    def __init__(self, mdp, delta):
         self.mdp = mdp
-        self.gamma = gamma
+        self.gamma = mdp.gamma
         #stop when the learned q-values for all state action pairs are within delta of each other
         self.delta = delta
         self._q_table = defaultdict(lambda: 0.0)
@@ -28,7 +29,7 @@ class ValueIteration():
         # Iterate through actions and find action with highest q-value
         # in q-table. Shuffle actions so that if best actions have
         # the same value, a random one is chosen
-        shuffled_actions = self.mdp.actions.copy()
+        shuffled_actions = list(copy.copy(self.mdp.actions))
         np.random.shuffle(shuffled_actions)
         for action in shuffled_actions:
             q_value = self.get_q_value(state, action)
@@ -138,17 +139,17 @@ class ValueIteration():
                 stop = True
                 for state in all_states:
                     for action in self.mdp.actions:
-                        next_states = self.mdp.next_possible_states(state,action)
+                        next_states = self.mdp.next_possible_states(state, action)
                         q_value = 0
                         for next_state in next_states.keys():
                             next_state_cur_value = self.get_best_action_value(next_state)
                             transition_prob = next_states[next_state]
-                            reward = self.mdp.reward(state,action,next_state)
+                            reward = self.mdp.reward(state, action, next_state)
+                            #if reward > 0:
+                            #    print(state, next_state)
                             q_value += transition_prob*(reward + self.gamma*next_state_cur_value)
-                            print(q_value)
+                            #print(q_value)
                         Q_i[(state, action)] = q_value
                         stop = stop and (abs(q_value - self.get_q_value(state,action)) < self.delta )
                 self.update_q_table(Q_i)
-
-
 
