@@ -70,6 +70,8 @@ class TaxiState(State):
         result += str(self.get_taxi_loc()) + ' '
         result += str(self.get_passenger_loc()) + ' '
         result += str(self.get_goal_loc())
+        if self.is_terminal():
+            result += '; terminal'
         return result
 
     def __eq__(self, other):
@@ -79,7 +81,8 @@ class TaxiState(State):
         :param other: TaxiState
         :return: boolean
         '''
-        return self.get_taxi_loc() == other.get_taxi_loc() and self.get_passenger_loc() == self.get_passenger_loc() and self.get_goal_loc() == other.get_goal_loc()
+        return self.get_taxi_loc() == other.get_taxi_loc() and self.get_passenger_loc() == self.get_passenger_loc() and \
+               self.get_goal_loc() == other.get_goal_loc() and self.is_terminal() == other.is_terminal()
 
     def __hash__(self):
         return hash(tuple(self.data))

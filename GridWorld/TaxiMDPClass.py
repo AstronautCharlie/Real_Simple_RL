@@ -25,6 +25,7 @@ from MDP.MDPClass import MDP
 from GridWorld.TaxiActionEnums import Act
 from GridWorld.TaxiStateClass import TaxiState
 import random
+from queue import Queue
 
 class TaxiMDP(MDP):
     def __init__(self,
@@ -79,7 +80,7 @@ class TaxiMDP(MDP):
         '''
         Transition function for this MDP. Standard gridworld action,
         takes given action with probability = 1-self.slip_prob, takes
-        perpindicular action with probability slip_prob/2
+        random action with probability self.slip_prob
 
         Since walls are not stored as a field, this function handles
         walls. If an action bumps the taxi into a wall, position
@@ -98,20 +99,31 @@ class TaxiMDP(MDP):
         blocked_left = [(2,1), (2,2), (4,1), (4,2), (3,5), (3,4)]
 
         # Get state info for easier access
-        curr_state = self.get_current_state()
-        taxi_loc = self.get_taxi_loc()
-        passenger_loc = self.get_passenger_loc()
-        goal_loc = self.get_goal_loc()
+        taxi_loc = state.get_taxi_loc()
+        passenger_loc = state.get_passenger_loc()
+        goal_loc = state.get_goal_loc()
+
+        # With probability self.slip_prob, pick a random action instead of
+        # the selected action. Since both pickup and drop-off would, if
+        # randomly chosen, land the agent in the same state, we pick
+        # those with half the probability we pick a random direction
+        # action
+        coin_flip = random.random()
+        if coin_flip < self.slip_prob:
+            if coin_flip < self.slip_prob / 5:
+                action = random.choice([Act.PICKUP, Act.DROPOFF])
+            else:
+                action = random.choice([Act.RIGHT,
+                                        Act.LEFT,
+                                        Act.UP,
+                                        Act.DOWN])
+
+        # If the state is terminal, then any action keeps it in the terminal state
+        if state.is_terminal():
+            return state
 
         # Handle directional actions first
         if action in [Act.UP, Act.DOWN, Act.LEFT, Act.RIGHT]:
-
-            # Assign perpendicular action with probability slip_prob
-            if random.random() < self.slip_prob:
-                if action in [Act.UP, Act.DOWN]:
-                    action = random.choice([Act.LEFT, Act.RIGHT])
-                else:
-                    action = random.choice([Act.UP, Act.DOWN])
 
             # If action is up or down, walls aren't a problem. Move the
             # state taxi if it isn't running into a border, and leave
@@ -122,14 +134,14 @@ class TaxiMDP(MDP):
                                       passenger_loc,
                                       goal_loc)
                 else:
-                    return curr_state
+                    return state
             if action == Act.DOWN:
                 if taxi_loc[1] > 1:
                     return TaxiState((taxi_loc[0], taxi_loc[1] - 1),
                                       passenger_loc,
                                       goal_loc)
                 else:
-                    return curr_state
+                    return state
 
             # If action is left or right, we have to check the walls as
             # well as the border. If it runs into a wall or border,
@@ -140,7 +152,7 @@ class TaxiMDP(MDP):
                                      passenger_loc,
                                      goal_loc)
                 else:
-                    return curr_state
+                    return state
 
             if action == Act.LEFT:
                 if taxi_loc[0] > 1 and taxi_loc not in blocked_left:
@@ -148,7 +160,7 @@ class TaxiMDP(MDP):
                                      passenger_loc,
                                      goal_loc)
                 else:
-                    return curr_state
+                    return state
         # Handle passenger pick-up and drop-off
         else:
             # If the taxi is in the same location as the passenger,
@@ -160,17 +172,19 @@ class TaxiMDP(MDP):
                                      (0,0),
                                      goal_loc)
                 else:
-                    return curr_state
+                    return state
 
             # If taxi has the passenger and is at the goal location,
-            # drop off the passenger. Otherwise, no change
+            # drop off the passenger and make next state terminal
+            # Otherwise, no change
             elif action == Act.DROPOFF:
                 if passenger_loc == (0,0) and taxi_loc == goal_loc:
                     return TaxiState(taxi_loc,
                                      goal_loc,
-                                     goal_loc)
+                                     goal_loc,
+                                     is_terminal=True)
                 else:
-                    return curr_state
+                    return state
 
             else:
                 ValueError('Illegal action argument ' + str(action))
@@ -194,6 +208,9 @@ class TaxiMDP(MDP):
         taxi_loc = self.get_taxi_loc()
         passenger_loc = self.get_passenger_loc()
         goal_loc = self.get_goal_loc()
+
+        if state.is_terminal():
+            return 0.0
 
         # Handle case of drop-off
         if action == Act.DROPOFF:
@@ -243,6 +260,151 @@ class TaxiMDP(MDP):
 
         return next_state, reward
 
+    # ----------------------------
+    # Inherited abstract functions
+    # ----------------------------
+    def next_possible_states(self, state, action):
+        """
+        Given a state, return a dictionary containing all states that can result from taking the given action on it along
+        with the probability of ending up in that state
+        :param state: TaxiState
+        :param action: Enum
+        :return: dictionary of State -> Float (probability, so needs to be less than one)
+        """
+        # If the state is terminal, any action it takes keeps it in its current state,
+        # so no change happens
+        if state.is_terminal():
+            return {state: 1.0}
+
+        # State information
+        taxi_loc = state.get_taxi_loc()
+        passenger_loc = state.get_passenger_loc()
+        goal_loc = state.get_goal_loc()
+
+        # These are the states where there is a wall to the right
+        blocked_right = [(1,1), (1,2), (3,1), (3,2), (2,5), (2,4)]
+        # These are the states where there is a wall to the left
+        blocked_left = [(2,1), (2,2), (4,1), (4,2), (3,5), (3,4)]
+
+        # Booleans indicating whether or not the taxi can move in the given directions
+        can_left = taxi_loc[0] > 1 and taxi_loc not in blocked_left
+        can_right = taxi_loc[0] < 5 and taxi_loc not in blocked_right
+        can_up = taxi_loc[1] < 5
+        can_down = taxi_loc[1] > 1
+        # Note this doesn't cover the terminal state. Must be handled elsewhere
+        can_pickup = taxi_loc == passenger_loc
+        can_dropoff = taxi_loc == goal_loc and passenger_loc == (0,0)
+
+        # Define next states after each action is taken
+
+        # Next state after left. If the taxi can move left, the next state
+        # will be one to the left of it. Otherwise, the next state
+        # will be the state it's already in
+        if can_left:
+            next_left = TaxiState((taxi_loc[0] - 1, taxi_loc[1]),
+                                  passenger_loc,
+                                  goal_loc)
+        else:
+            next_left = state
+
+        # Next state after right
+        if can_right:
+            next_right = TaxiState((taxi_loc[0] + 1, taxi_loc[1]),
+                                   passenger_loc,
+                                   goal_loc)
+        else:
+            next_right = state
+
+        # Next state after up
+        if can_up:
+            next_up = TaxiState((taxi_loc[0], taxi_loc[1] + 1),
+                                passenger_loc,
+                                goal_loc)
+        else:
+            next_up = state
+
+        # Next state after down
+        if can_down:
+            next_down = TaxiState((taxi_loc[0], taxi_loc[1] - 1),
+                                  passenger_loc,
+                                  goal_loc)
+        else:
+            next_down = state
+
+        # Next state after pickup. NOTE: this does not handle the terminal case. Must be handled
+        # elsewhere
+        if can_pickup:
+            next_pickup = TaxiState(taxi_loc,
+                                    (0,0),
+                                    goal_loc)
+        else:
+            next_pickup = state
+
+
+        # Next state after pickup
+        if can_dropoff:
+            next_dropoff = TaxiState(taxi_loc,
+                                     passenger_loc=taxi_loc,
+                                     goal_loc=goal_loc)
+        else:
+            next_dropoff = state
+
+        # This is the final result
+        next_states = {next_left: 0.0,
+                       next_right: 0.0,
+                       next_up: 0.0,
+                       next_down: 0.0,
+                       next_pickup: 0.0,
+                       next_dropoff: 0.0}
+
+        # Each action has (slip_probability / 6) probability of being
+        # selected. Doing += so that if two of the next_ states are the
+        # same, the probability is added
+        eps_soft_prob = self.slip_prob / 5
+        next_states[next_left] += eps_soft_prob
+        next_states[next_right] += eps_soft_prob
+        next_states[next_up] += eps_soft_prob
+        next_states[next_down] += eps_soft_prob
+        next_states[next_pickup] += eps_soft_prob / 2
+        next_states[next_dropoff] += eps_soft_prob / 2
+
+        # The action actually selected being performed is 1-slip_probability
+        if action == Act.LEFT:
+            next_states[next_left] += 1 - self.slip_prob
+        elif action == Act.RIGHT:
+            next_states[next_right] += 1 - self.slip_prob
+        elif action == Act.UP:
+            next_states[next_up] += 1 - self.slip_prob
+        elif action == Act.DOWN:
+            next_states[next_down] += 1 - self.slip_prob
+        elif action == Act.PICKUP:
+            next_states[next_pickup] += 1 - self.slip_prob
+        elif action == Act.DROPOFF:
+            next_states[next_dropoff] += 1 - self.slip_prob
+        else:
+            raise ValueError('Illegal action argument:', action)
+
+        return next_states
+
+    def get_all_possible_states(self):
+        """
+        Returns a list containing all the possible states in this MDP
+        :return: List of States
+        """
+        possible_states = []
+        rgby = [(1, 1), (1, 5), (4, 1), (5, 5)]
+        for x in range(1, 6):
+            for y in range(1, 6):
+                for passenger in rgby + [(0, 0)]:
+                    for goal in rgby:
+                        state = TaxiState((x, y),
+                                          passenger,
+                                          goal)
+                        possible_states.append(state)
+        return possible_states
+
+
+
     # -------
     # Utility
     # -------
@@ -250,7 +412,7 @@ class TaxiMDP(MDP):
         result = str(self.get_current_state())
         return result
 
-    def is_goal_state(self, curr_state, action):
+    def is_goal_state(self, curr_state):
         '''
         If in the current state the passenger is in the taxi and the
         taxi_loc is in the goal state, and the action is the drop off
@@ -269,7 +431,7 @@ class TaxiMDP(MDP):
         passenger_loc = curr_state.get_passenger_loc()
         goal_loc = curr_state.get_goal_loc()
 
-        return taxi_loc == goal_loc and passenger_loc == (0,0) and action == Act.DROPOFF
+        return taxi_loc == goal_loc and passenger_loc == (0,0) and curr_state.is_terminal()
 
     def reset_to_init(self):
         rgby = [(1,1), (1,5), (4,1), (5,5)]
