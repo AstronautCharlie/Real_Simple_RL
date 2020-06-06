@@ -11,8 +11,8 @@ if __name__ == '__main__':
 
     # Testing Apra's value iteration on FourRooms
     '''
-    grid_mdp_test = GridWorldMDP(height=11, width=11, slip_prob=0.0, gamma=0.99, build_walls=True)
-    value_itr = ValueIteration(grid_mdp_test, 0.99, 0.0001)
+    grid_mdp_test = GridWorldMDP(height=11, width=11, slip_prob=0.1, gamma=0.95, build_walls=True)
+    value_itr = ValueIteration(grid_mdp_test, 0.0001)
     value_itr.doValueIteration(10000)
     #print(value_itr)
     result = value_itr.get_q_table()
@@ -23,9 +23,9 @@ if __name__ == '__main__':
     '''
 
     # Testing VI on TaxiMDP
-    mdp = TaxiMDP(slip_prob = 0.0, gamma = 0.99)
-    value_itr = ValueIteration(mdp, 0.001)
-    value_itr.doValueIteration(10000)
+    mdp = TaxiMDP(slip_prob = 1, gamma = 1)
+    value_itr = ValueIteration(mdp, 0.01)
+    value_itr.doValueIteration(1000)
     result = value_itr.get_q_table()
     for key in result.keys():
         print(key[0], key[1], result[key])

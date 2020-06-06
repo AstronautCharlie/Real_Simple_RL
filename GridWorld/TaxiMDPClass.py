@@ -209,14 +209,17 @@ class TaxiMDP(MDP):
         passenger_loc = state.get_passenger_loc()
         goal_loc = state.get_goal_loc()
 
+        next_passenger = next_state.get_passenger_loc()
+        next_goal = next_state.get_goal_loc()
+
         if state.is_terminal():
             return 0.0
 
         # Handle case of drop-off
         if action == Act.DROPOFF:
-            # If passenger is aboard and the taxi is in the goal location,
-            # return +20. Otherwise, -10 for illegal drop off
-            if passenger_loc == (0, 0) and taxi_loc == goal_loc:
+            # If passenger is aboard, the taxi is in the goal location, and the passenger gets to the
+            # the goal, return +20. Otherwise, -10 for illegal drop off
+            if passenger_loc == (0, 0) and taxi_loc == goal_loc and next_passenger == next_goal:
                 return 20.0
             else:
                 return -10.0

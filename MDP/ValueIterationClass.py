@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 class ValueIteration():
-    def __init__(self, mdp, delta):
+    def __init__(self, mdp, delta=0.0001):
         self.mdp = mdp
         self.gamma = mdp.gamma
         #stop when the learned q-values for all state action pairs are within delta of each other
@@ -128,7 +128,7 @@ class ValueIteration():
             result += str(key) + ' ' + str(value_func[key]) + '\n'
         return result
 
-    def doValueIteration(self,steps):
+    def doValueIteration(self,steps=1000):
         all_states = self.mdp.get_all_possible_states()
         stop = False
         for i in range(steps):
@@ -140,15 +140,32 @@ class ValueIteration():
                 for state in all_states:
                     for action in self.mdp.actions:
                         next_states = self.mdp.next_possible_states(state, action)
+                        # Check that sum of probabilities is 1
+                        checksum = 0
+                        for key in next_states.keys():
+                            checksum += next_states[key]
+                        if abs(checksum - 1) > 1e-9:
+                            print("checksum:", checksum, state, key)
+
                         q_value = 0
                         for next_state in next_states.keys():
                             next_state_cur_value = self.get_best_action_value(next_state)
                             transition_prob = next_states[next_state]
                             reward = self.mdp.reward(state, action, next_state)
-                            #if reward > 0:
-                            #    print(state, next_state)
-                            q_value += transition_prob*(reward + self.gamma*next_state_cur_value)
-                            #print(q_value)
+                            q_value += transition_prob * (reward + self.gamma*next_state_cur_value)
+
+                        # This should never happen; used for debugging
+                        if q_value > 20:
+                            for next_state in next_states.keys():
+                                next_state_cur_value = self.get_best_action_value(next_state)
+                                transition_prob = next_states[next_state]
+                                reward = self.mdp.reward(state, action, next_state)
+                                print("data:", state, action, next_state, reward, transition_prob, next_state_cur_value)
+                                print(transition_prob * (reward + self.gamma * next_state_cur_value))
+                            print(q_value)
+                            print('\n\n')
+
+
                         Q_i[(state, action)] = q_value
                         stop = stop and (abs(q_value - self.get_q_value(state,action)) < self.delta )
                 self.update_q_table(Q_i)

@@ -42,9 +42,11 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 		if action not in actions:
 			actions.append(action)
 
-	# Shuffle states to resolve the non-unqiue cluster
-	# problem 
-	random.shuffle(states)
+	# Shuffle states to resolve the non-unqiue cluster problem
+	# Point of this is that if we're using an approximate grouping, we don't want to always
+	# get the same cluster
+	if epsilon > 1e-12:
+		random.shuffle(states)
 
 	# Iterate through all states 
 	for state in states:
@@ -118,8 +120,7 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 			# unique abstract stated, identified by a
 			# number 
 			if is_match:
-				print("matching", str(state), "to", str(other_state))
-				abstr_dict[state] = abstr_counter 
+				abstr_dict[state] = abstr_counter
 				abstr_dict[other_state] = abstr_counter 
 				incr_counter = True 
 		
