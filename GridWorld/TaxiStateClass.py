@@ -83,7 +83,7 @@ class TaxiState(State):
         :return: boolean
         '''
         return self.get_taxi_loc() == other.get_taxi_loc() and \
-               self.get_passenger_loc() == self.get_passenger_loc() and \
+               self.get_passenger_loc() == other.get_passenger_loc() and \
                self.get_goal_loc() == other.get_goal_loc() and self.is_terminal() == other.is_terminal()
 
     def __hash__(self):

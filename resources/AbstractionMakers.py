@@ -45,8 +45,8 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 	# Shuffle states to resolve the non-unqiue cluster problem
 	# Point of this is that if we're using an approximate grouping, we don't want to always
 	# get the same cluster
-	if epsilon > 1e-12:
-		random.shuffle(states)
+	#if epsilon > 1e-12:
+	random.shuffle(states)
 
 	# Iterate through all states 
 	for state in states:
@@ -76,7 +76,7 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 
 			is_match = True
 
-			# If q-star abstr, compare state-action value pairs
+			# If q-star, compare state-action value pairs
 			# across all actions. If all are within epsilon 
 			# of each other, the two states are mapped together
 			if abstr_type == Abstr_type.Q_STAR:
@@ -91,22 +91,13 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 			elif abstr_type == Abstr_type.A_STAR:
 				state_action, state_val = get_best_action_value_pair(q_table, state, actions)
 				other_action, other_val = get_best_action_value_pair(q_table, other_state, actions)
-				#print("State =", state)
-				#print("Other =", other_state)
-				#print("State_action, state_val =", state_action, state_val)
-				#print("Other_action, other_val =", other_action, other_val)
 				if state_action != other_action or abs(state_val - other_val) > epsilon:
-				#	print("not a match")
-					is_match = False 
-				#print("Within epsilon?:", abs(state_val - other_val) < epsilon)
-				#print("Action is same?:", state_action == other_action)
-				#print("is_match =", is_match)
-				#print()
+					is_match = False
 
-			elif abstr_type == Abstr_type.PI_STAR:
 			# If pi-star, get the action with max state-action
 			# value for each state. If these are the same, 
 			# then the two states are mapped together
+			elif abstr_type == Abstr_type.PI_STAR:
 				state_action, _ = get_best_action_value_pair(q_table, state, actions)
 				other_action, _ = get_best_action_value_pair(q_table, other_state, actions)
 				if state_action != other_action:
@@ -143,5 +134,10 @@ def get_best_action_value_pair(q_table, state, actions):
 	for action in actions:
 		if q_table[(state, action)] > max_val: 
 			max_val = q_table[(state, action)]
-			best_action = action 
+			best_action = action
+	#for action in actions:
+		#if action != best_action and abs(q_table[(state, action)] - max_val) < 1e-9:
+			#print("Tie for best action")
+			#print(state, action, best_action)
+			#print()
 	return best_action, max_val 

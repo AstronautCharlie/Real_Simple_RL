@@ -15,7 +15,10 @@ class StateAbstraction():
 		'''
 		#if abstr_dict is None:
 		#	abstr_dict = {state: state for state in ground_states}
-		self.abstr_dict = abstr_dict 
+		self.abstr_dict = abstr_dict
+
+	def get_abstr_dict(self):
+		return self.abstr_dict
 
 	def get_abstr_from_ground(self, state):
 		'''

@@ -27,6 +27,8 @@ from GridWorld.TaxiStateClass import TaxiState
 import random
 from queue import Queue
 
+
+
 class TaxiMDP(MDP):
     def __init__(self,
                  goal=None,
@@ -57,6 +59,11 @@ class TaxiMDP(MDP):
         self.slip_prob = slip_prob
         self.passenger_init = passenger_init
         self.goal = goal
+
+        # These are the states where there is a wall to the right
+        self.blocked_right = [(1,1), (1,2), (3,1), (3,2), (2,5), (2,4)]
+        # These are the states where there is a wall to the left
+        self.blocked_left = [(2,1), (2,2), (4,1), (4,2), (3,5), (3,4)]
 
     # -----------------
     # Getters & setters
@@ -93,11 +100,6 @@ class TaxiMDP(MDP):
         :param action: Enum
         :return: next_state: GridWorldState
         '''
-        # These are the states where there is a wall to the right
-        blocked_right = [(1,1), (1,2), (3,1), (3,2), (2,5), (2,4)]
-        # These are the states where there is a wall to the left
-        blocked_left = [(2,1), (2,2), (4,1), (4,2), (3,5), (3,4)]
-
         # Get state info for easier access
         taxi_loc = state.get_taxi_loc()
         passenger_loc = state.get_passenger_loc()
@@ -147,7 +149,7 @@ class TaxiMDP(MDP):
             # well as the border. If it runs into a wall or border,
             # leave taxi position unchanged.
             if action == Act.RIGHT:
-                if taxi_loc[0] < 5 and taxi_loc not in blocked_right:
+                if taxi_loc[0] < 5 and taxi_loc not in self.blocked_right:
                     return TaxiState((taxi_loc[0] + 1, taxi_loc[1]),
                                      passenger_loc,
                                      goal_loc)
@@ -155,7 +157,7 @@ class TaxiMDP(MDP):
                     return state
 
             if action == Act.LEFT:
-                if taxi_loc[0] > 1 and taxi_loc not in blocked_left:
+                if taxi_loc[0] > 1 and taxi_loc not in self.blocked_left:
                     return TaxiState((taxi_loc[0] - 1, taxi_loc[1]),
                                      passenger_loc,
                                      goal_loc)
@@ -284,14 +286,9 @@ class TaxiMDP(MDP):
         passenger_loc = state.get_passenger_loc()
         goal_loc = state.get_goal_loc()
 
-        # These are the states where there is a wall to the right
-        blocked_right = [(1,1), (1,2), (3,1), (3,2), (2,5), (2,4)]
-        # These are the states where there is a wall to the left
-        blocked_left = [(2,1), (2,2), (4,1), (4,2), (3,5), (3,4)]
-
         # Booleans indicating whether or not the taxi can move in the given directions
-        can_left = taxi_loc[0] > 1 and taxi_loc not in blocked_left
-        can_right = taxi_loc[0] < 5 and taxi_loc not in blocked_right
+        can_left = taxi_loc[0] > 1 and taxi_loc not in self.blocked_left
+        can_right = taxi_loc[0] < 5 and taxi_loc not in self.blocked_right
         can_up = taxi_loc[1] < 5
         can_down = taxi_loc[1] > 1
         # Note this doesn't cover the terminal state. Must be handled elsewhere
