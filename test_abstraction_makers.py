@@ -9,6 +9,7 @@ from GridWorld.GridWorldMDPClass import GridWorldMDP
 from resources.AbstractionMakers import make_abstr
 from resources.AbstractionMakers import Abstr_type
 
+
 if __name__ == '__main__':
     # GridWorld tests
 
@@ -26,6 +27,7 @@ if __name__ == '__main__':
     # 12 abstract states, 9 have 2 ground states and the other 
     # 3 have 3 
     '''
+
 
 
     # Taxi MDP tests
