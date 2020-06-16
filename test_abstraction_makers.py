@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # Q-star, epsilon = 0
     mdp = TaxiMDP(slip_prob=0.0, gamma=0.99)
     vi = ValueIteration(mdp)
-    vi.doValueIteration()
+    vi.run_value_iteration()
     q_table = vi.get_q_table()
 
     for key in q_table.keys():
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     for key in abstr.get_abstr_dict().keys():
         state_count += 1
     print(state_count)
-    print(abstr)
+    print(abstr.get_abstr_dict())
 
     # Write results of q-table to file
     f = open('test_abstr_results.txt', 'w')
@@ -58,6 +58,8 @@ if __name__ == '__main__':
     f.close()
 
     results = abstr.get_abstr_dict()
+    for key in results.keys():
+        print(key, results[key])
     '''
     for val in results.values():
         for key in results.keys():

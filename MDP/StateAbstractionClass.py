@@ -3,18 +3,15 @@ This class represents a state abstraction from set of ground
 states to a set of abstract states
 '''
 class StateAbstraction():
-	def __init__(self, abstr_dict=None):#, ground_states=[]):
+	def __init__(self, abstr_dict=None):
 		'''
 		Parameters:
 			abstr_dict:dictionary(States:States)
-			ground_states:list of states 
 
 		The abstr_dict is a mapping of the ground states to abstract
 		states. If no abstr_dict is provided, assume the trivial 
 		abstraction of mapping each state to itself 
 		'''
-		#if abstr_dict is None:
-		#	abstr_dict = {state: state for state in ground_states}
 		self.abstr_dict = abstr_dict
 
 	def get_abstr_dict(self):
@@ -55,12 +52,3 @@ class StateAbstraction():
 					result += 'ground -> abstr: ' + str(key) + ' -> ' + str(self.abstr_dict[key])
 					result += '\n'
 		return result 
-		'''
-		for state in abstr_dict.keys():
-			if 
-		result = "" 
-		for key in self.abstr_dict.keys():
-			result += "ground -> abstr: " + str(key) + ' -> ' + str(self.abstr_dict[key])
-			result += "\n"
-		return result
-		'''

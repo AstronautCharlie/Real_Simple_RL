@@ -65,7 +65,7 @@ from MDP.ValueIterationClass import ValueIteration
 #PI-STAR - USING VI
 mdp = GridWorldMDP(slip_prob=0, gamma=0.99)
 vi = ValueIteration(mdp)
-vi.doValueIteration()
+vi.run_value_iteration()
 q_table = vi.get_q_table()
 pi_star_abstr = make_abstr(q_table, Abstr_type.PI_STAR, epsilon=0.01)
 abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=pi_star_abstr)

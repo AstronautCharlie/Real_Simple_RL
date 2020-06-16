@@ -128,7 +128,7 @@ class ValueIteration():
             result += str(key) + ' ' + str(value_func[key]) + '\n'
         return result
 
-    def doValueIteration(self,steps=1000):
+    def run_value_iteration(self, steps=1000):
         all_states = self.mdp.get_all_possible_states()
         print(len(all_states))
         stop = False
@@ -151,4 +151,42 @@ class ValueIteration():
                         Q_i[(state, action)] = q_value
                         stop = stop and (abs(q_value - self.get_q_value(state, action)) < self.delta)
                 self.update_q_table(Q_i)
+
+    def get_all_optimal_actions(self, state):
+        '''
+        Get all actions which are optimal for the given state
+        :return: list[actions]
+        '''
+        optimal_action_value = self.get_best_action_value(state)
+
+        optimal_actions = []
+        for action in self.mdp.actions:
+            if abs(self._q_table[(state, action)] - optimal_action_value) < 1e-12:
+                optimal_actions.append(action)
+        return optimal_actions
+
+    def get_optimal_policy(self):
+        '''
+        Get the optimal policy based on the current q-table by taking
+        the best action at each state.
+        :return: dictionary: action -> (state, value)
+        '''
+        if self.get_q_table() is None:
+            self.run_value_iteration()
+
+        q_table = self.get_q_table()
+        optimal_policy = {}
+
+        #for action in self.mdp.actions:
+        #    optimal_policy[action] = []
+
+        for state in self.mdp.get_all_possible_states():
+            optimal_policy[state] = []
+            optimal_actions = self.get_all_optimal_actions(state)
+            for action in optimal_actions:
+                value = self._q_table[(state, action)]
+                optimal_policy[state].append((action, value))
+
+        return optimal_policy
+
 

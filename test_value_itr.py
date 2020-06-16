@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # Testing VI on TaxiMDP
     mdp = TaxiMDP(slip_prob = 0.0, gamma = 0.99)
     value_itr = ValueIteration(mdp, 0.01)
-    value_itr.doValueIteration(1000)
+    value_itr.run_value_iteration(1000)
     result = value_itr.get_q_table()
     for key in result.keys():
         print(key[0], key[1], result[key])
