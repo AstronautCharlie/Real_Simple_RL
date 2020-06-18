@@ -94,3 +94,10 @@ class MDP():
 		Returns a list containing all the possible states in this MDP
 		:return: List of States
 		"""
+
+	@abc.abstractmethod
+	def copy(self):
+		"""
+		Returns a deep copy of self
+		:return: a deep copy of self
+		"""

@@ -2,6 +2,9 @@
 This class represents a state abstraction from set of ground
 states to a set of abstract states
 '''
+
+from MDP.StateClass import State
+
 class StateAbstraction():
 	def __init__(self, abstr_dict=None):
 		'''
@@ -31,7 +34,10 @@ class StateAbstraction():
 		the state itself 
 		'''
 		if self.abstr_dict is not None and state in self.abstr_dict.keys():
+			#abstr_state = State(data=[self.abstr_dict[state]], is_terminal=state.is_terminal())
+			#return abstr_state
 			return self.abstr_dict[state]
+
 		else:
 			return state 
 

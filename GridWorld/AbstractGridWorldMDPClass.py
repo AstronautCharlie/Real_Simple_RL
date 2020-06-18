@@ -12,7 +12,7 @@ class AbstractGridWorldMDP(GridWorldMDP):
 				 	width=11,
 				 	init_state=(1,1),
 				 	gamma=0.99,
-				 	slip_prob=0.05,
+				 	slip_prob=0.0,
 				 	goal_location=None,
 				 	goal_value=1.0,
 				 	build_walls=True,

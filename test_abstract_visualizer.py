@@ -27,41 +27,42 @@ from MDP.ValueIterationClass import ValueIteration
 
 
 #Q-STAR - USING VI
-# mdp = GridWorldMDP(slip_prob=0, gamma=0.99)
-# vi = ValueIteration(mdp)
-# vi.doValueIteration()
-# q_table = vi.get_q_table()
-# q_star_abstr = make_abstr(q_table, Abstr_type.Q_STAR, epsilon=0.01)
-# abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=q_star_abstr)
-# abs_agent = Agent(abstr_grid_mdp)
-# abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,abs_agent)
-# #abs_g_viz.displayAbstractMDP()
-# for i in range(100000):
-#     if i % 1000 == 0:
-#         print("epsilon, alpha:", abs_agent._epsilon, abs_agent._alpha)
-#     current_state, action, next_state,_  = abs_agent.explore()
-#
-# abs_g_viz.visualizeLearnedPolicy()
+mdp = GridWorldMDP(slip_prob=0, gamma=0.99)
+vi = ValueIteration(mdp)
+vi.run_value_iteration()
+q_table = vi.get_q_table()
+q_star_abstr = make_abstr(q_table, Abstr_type.Q_STAR, epsilon=0.01)
+abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=q_star_abstr)
+abs_agent = Agent(abstr_grid_mdp)
+abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,abs_agent)
+#abs_g_viz.displayAbstractMDP()
+for i in range(100000):
+    if i % 1000 == 0:
+        print("epsilon, alpha:", abs_agent._epsilon, abs_agent._alpha)
+    current_state, action, next_state,_  = abs_agent.explore()
 
+abs_g_viz.visualizeLearnedPolicy()
+
+'''
 #A-STAR - USING VI
-# mdp = GridWorldMDP(slip_prob=0, gamma=0.99)
-# vi = ValueIteration(mdp)
-# vi.doValueIteration()
-# q_table = vi.get_q_table()
-# a_star_abstr = make_abstr(q_table, Abstr_type.A_STAR, epsilon=0.01)
-# abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=a_star_abstr)
-# abs_agent = Agent(abstr_grid_mdp)
-# abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,abs_agent)
-# # abs_g_viz.displayAbstractMDP()
-# for i in range(100000):
-#     if i % 1000 == 0:
-#         print("epsilon, alpha:", abs_agent._epsilon, abs_agent._alpha)
-#     current_state, action, next_state,_  = abs_agent.explore()
-#
-# abs_g_viz.visualizeLearnedPolicy()
+mdp = GridWorldMDP(slip_prob=0, gamma=0.99)
+vi = ValueIteration(mdp)
+vi.run_value_iteration()
+q_table = vi.get_q_table()
+a_star_abstr = make_abstr(q_table, Abstr_type.A_STAR, epsilon=0.01)
+abstr_grid_mdp = AbstractGridWorldMDP(state_abstr=a_star_abstr)
+abs_agent = Agent(abstr_grid_mdp)
+abs_g_viz = AbstractGridWorldVisualizer(abstr_grid_mdp,abs_agent)
+# abs_g_viz.displayAbstractMDP()
+for i in range(100000):
+    if i % 1000 == 0:
+        print("epsilon, alpha:", abs_agent._epsilon, abs_agent._alpha)
+    current_state, action, next_state,_  = abs_agent.explore()
 
+abs_g_viz.visualizeLearnedPolicy()
+'''
 
-
+'''
 #PI-STAR - USING VI
 mdp = GridWorldMDP(slip_prob=0, gamma=0.99)
 vi = ValueIteration(mdp)
@@ -78,3 +79,4 @@ for i in range(100000):
     current_state, action, next_state,_  = abs_agent.explore()
 
 abs_g_viz.visualizeLearnedPolicy()
+'''

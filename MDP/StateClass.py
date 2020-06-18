@@ -11,6 +11,10 @@ class State():
 		self.data = data
 		self._is_terminal = is_terminal 
 
+	def __str__(self):
+		result = str(self.data)
+		return result
+
 	# -----------------
 	# Getters & Setters 
 	# -----------------

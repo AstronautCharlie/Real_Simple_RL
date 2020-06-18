@@ -34,7 +34,7 @@ class TaxiMDP(MDP):
                  goal=None,
                  passenger_init=None,
                  gamma=0.99,
-                 slip_prob=0.05):
+                 slip_prob=0.0):
         # Create initial state, randomly selecting valid passenger
         # and goal locations if none are provided
         rgby = [(1,1), (1,5), (4,1), (5,5)]
@@ -444,6 +444,14 @@ class TaxiMDP(MDP):
         self.set_current_state(TaxiState((taxi_x, taxi_y),
                                          passenger_init,
                                          goal))
+
+    def copy(self):
+        copy = TaxiMDP(self.goal,
+                       self.passenger_init,
+                       self.gamma,
+                       self.slip_prob)
+
+        return copy
 
 
 
