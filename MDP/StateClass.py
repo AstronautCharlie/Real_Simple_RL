@@ -4,7 +4,7 @@ to specific MDPs
 '''
 
 class State():
-	def __init__(self, data=[], is_terminal=False):
+	def __init__(self, data=(), is_terminal=False):
 		'''
 		Data is stored as a list 
 		'''
@@ -14,6 +14,11 @@ class State():
 	def __str__(self):
 		result = str(self.data)
 		return result
+
+	def __hash__(self):
+		print("Hashing state")
+		print(hash(self.data))
+		return hash(self.data)
 
 	# -----------------
 	# Getters & Setters 

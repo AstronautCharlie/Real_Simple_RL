@@ -29,6 +29,7 @@ class Agent():
 		'''
 		self.mdp = mdp
 		self._q_table = defaultdict(lambda : 0.0)
+		#self._q_table = {}
 		self._alpha = alpha
 		self._init_alpha = alpha 
 		self._epsilon = epsilon
@@ -96,6 +97,9 @@ class Agent():
 		action = self.epsilon_greedy(current_state)
 		next_state, reward = self.mdp.act(action)
 
+		print("At", str(current_state), "took action", str(action),
+			  "at next state", str(next_state), "got reward", reward)
+
 		# Update q-table, current_state, and learning parameters
 		self.update(current_state, action, next_state, reward)
 
@@ -155,6 +159,17 @@ class Agent():
 	# Getters, setters & utility
 	# --------------------------
 
+	def __str__(self):
+		try:
+			result = 'Agent on ' + str(self.mdp)
+			return result
+		except:
+			print('error')
+			print(self.mdp.get_current_state())
+			print(type(self.mdp.get_current_state()))
+			print()
+			return('')
+
 	def reset_mdp(self):
 		'''
 		Reset the MDP to its initial state
@@ -170,7 +185,6 @@ class Agent():
 		self.mdp.reset_to_init()
 		self._alpha = self._init_alpha
 		self._epsilon = self._init_epsilon
-
 
 	# Seems like Agent shouldn't have the ability to set the state 
 	# of the MDP 
@@ -273,6 +287,12 @@ class Agent():
 		returns:
 			q-value:float
 		'''
+		#state_data = state.get_data()
+		#return self._q_table[(state_data, action)]
+		#if (state, action) in self._q_table.keys():
+		#	return self._q_table[(state, action)]
+		#else:
+		#	return 0
 		return self._q_table[(state, action)]
 
 	def get_mdp(self):
@@ -291,8 +311,10 @@ class Agent():
 			action:Enum
 			new_value:float
 		'''
+		#state_data = state.get_data()
+		#self._q_table[(state_data, action)] = new_value
+		print("Updating value for", str(state), "to", new_value)
 		self._q_table[(state, action)] = new_value
-
 
 
 

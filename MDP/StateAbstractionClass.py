@@ -34,11 +34,12 @@ class StateAbstraction():
 		the state itself 
 		'''
 		if self.abstr_dict is not None and state in self.abstr_dict.keys():
-			#abstr_state = State(data=[self.abstr_dict[state]], is_terminal=state.is_terminal())
-			#return abstr_state
+			abstr_state = State(data=(self.abstr_dict[state]), is_terminal=state.is_terminal())
+			return abstr_state
 			return self.abstr_dict[state]
 
 		else:
+			#print("FUCK")
 			return state 
 
 	def __str__(self):

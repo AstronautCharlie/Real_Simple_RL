@@ -60,6 +60,13 @@ class Experiment():
                 abstract_mdp_ensemble.append(agent)
             self.agents.append(abstract_mdp_ensemble)
 
+    def __str__(self):
+        result = ''
+        for ensemble in self.agents:
+            for agent in ensemble:
+                result += str(agent) + ' on MDP type' + str(type(agent.mdp)) + '\n'
+        return result
+
     def run_trajectory(self, agent):
         '''
         Run an agent on the MDP until it reaches a terminal state. Record the discounted rewards achieved along the way

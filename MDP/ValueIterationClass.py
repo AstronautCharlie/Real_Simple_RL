@@ -130,12 +130,12 @@ class ValueIteration():
 
     def run_value_iteration(self, steps=1000):
         all_states = self.mdp.get_all_possible_states()
-        print(len(all_states))
+        #print(len(all_states))
         stop = False
         for i in range(steps):
             #q table at i + 1'th iteration
             if(stop == False):
-                print(i)
+                #print(i)
                 Q_i = defaultdict(lambda: 0.0)
                 stop = True
                 for state in all_states:

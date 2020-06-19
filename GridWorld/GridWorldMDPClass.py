@@ -112,7 +112,7 @@ class GridWorldMDP(MDP):
             build_walls = True
         copy = GridWorldMDP(self.height,
                             self.width,
-                            self.init_state,
+                            (self.init_state.x, self.init_state.y),
                             self.gamma,
                             self.slip_prob,
                             self.goal_location,
@@ -120,6 +120,10 @@ class GridWorldMDP(MDP):
                             build_walls=build_walls)
         copy.current_state = self.current_state
         return copy
+
+    def __str__(self):
+        result = str(self.get_current_state())
+        return result
 
     # -------------------------------
     # Transition and reward functions

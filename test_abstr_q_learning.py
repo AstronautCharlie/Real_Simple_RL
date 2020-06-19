@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # GridWorld
 
     # Make ground MDP
-    mdp = GridWorldMDP()
+    mdp = GridWorldMDP(slip_prob=0.0)
     # Run VI to get q-table
     vi = ValueIteration(mdp)
     vi.run_value_iteration()
@@ -51,23 +51,29 @@ if __name__ == '__main__':
     a_agent = Agent(a_mdp)
     pi_agent = Agent(pi_mdp)
     # Train agents and print rewards
-    for i in range(100000):
+    for i in range(25):
         #ground_agent.explore()
-        q_agent.explore()
+        #q_agent.explore()
         q2_agent.explore()
+        print_q_table(q2_agent.get_q_table())
+        print()
         #a_agent.explore()
         #pi_agent.explore()
     #print("\n\n\nGROUND AGENT")
     #ground_q_table = ground_agent.get_q_table()
     #print_q_table(ground_q_table)
 
+    '''
     print("\n\n\nQ* ABSTR AGENT")
     q_q_table = q_agent.get_q_table()
     print_q_table(q_q_table)
+    '''
 
     print("\n\n\nQ*2 ABSTR AGENT")
     q2_q_table = q2_agent.get_q_table()
     print_q_table(q2_q_table)
+
+    print(len(q2_q_table.keys()))
 
     #print("\n\n\nA* ABSTR AGENT")
     #a_q_table = a_agent.get_q_table()

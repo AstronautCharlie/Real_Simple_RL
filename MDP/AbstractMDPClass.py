@@ -7,6 +7,8 @@ Written so that the Experiment class can stamp out abstract MDPs without knowing
 type of the MDP
 '''
 
+import copy
+
 class AbstractMDP():
 	def __init__(self, mdp, state_abstr):
 		self.mdp = mdp
@@ -16,7 +18,15 @@ class AbstractMDP():
 		self.gamma = mdp.gamma
 
 	def copy(self):
-		new_mdp =
+		new_mdp = self.mdp.copy()
+		state_abstr = copy.copy(self.state_abstr)
+		copied_mdp = AbstractMDP(new_mdp, state_abstr)
+		return copied_mdp
+
+	def __str__(self):
+		result = str(self.mdp)
+		result += '\n' + str(self.state_abstr)
+		return result
 
 	# -------------
 	# MDP functions
@@ -41,6 +51,7 @@ class AbstractMDP():
 
 		# Update current state to the result of the transition
 		self.set_current_state(next_state)
+		print("Moving from state", str(state), "to next state", str(next_state))
 
 		# If the next state is terminal, set current_state
 		# to initial state. Still returns next state
