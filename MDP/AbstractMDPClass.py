@@ -18,6 +18,8 @@ class AbstractMDP():
 		self.gamma = mdp.gamma
 		self.abstr_type = state_abstr.abstr_type
 		self.abstr_epsilon = state_abstr.epsilon
+		# Need to maintain the current state at this level for ExperimentClass to work
+		self.current_state = mdp.current_state
 
 	def copy(self):
 		new_mdp = self.mdp.copy()
@@ -41,7 +43,8 @@ class AbstractMDP():
 		return self.mdp.transition(state, action)
 
 	def reset_to_init(self):
-		self.set_current_state(self.init_state)
+		self.mdp.reset_to_init()
+		self.current_state = self.mdp.current_state
 
 	def is_goal_state(self, state):
 		return self.mdp.is_goal_state(state)
@@ -53,6 +56,7 @@ class AbstractMDP():
 
 		# Update current state to the result of the transition
 		self.set_current_state(next_state)
+		self.current_state = next_state
 
 		# If the next state is terminal, set current_state
 		# to initial state. Still returns next state
