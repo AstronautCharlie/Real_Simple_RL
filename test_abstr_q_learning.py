@@ -8,8 +8,16 @@ from MDP.ValueIterationClass import ValueIteration
 from GridWorld.TaxiMDPClass import TaxiMDP
 from MDP.AbstractMDPClass import AbstractMDP
 from Agent.AgentClass import Agent
+from MDP.StateClass import State
 from resources.AbstractionMakers import make_abstr
 from resources.AbstractionTypes import Abstr_type
+
+def count_nonzero_dict_entries(dct):
+    nonzero_count = 0
+    for key in dct.keys():
+        if dct[key] != 0.0:
+            nonzero_count += 1
+    return nonzero_count
 
 def print_q_table(q_table):
     for key in q_table:
@@ -51,29 +59,36 @@ if __name__ == '__main__':
     a_agent = Agent(a_mdp)
     pi_agent = Agent(pi_mdp)
     # Train agents and print rewards
-    for i in range(25):
-        #ground_agent.explore()
-        #q_agent.explore()
+    for i in range(100000):
+        ground_agent.explore()
+        q_agent.explore()
         q2_agent.explore()
-        print_q_table(q2_agent.get_q_table())
-        print()
+        #print_q_table(q2_agent.get_q_table())
+        #print()
         #a_agent.explore()
         #pi_agent.explore()
-    #print("\n\n\nGROUND AGENT")
-    #ground_q_table = ground_agent.get_q_table()
-    #print_q_table(ground_q_table)
+    print("\n\n\nGROUND AGENT")
+    ground_q_table = ground_agent.get_q_table()
+    print_q_table(ground_q_table)
 
-    '''
+
+
     print("\n\n\nQ* ABSTR AGENT")
     q_q_table = q_agent.get_q_table()
     print_q_table(q_q_table)
-    '''
 
     print("\n\n\nQ*2 ABSTR AGENT")
     q2_q_table = q2_agent.get_q_table()
     print_q_table(q2_q_table)
+    print()
 
-    print(len(q2_q_table.keys()))
+    print(count_nonzero_dict_entries(ground_q_table))
+    print(count_nonzero_dict_entries(q_q_table))
+    print(count_nonzero_dict_entries((q2_q_table)))
+
+    #print(len(q2_q_table.keys()))
+    #for key in q2_q_table:
+    #    print(key, key[0])
 
     #print("\n\n\nA* ABSTR AGENT")
     #a_q_table = a_agent.get_q_table()

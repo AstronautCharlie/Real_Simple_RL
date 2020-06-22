@@ -16,6 +16,8 @@ class AbstractMDP():
 		self.init_state = self.mdp.init_state
 		self.state_abstr = state_abstr
 		self.gamma = mdp.gamma
+		self.abstr_type = state_abstr.abstr_type
+		self.abstr_epsilon = state_abstr.epsilon
 
 	def copy(self):
 		new_mdp = self.mdp.copy()
@@ -51,7 +53,6 @@ class AbstractMDP():
 
 		# Update current state to the result of the transition
 		self.set_current_state(next_state)
-		print("Moving from state", str(state), "to next state", str(next_state))
 
 		# If the next state is terminal, set current_state
 		# to initial state. Still returns next state
@@ -60,7 +61,6 @@ class AbstractMDP():
 
 		next_state = self.state_abstr.get_abstr_from_ground(next_state)
 
-		#print("At state", state, "took action", action, "got to next state", next_state, "got reward", reward)
 		return next_state, reward
 
 	# -----------------

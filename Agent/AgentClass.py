@@ -97,9 +97,6 @@ class Agent():
 		action = self.epsilon_greedy(current_state)
 		next_state, reward = self.mdp.act(action)
 
-		print("At", str(current_state), "took action", str(action),
-			  "at next state", str(next_state), "got reward", reward)
-
 		# Update q-table, current_state, and learning parameters
 		self.update(current_state, action, next_state, reward)
 
@@ -135,7 +132,6 @@ class Agent():
 			reward:float
 		'''
 		next_state, reward = self.mdp.act(action)
-		#self.update(current_state, action, next_state, reward)
 		return next_state, reward
 
 
@@ -287,12 +283,6 @@ class Agent():
 		returns:
 			q-value:float
 		'''
-		#state_data = state.get_data()
-		#return self._q_table[(state_data, action)]
-		#if (state, action) in self._q_table.keys():
-		#	return self._q_table[(state, action)]
-		#else:
-		#	return 0
 		return self._q_table[(state, action)]
 
 	def get_mdp(self):
@@ -311,11 +301,7 @@ class Agent():
 			action:Enum
 			new_value:float
 		'''
-		#state_data = state.get_data()
-		#self._q_table[(state_data, action)] = new_value
-		print("Updating value for", str(state), "to", new_value)
 		self._q_table[(state, action)] = new_value
-
 
 
 

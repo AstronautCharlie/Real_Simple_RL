@@ -135,9 +135,4 @@ def get_best_action_value_pair(q_table, state, actions):
 		if q_table[(state, action)] > max_val: 
 			max_val = q_table[(state, action)]
 			best_action = action
-	#for action in actions:
-		#if action != best_action and abs(q_table[(state, action)] - max_val) < 1e-9:
-			#print("Tie for best action")
-			#print(state, action, best_action)
-			#print()
 	return best_action, max_val 

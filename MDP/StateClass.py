@@ -16,9 +16,12 @@ class State():
 		return result
 
 	def __hash__(self):
-		print("Hashing state")
-		print(hash(self.data))
+		#print("Hashing state")
+		#print(hash(self.data))
 		return hash(self.data)
+
+	def __eq__(self, other):
+		return self.data == other.data and self.is_terminal() == other.is_terminal()
 
 	# -----------------
 	# Getters & Setters 
