@@ -120,7 +120,7 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 		if incr_counter: 
 			abstr_counter += 1 
 
-	abstr = StateAbstraction(abstr_dict)
+	abstr = StateAbstraction(abstr_dict, abstr_type, epsilon)
 	return abstr
 
 def get_best_action_value_pair(q_table, state, actions):

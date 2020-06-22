@@ -43,7 +43,7 @@ class Experiment():
         #if abstr_epsilon_list is not None:
         for val in abstr_epsilon_list:
             state_abstr = make_abstr(q_table, val[0], val[1])
-            self.abstract_mdps.append(AbstractMDP(mdp, state_abstr, val[0], val[1]))
+            self.abstract_mdps.append(AbstractMDP(mdp, state_abstr))
 
         # Create agents on ground mdp
         ground_agents = []
