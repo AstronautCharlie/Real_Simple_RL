@@ -1,8 +1,4 @@
 
-
-
-
-
 def visualize_avg_rew(infilepath, outfilepath):
     """
     :param infilepath: the name of the file from which to read the results of the experiment

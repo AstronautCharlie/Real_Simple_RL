@@ -9,12 +9,12 @@ from Agent.AgentClass import Agent
 from resources.AbstractionTypes import Abstr_type
 
 def test_gridworld():
-    mdp = GridWorldMDP()
-    #mdp = TaxiMDP()
+    #mdp = GridWorldMDP()
+    mdp = TaxiMDP()
 
 
     abstr_epsilon_list = [(Abstr_type.Q_STAR, 0.0), (Abstr_type.A_STAR, 0.0), (Abstr_type.PI_STAR, 0.0)]
-    exp = Experiment(mdp, num_agents=5, abstr_epsilon_list=abstr_epsilon_list)
+    exp = Experiment(mdp, num_agents=10, abstr_epsilon_list=abstr_epsilon_list)
 
     # Testing that one agent in an ensemble acting on its MDP won't affect another agent
     '''
@@ -46,10 +46,12 @@ def test_gridworld():
     #print(exp.run_ensemble(exp.agents[(Abstr_type.Q_STAR, 0.0)]))
 
     # Testing writing to file
-    data_file = exp.run_all_ensembles(num_episodes=10)
+    data, steps = exp.run_all_ensembles(num_episodes=100)
 
     # Testing plotting results
-    exp.plot_results(data_file)
+    exp.visualize_results(data, 'results/exp_graph.png')
+
+    exp.visualize_results(steps, 'results/step_counts.png')
 
 if __name__ == '__main__':
     test_gridworld()

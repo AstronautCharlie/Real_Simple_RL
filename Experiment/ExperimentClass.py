@@ -111,10 +111,12 @@ class Experiment():
         :return: a list of the fraction of the optimal value each agent captured
         """
         reward_fractions = []
+        step_counts = []
         for agent in ensemble:
-            actual_rewards, optimal_rewards,_ = self.run_trajectory(agent)
+            actual_rewards, optimal_rewards, step_count = self.run_trajectory(agent)
             reward_fractions.append(actual_rewards / optimal_rewards)
-        return reward_fractions
+            step_counts.append(step_count)
+        return reward_fractions, step_counts
 
     def run_all_ensembles(self, num_episodes):
         """
@@ -124,21 +126,27 @@ class Experiment():
         :return: a path to a file with the average fraction of the optimal reward achieved by each ensemble at each episode
         """
         outpath = os.path.join(out_path, "exp_results.csv")
-        with open(outpath, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            for ensemble_key in self.agents.keys():
-                print(ensemble_key)
-                avg_reward_fractions = [ensemble_key]
-                for episode in range(num_episodes):
-                    print("On episode", episode)
-                    reward_fractions = self.run_ensemble(self.agents[ensemble_key])
-                    avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
-                    avg_reward_fractions.append(avg_reward_fraction)
-                    print(reward_fractions)
-                    print(avg_reward_fraction)
-                writer.writerow(avg_reward_fractions)
-        return outpath
-
+        with open(os.path.join(out_path, "step_counts.csv"), 'w', newline='') as stepfile:
+            with open(outpath, 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile)
+                stepwriter = csv.writer(stepfile)
+                for ensemble_key in self.agents.keys():
+                    print(ensemble_key)
+                    avg_reward_fractions = [ensemble_key]
+                    avg_step_counts = [ensemble_key]
+                    for episode in range(num_episodes):
+                        print("On episode", episode)
+                        reward_fractions, step_counts = self.run_ensemble(self.agents[ensemble_key])
+                        avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
+                        avg_reward_fractions.append(avg_reward_fraction)
+                        avg_step_count = sum(step_counts) / len(step_counts)
+                        avg_step_counts.append(avg_step_count)
+                        #print(reward_fractions)
+                        #print(avg_reward_fraction)
+                    writer.writerow(avg_reward_fractions)
+                    stepwriter.writerow(avg_step_counts)
+        return outpath, os.path.join(out_path, "step_counts.csv")
+    '''
     def plot_results(self, outpath):
         """
         Plot the experiment results in the given outpath
@@ -153,6 +161,42 @@ class Experiment():
                 print(data)
         #print(plt.yticks())
         plt.show()
+    '''
+    def visualize_results(self, infilepath, outfilepath):
+        """
+        :param infilepath: the name of the file from which to read the results of the experiment
+        :param outfilepath: where to save the figure generated
+        :return:
+        """
+        exp_res = open(infilepath, "r")
+        import matplotlib.pyplot as plt
+        plt.style.use('seaborn-whitegrid')
+        ax = plt.subplot(111)
+
+        for mdp in exp_res:
+            # splitting on double quotes
+            mdp = mdp.split("\"")
+
+            # if ground, first list item will have the word "ground"
+            if ("ground" in mdp[0]):
+                # and will contain everything we need as a comma seperated string
+                mdp = mdp[0].split(",")
+            else:
+                # if not, the name of the abstraction will be the second list item
+                # and everything else we need will be in the 3rd list item
+                # which needs to be cleaned of empty strings
+                mdp = [mdp[1]] + [m for m in mdp[2].split(",") if m != ""]
+
+            print(mdp)
+
+            episodes = [i for i in range(1, len(mdp))]
+            plt.plot(episodes, [float(i) for i in mdp[1:]], label="%s" % (mdp[0],))
+
+        leg = plt.legend(loc='best', ncol=2, mode="expand", shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)
+
+        plt.savefig(outfilepath)
+        plt.clf()
 
 
 
