@@ -122,7 +122,7 @@ class GridWorldMDP(MDP):
         return copy
 
     def __str__(self):
-        result = str(self.get_current_state())
+        result = "Four Rooms MDP currently at " + str(self.get_current_state())
         return result
 
     # -------------------------------

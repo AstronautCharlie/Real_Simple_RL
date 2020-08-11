@@ -29,6 +29,7 @@ class AbstractMDP():
 
 	def __str__(self):
 		result = str(self.mdp)
+		result += '\n' + "State abstraction is:"
 		result += '\n' + str(self.state_abstr)
 		return result
 
@@ -75,3 +76,24 @@ class AbstractMDP():
 
 	def set_current_state(self, new_state):
 		self.mdp.set_current_state(new_state)
+
+	def get_state_abstr(self):
+		return self.state_abstr
+
+	# -------
+	# Utility
+	# -------
+	def abstr_to_string(self):
+		"""
+		Write the state abstraction to a string. This is used in the experiment class to write the state abstraction
+		to a file
+		:return: str_rep: string representation of the state abstraction
+		"""
+		# Write the state abstraction as a list of 2-tuples where first value is the state information and the second
+		#  value is the
+		str_rep = '['
+		for key, value in self.state_abstr.abstr_dict.items():
+			str_rep += '(' + str(key) + ', ' + str(value) + '), '
+		# Trim the trailing comma
+		str_rep = str_rep[:-2] + ']'
+		return str_rep

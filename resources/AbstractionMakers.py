@@ -8,19 +8,18 @@ from resources.AbstractionTypes import Abstr_type
 import numpy as np 
 import random 
 
-def make_abstr(q_table, abstr_type, epsilon=1e-12):
-	'''
-	Parameters:
-		q_table:dictionary((state,action):float)
-		abstr_type:Enum(Abstr_type)
-	Returns:
-		q_star:StateAbstraction 
+def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshold=1e-6):
+	"""
+	:param q_table: dictionary((state,action):float)
+	:param abstr_type:Enum(Abstr_type)
+	:param ignore_zeroes:boolean
+	:param threshold: float
+	:return: q_star:StateAbstraction
 
 	Given a q_table of state-action -> value mappings, create a Q*
-	StateAbstraction with error tolerance epsilon (If all action
-	values are within epsilon of each other between two states,
-	they are abstracted together)
-	'''
+	StateAbstraction with error tolerance epsilon (If, for each action, the action-values between the
+	two states are within epsilon of each other, the states are abstracted together
+	"""
 	abstr_dict = {} 
 	abstr_counter = 1 
 
@@ -42,6 +41,20 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 		if action not in actions:
 			actions.append(action)
 
+	zero_states = []
+	# If ignore_zeroes flag is set to true, remove all states that have
+	#  state-action value = 0
+	if ignore_zeroes:
+		for state in states:
+			is_zero = True
+			for action in actions:
+				if abs(q_table[(state, action)]) > threshold:
+					is_zero = False
+			if is_zero:
+				zero_states.append(state)
+	for state in zero_states:
+		states.remove(state)
+
 	# Shuffle states to resolve the non-unqiue cluster problem
 	# Point of this is that if we're using an approximate grouping, we don't want to always
 	# get the same cluster
@@ -55,8 +68,8 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 		# state, so will all the other states it would be 
 		# mapped to, so skip it 
 		if state in abstr_dict.keys():
-			continue 
-		
+			continue
+
 		# This flag is used to increment the abstr_counter 
 		# if at least two states are mapped together 
 		incr_counter = False 
@@ -111,14 +124,15 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12):
 			# unique abstract stated, identified by a
 			# number 
 			if is_match:
-				abstr_dict[state] = abstr_counter
+				#abstr_dict[state] = abstr_counter
 				abstr_dict[other_state] = abstr_counter 
-				incr_counter = True 
+				#incr_counter = True
 		
 		# If at least two states got mapped together, 
 		# increment the abstract state counter 
-		if incr_counter: 
-			abstr_counter += 1 
+		#if incr_counter:
+		abstr_dict[state] = abstr_counter
+		abstr_counter += 1
 
 	abstr = StateAbstraction(abstr_dict, abstr_type, epsilon)
 	return abstr

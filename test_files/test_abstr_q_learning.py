@@ -37,11 +37,12 @@ if __name__ == '__main__':
     q_star_abstr = make_abstr(q_table, Abstr_type.Q_STAR)
     a_star_abstr = make_abstr(q_table, Abstr_type.A_STAR)
     pi_star_abstr = make_abstr(q_table, Abstr_type.PI_STAR)
-    # Make abstract MDPs
+    # Make abstract MDPs - NOTE THIS CLASS HAS BEEN DEPRECATED DO NOT USE
     q_mdp = AbstractGridWorldMDP(state_abstr=q_star_abstr)
     a_mdp = AbstractGridWorldMDP(state_abstr=a_star_abstr)
     pi_mdp = AbstractGridWorldMDP(state_abstr=pi_star_abstr)
 
+    # This is the type of
     q2_mdp = AbstractMDP(mdp, state_abstr=q_star_abstr)
 
     print("VALUE OF OPTIMAL POLICY")
@@ -70,8 +71,6 @@ if __name__ == '__main__':
     print("\n\n\nGROUND AGENT")
     ground_q_table = ground_agent.get_q_table()
     print_q_table(ground_q_table)
-
-
 
     print("\n\n\nQ* ABSTR AGENT")
     q_q_table = q_agent.get_q_table()

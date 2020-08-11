@@ -8,14 +8,14 @@ from MDP.StateClass import State
 
 class StateAbstraction():
     def __init__(self, abstr_dict=None, abstr_type=None, epsilon=1e-12):
-        '''
-		:param abstr_dict: dictionary(States:States)
-		:param abstr_type: the type of abstraction
-		:param epsilon: the difference threshold between states aggregated together
-		The abstr_dict is a mapping of the ground states to abstract
-		states. If no abstr_dict is provided, assume the trivial
-		abstraction of mapping each state to itself
-		'''
+        """
+        :param abstr_dict: dictionary(ground states:abstract states)
+        :param abstr_type: the type of abstraction
+        :param epsilon: the difference threshold between states aggregated together
+        The abstr_dict is a mapping of the ground states to abstract
+        states. If no abstr_dict is provided, assume the trivial
+        abstraction of mapping each state to itself
+        """
         self.abstr_dict = abstr_dict
         self.abstr_type = abstr_type
         if abstr_dict is not None and abstr_type is None:
@@ -27,22 +27,15 @@ class StateAbstraction():
         return self.abstr_dict
 
     def get_abstr_from_ground(self, state):
-        '''
-		Parameters:
-			state:State
-
-		returns:
-			abstr_state, the abstract state corresponding to this 
-			ground state 
-
-		Get the abstract state corresponding to the given state. 
-		If the given state does not occur in abstr_dict, return
-		the state itself 
-		'''
+        """
+        Get the abstract state corresponding to the given state. If the given state does not occur in abstr_dict,
+        return the state itself
+        :param state:
+        :return: abstr_state, the abstract state corresponding to the given ground state
+        """
         if self.abstr_dict is not None and state in self.abstr_dict.keys():
             abstr_state = State(data=(self.abstr_dict[state]), is_terminal=state.is_terminal())
             return abstr_state
-            return self.abstr_dict[state]
 
         else:
             # print("FUCK")

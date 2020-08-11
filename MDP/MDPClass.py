@@ -87,8 +87,8 @@ class MDP():
 		:param action: Enum
 		:return: dictionary of State -> Float (probability, so needs to be less than one)
 		"""
-	@abc.abstractmethod
 
+	@abc.abstractmethod
 	def get_all_possible_states(self):
 		"""
 		Returns a list containing all the possible states in this MDP

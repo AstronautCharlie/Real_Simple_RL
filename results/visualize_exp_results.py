@@ -33,4 +33,4 @@ def visualize_avg_rew(infilepath, outfilepath):
     leg.get_frame().set_alpha(0.5)
 
     plt.savefig(outfilepath)
-visualize_avg_rew("exp_results.csv","exp_results_plot")
+visualize_avg_rew("exp_output.csv","exp_results_plot")

@@ -1,4 +1,6 @@
 '''
+DEPRECATED. DO NOT USE UNDER ANY CIRCUMSTANCES. YOU'LL WAKE THE DEAD.
+
 This class represents an abstract GridWorldMDP by combining an MDP with a
 StateAbstraction, which maps states to abstact states
 '''

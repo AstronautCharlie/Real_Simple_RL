@@ -9,12 +9,16 @@ from Agent.AgentClass import Agent
 from resources.AbstractionTypes import Abstr_type
 
 def test_gridworld():
-    #mdp = GridWorldMDP()
-    mdp = TaxiMDP()
+    mdp = GridWorldMDP()
+    mdp_str = 'rooms'
+    #mdp = TaxiMDP()
+    #mdp_str = 'taxi'
 
+    eps = 0.0
 
-    abstr_epsilon_list = [(Abstr_type.Q_STAR, 0.0), (Abstr_type.A_STAR, 0.0), (Abstr_type.PI_STAR, 0.0)]
-    exp = Experiment(mdp, num_agents=10, abstr_epsilon_list=abstr_epsilon_list)
+    abstr_epsilon_list = [(Abstr_type.Q_STAR, eps), (Abstr_type.A_STAR, eps), (Abstr_type.PI_STAR, eps)]
+    #abstr_epsilon_list = [(Abstr_type.A_STAR, eps), (Abstr_type.PI_STAR, eps)]
+    exp = Experiment(mdp, num_agents=20, abstr_epsilon_list=abstr_epsilon_list)
 
     # Testing that one agent in an ensemble acting on its MDP won't affect another agent
     '''
@@ -46,12 +50,12 @@ def test_gridworld():
     #print(exp.run_ensemble(exp.agents[(Abstr_type.Q_STAR, 0.0)]))
 
     # Testing writing to file
-    data, steps = exp.run_all_ensembles(num_episodes=100)
+    data, steps = exp.run_all_ensembles(num_episodes=500)
 
     # Testing plotting results
-    exp.visualize_results(data, 'results/exp_graph.png')
+    exp.visualize_results(data, 'results/exp_graph_' + mdp_str + '_' + str(eps) + '.png')
 
-    exp.visualize_results(steps, 'results/step_counts.png')
+    exp.visualize_results(steps, 'results/step_counts_' + mdp_str + '_' + str(eps) + '.png')
 
 if __name__ == '__main__':
     test_gridworld()
