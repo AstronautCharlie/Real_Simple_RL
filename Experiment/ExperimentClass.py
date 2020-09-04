@@ -13,6 +13,8 @@ from Agent.AgentClass import Agent
 from resources.AbstractionMakers import make_abstr
 from resources.AbstractionTypes import Abstr_type
 from resources.AbstractionCorrupters import *
+from Visualizer.AbstractGridWorldVisualizer import AbstractGridWorldVisualizer as vis
+from collections import defaultdict
 import csv
 import os
 import matplotlib.pyplot as plt
@@ -60,12 +62,13 @@ class Experiment():
         vi.run_value_iteration()
         q_table = vi.get_q_table()
         self.vi_table = q_table
+        self.vi = vi
 
-        # Create abstract MDPs from each element of abstr_epsilon_list:
-        self.abstract_mdps = []
+        # Create abstract MDPs from each element of abstr_epsilon_list. val[0] is abstraction type, val[1] is epsilon
+        self.abstr_mdp_dict = {}
         for val in abstr_epsilon_list:
             state_abstr = make_abstr(q_table, val[0], val[1])
-            self.abstract_mdps.append(AbstractMDP(mdp, state_abstr))
+            self.abstr_mdp_dict[(val[0], val[1])] = AbstractMDP(mdp, state_abstr)
 
         # Create (self.num_corrupted_mdps) corrupted versions of MDPs (if applicable) from each element of
         #  corruption_list
@@ -83,7 +86,7 @@ class Experiment():
                     corr_type = val[0]
                     prop = val[1]
                     # Create corruptions each of the abstract MDPs according to each of the values in self.corruption_list
-                    for abstr_mdp in self.abstract_mdps:
+                    for abstr_mdp in self.abstr_mdp_dict.values():
                         for i in range(self.num_corrupted_mdps):
                             # Create corrupted state abstraction
                             c_s_a = make_corruption(abstr_mdp.get_state_abstr(), type=corr_type, proportion=prop)
@@ -110,7 +113,7 @@ class Experiment():
         self.agents['ground'] = ground_agents
 
         # Create agents on abstract MDPs
-        for abstract_mdp in self.abstract_mdps:
+        for abstract_mdp in self.abstr_mdp_dict.values():
             abstract_mdp_ensemble = []
             for i in range(self.num_agents):
                 temp_mdp = abstract_mdp.copy()
@@ -120,10 +123,12 @@ class Experiment():
 
         # Create agents on corrupted abstract MDPs. Remember that we have self.num_corrupted_mdps ensembles for each
         #  combination of abstractMDP type and entry in self.corruption_list.
+        # self.corr_agents is now a dictionary mapping (abstr_type, epsilon, corr_type, proportion, batch_num) to
+        #  a list of agents
         self.corr_agents = {}
         for corr_key in self.corrupt_mdp_dict.keys():
             corr_ensemble = []
-            for i in range(self.num_corrupted_mdps):
+            for i in range(self.num_agents):
                 temp_mdp = self.corrupt_mdp_dict[corr_key].copy()
                 agent = Agent(temp_mdp)
                 corr_ensemble.append(agent)
@@ -256,7 +261,6 @@ class Experiment():
         else:
             return os.path.join(self.results_dir, "exp_output.csv"), os.path.join(self.results_dir, "step_counts.csv")
 
-
     def visualize_results(self, infilepath, outfilepath):
         """
         :param infilepath: the name of the file from which to read the results of the experiment
@@ -290,7 +294,7 @@ class Experiment():
         plt.savefig(outfilepath)
         plt.clf()
 
-    def visualize_corrupt_mdps(self, infilepath, outfilepath=None, graph_between=False):
+    def visualize_corrupt_results(self, infilepath, outfilepath=None, graph_between=False):
         """
         Graph the results from the corrupted MDPs
         :param infilepath: name of the file with the data to be graphed
@@ -327,11 +331,11 @@ class Experiment():
         for i in range(avg_df.shape[0]):
             upper = avg_df.iloc[i] + std_df.iloc[i]
             lower = avg_df.iloc[i] - std_df.iloc[i]
-            plt.plot(episodes, list(avg_df.iloc[i]), label="%s" % (avg_df.index[i],))
-            plt.fill_between(episodes, upper, lower, alpha=0.2)
-        leg = plt.legend(loc='best', fancybox=True)
-        #leg.get_frame().set_alpha(0.5)
-
+            plt.plot(episodes, list(avg_df.iloc[i]), label="%s" % ([avg_df.index[i][0], avg_df.index[i][3]]))
+            if graph_between:
+                plt.fill_between(episodes, upper, lower, alpha=0.2)
+        leg = plt.legend(loc='upper left', fancybox=True)
+        plt.show()
         plt.savefig(outfilepath)
         plt.clf()
 
@@ -354,6 +358,58 @@ class Experiment():
             plt.title("%s" % (batch,))
             plt.show()
             plt.clf()
+
+    def visualize_corrupt_abstraction(self, key):
+        """
+        TODO: Complete this
+        Visualize the abstraction with the given key from self.corrupt_mdp_dict. Also prints the states where the
+        corrupt and true MDPs differ
+        :param key: tuple consisting of abstraction type, abstraction epsilon, corruption type, corruption proportion,
+                    and batch number
+        """
+        print(key)
+        corr_vis = vis(self.corrupt_mdp_dict[key])
+        corr_vis.displayAbstractMDP()
+
+    def get_corrupt_policy_differences(self, key):
+        """
+        Get the differences between the modal policy learned by the ensemble on the corrupt MDP with the given key
+        and the optimal policy in the ground MDP (as dictated by VI)
+        :param key: tuple of (Abstr_type, abstr_epsilon, Corr_type, proportion, batch_num)
+        :return: dictionary mapping ground states to tuples of the form (optimal action from VI, modal action learned,
+                    how many agents learned that action)
+        """
+        # This will hold final result
+        policy_diff_dict = {}
+
+        # Get a list of all ground states in the MDP
+        states = self.ground_mdp.get_all_possible_states()
+
+        # Iterate through all ground states in the MDP
+        for state in states:
+            # Get list of optimal actions as dictated by VI
+            true_optimal_actions = self.vi.get_all_optimal_actions(state)
+
+            # Get dictionary of optimal actions -> number of agents who learned that action as optimal for the given
+            #   state
+            corr_optimal_actions = self.get_optimal_actions_corrupt_mdp(state, key)
+
+            # Get modal action(s) from corr_optimal_actions
+            modal_actions = []
+            action_count = 0
+            for action in corr_optimal_actions.keys():
+                if corr_optimal_actions[action] > action_count:
+                    action_count = corr_optimal_actions[action]
+            for action in corr_optimal_actions.keys():
+                if corr_optimal_actions[action] == action_count:
+                    modal_actions.append(action)
+
+            # Check if any of the modal actions are not optimal under VI
+            for modal_action in modal_actions:
+                if modal_action not in true_optimal_actions:
+                    policy_diff_dict[state] = (true_optimal_actions, modal_action, corr_optimal_actions[modal_action])
+
+        return policy_diff_dict
 
     # -------
     # Utility
@@ -381,3 +437,69 @@ class Experiment():
         if new_num <= 0:
             raise ValueError("Cannot have number of episodes less than 1. Invalid argument is " + str(new_num))
         self.num_episodes = new_num
+
+    def get_abstr_mdp(self, key):
+        """
+        Query self.abstr_mdps for the given key
+        :param key: Tuple of (Abstr_type, abstr_epsilon)
+        """
+        return self.abstr_mdp_dict[key]
+
+    def get_corrupt_mdp(self, key):
+        """
+        Query self.corrupt_mdp_dict for the given key.
+        :param key: Tuple of (Abstr_type, abstr_epsilon, corr_type, proportion, batch_num)
+        """
+        return self.corrupt_mdp_dict[key]
+
+    def get_corruption_errors(self, key):
+        """
+        Return the ground states where a corrupt abstract mdp differs from the true mdp
+        :param key: tuple of (Abstr_type, abstr_epsilon, corr_type, proportion, batch_num)
+        :return: list of tuples representing errors of the form (ground state, true abstr state, corrupt abstr state)
+        """
+        corr_mdp = self.get_corrupt_mdp(key)
+        true_mdp = self.get_abstr_mdp((key[0], key[1]))
+        corr_abstr_dict = corr_mdp.state_abstr.get_abstr_dict()
+        true_abstr_dict = true_mdp.state_abstr.get_abstr_dict()
+        errors = []
+        for key in true_abstr_dict.keys():
+            if true_abstr_dict[key] != corr_abstr_dict[key]:
+                errors.append((key, true_abstr_dict[key], corr_abstr_dict[key]))
+        return errors
+
+    def get_optimal_action_from_vi(self, state):
+        """
+        Query self.q_table for action values associated with state and return optimal action
+        :param state: a state in the ground MDP for which the optimal action will be returned
+        :return: optimal action for that state
+        """
+        opt_val = float("-inf")
+        opt_action = None
+        for key in self.vi_table.keys():
+            if key[0] == state:
+                if self.vi_table[key] > opt_val:
+                    opt_val = self.vi_table[key]
+                    opt_action = key[1]
+        return opt_action
+
+    def get_optimal_actions_corrupt_mdp(self, state, key):
+        """
+        Get the optimal actions from every agent in the ensemble on the corrupt MDP corresponding to the given key
+        :param state: ground state
+        :param key: tuple of (Abstr_type, abstr_epsilon, corruption_type, proportion, batch_num) corresponding to a
+                    corrupted mdp
+        :return: dictionary of actions to numbers where keys are optimal actions and values are the number of agents
+                    in the ensemble for whom that is the optimal action
+        """
+        # 'ensemble' is a list of agents
+        ensemble = self.corr_agents[key]
+
+        # Iterate through ensemble, query each agent for the best action in the given state, and record the value in a
+        #  dictionary
+        opt_action_dict = defaultdict(lambda: 0)
+        for agent in ensemble:
+            best_action = agent.get_best_action(state)
+            opt_action_dict[best_action] += 1
+
+        return opt_action_dict

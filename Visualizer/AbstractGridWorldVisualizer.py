@@ -13,6 +13,8 @@ DARK_RED = (89, 6, 16)
 
 
 class AbstractGridWorldVisualizer():
+    # Commented out to remove agent
+    '''
     def __init__(self, mdp, agent, screen_width=1000, screen_height=1000, cell_size=50, margin=1):
         self.mdp = mdp
         self.agent = agent
@@ -26,14 +28,31 @@ class AbstractGridWorldVisualizer():
         This class uses Pygame to visualize an Abstract GridWorldMDP and an agent in it
 
         """
+    '''
+    def __init__(self, abstr_gridworld_mdp, screen_width=1000, screen_height=1000, cell_size=50, margin=1):
+        """
+        Initialize a visualizer for the given abstract MDP.
+        :param mdp: an abstract MDP on a GridWorldMDP ground MDP
+        :param screen_width:
+        :param screen_height:
+        :param cell_size:
+        :param margin:
+        """
+        self.abstr_mdp = abstr_gridworld_mdp
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        self.cell_size = cell_size
+        self.margin = margin
+        self.agent_size = self.cell_size - self.margin
+
     def createAbstractGridWorldMDP(self):
         """
         Creates and returns a Pygame Surface from the Abstract MDP this class is initialized with.
         All cells that belong to the same abstract class are shown in the same color
         :return:
         """
-        WIDTH_DIM = self.mdp.get_width()
-        HEIGHT_DIM = self.mdp.get_height()
+        WIDTH_DIM = self.abstr_mdp.mdp.get_width()
+        HEIGHT_DIM = self.abstr_mdp.mdp.get_height()
         rand_color = randomcolor.RandomColor()
         #dictionary of abstract state to colors
         abs_to_color = {}
@@ -42,7 +61,7 @@ class AbstractGridWorldVisualizer():
         WINDOW_HEIGTH = (self.cell_size + self.margin) * HEIGHT_DIM + self.margin
         screen = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGTH))
         window = pygame.Rect(0, 0, WINDOW_HEIGTH, WINDOW_WIDTH)
-        walls = self.mdp._compute_walls()
+        walls = self.abstr_mdp.mdp._compute_walls()
         # draw background
         pygame.draw.rect(screen,
                          BLACK,
@@ -56,7 +75,7 @@ class AbstractGridWorldVisualizer():
                     color = BLACK
                 else:
                     ground_state = GridWorldState(column,row)
-                    abs_state = self.mdp.get_abstr_from_ground(ground_state)
+                    abs_state = self.abstr_mdp.get_abstr_from_ground(ground_state)
                     print("ground state", ground_state)
                     print("abstract state", abs_state)
 
@@ -93,7 +112,7 @@ class AbstractGridWorldVisualizer():
                 screen.blit(mdp_env, (0, 0))
                 pygame.display.flip()
 
-    def createAction(self,action):
+    def createAction(self, action):
         """
         Creates and returns a pygame surface representing the given action
         :param action:
@@ -129,16 +148,17 @@ class AbstractGridWorldVisualizer():
         action_rect.top = (mdp_env_rect.height - ((self.margin + self.cell_size) * (ground_state.y))) + self.margin
         mdpSurface.blit(action_surface, action_rect)
         return mdpSurface
-    def visualizeLearnedPolicy(self):
+
+    def visualizeLearnedPolicy(self, agent):
         """
         Shows best action learned at each state of the MDP
         :return:
         """
         screen = pygame.display.set_mode([self.screen_width, self.screen_height])
         mdp_env = self.createAbstractGridWorldMDP()
-        WIDTH_DIM = self.mdp.get_width()
-        HEIGHT_DIM = self.mdp.get_height()
-        walls = self.mdp._compute_walls()
+        WIDTH_DIM = self.abstr_mdp.mdp.get_width()
+        HEIGHT_DIM = self.abstr_mdp.mdp.get_height()
+        walls = self.abstr_mdp.mdp._compute_walls()
         pygame.init()
         complete_viz = False
         while True:
@@ -149,9 +169,9 @@ class AbstractGridWorldVisualizer():
                     for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
                         if(not (column, row) in walls):
                             ground_state = GridWorldState(column, row)
-                            abs_state = self.mdp.get_abstr_from_ground(ground_state)
+                            abs_state = self.abstr_mdp.get_abstr_from_ground(ground_state)
                             print("abs_state", abs_state)
-                            best_action = self.agent.get_best_action(abs_state)
+                            best_action = agent.get_best_action(abs_state)
                             print(best_action)
                             action_img = self.createAction(best_action)
                             mdp_and_action = self.placeAction(action_img, ground_state, mdp_env)

@@ -80,6 +80,9 @@ class AbstractMDP():
 	def get_state_abstr(self):
 		return self.state_abstr
 
+	def get_abstr_from_ground(self, ground_state):
+		return self.state_abstr.get_abstr_from_ground(ground_state)
+
 	# -------
 	# Utility
 	# -------

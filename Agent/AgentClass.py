@@ -157,6 +157,7 @@ class Agent():
 		new_q_value = old_q_value + self._alpha * (reward + self.mdp.gamma * best_next_action_value - old_q_value)
 		self._set_q_value(state, action, new_q_value)
 
+	# Can probably be deprecated since we aren't going to make online abstractions in this way
 	def make_abstraction(self, abstr_type, epsilon, ignore_zeroes=False, threshold=1e-6):
 		"""
 		Create an abstraction out of the current q-table of the given type with given epsilon
