@@ -67,8 +67,12 @@ class TaxiState(State):
         super().__init__([taxi_loc, passenger_loc, goal_loc], is_terminal)
 
     def __str__(self):
-        result = 'Taxi, Passenger, Goal : '
-        result += str(self.get_taxi_loc()) + ' '
+        """
+        Represent a TaxiMDP state as a tuple of (Taxi loc, passenger loc, goal loc)
+        with a tag indicating terminal if it is a terminal state
+        """
+        #result = 'Taxi, Passenger, Goal : '
+        result = str(self.get_taxi_loc()) + ' '
         result += str(self.get_passenger_loc()) + ' '
         result += str(self.get_goal_loc())
         if self.is_terminal():

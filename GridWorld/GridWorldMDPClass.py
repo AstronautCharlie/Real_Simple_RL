@@ -35,7 +35,7 @@ class GridWorldMDP(MDP):
         self.walls = []
 
         if build_walls:
-            self.walls = self._compute_walls()
+            self.walls = self.compute_walls()
 
     # -----------------
     # Getters & setters
@@ -74,7 +74,7 @@ class GridWorldMDP(MDP):
         '''
         return (state.x, state.y) in self.goal_location
 
-    def _compute_walls(self):
+    def compute_walls(self):
         '''
         Calculate the locations of walls; taken from David Abel's
         simple_rl package
@@ -166,7 +166,6 @@ class GridWorldMDP(MDP):
         # return initial state
         if (next_state.x, next_state.y) in self.goal_location:
             next_state.set_terminal(True)
-
         return next_state
 
     def next_possible_states(self, state, action):
@@ -266,7 +265,7 @@ class GridWorldMDP(MDP):
         :return: List of GridWorldState
         """
         listOfStates = []
-        walls = self._compute_walls()
+        walls = self.compute_walls()
         for col_idx, column in enumerate(range(1, self.height + 1, 1)):
             for row_idx, row in enumerate(range(self.width, 0, -1)):
                 if (not (column, row) in walls):

@@ -38,7 +38,6 @@ class StateAbstraction():
             return abstr_state
 
         else:
-            # print("FUCK")
             return state
 
     def __str__(self):

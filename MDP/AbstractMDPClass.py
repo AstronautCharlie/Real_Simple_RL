@@ -35,6 +35,7 @@ class AbstractMDP():
 
 	# -------------
 	# MDP functions
+	# These functions simply pass the arguments to the underlying MDP
 	# -------------
 
 	def reward(self, state, action, next_state):
@@ -68,6 +69,9 @@ class AbstractMDP():
 
 		return next_state, reward
 
+	def get_all_possible_states(self):
+		return self.mdp.get_all_possible_states()
+
 	# -----------------
 	# Getters & setters
 	# -----------------
@@ -100,3 +104,21 @@ class AbstractMDP():
 		# Trim the trailing comma
 		str_rep = str_rep[:-2] + ']'
 		return str_rep
+
+	# ------------
+	# MDP-specific
+	#
+	# These functions are specific to types of MDPs. If you call one of
+	# these functions from an abstractMDP that does not have a ground MDP
+	# of the appropriate type, you will get an error
+	# ------------
+
+	# Gridworld
+	def get_width(self):
+		return self.mdp.get_width()
+
+	def get_height(self):
+		return self.mdp.get_height()
+
+	def compute_walls(self):
+		return self.mdp.compute_walls()

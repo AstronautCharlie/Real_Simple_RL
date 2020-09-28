@@ -3,7 +3,11 @@ Defines the MDP class, which is a container for the actions,
 transition function, reward function, and state info 
 '''
 
-import abc 
+import abc
+from MDP.AbstractMDPClass import AbstractMDP
+from MDP.ValueIterationClass import ValueIteration
+from resources.AbstractionTypes import Abstr_type
+from resources.AbstractionMakers import make_abstr
 
 class MDP():
 	def __init__(self,
@@ -101,3 +105,17 @@ class MDP():
 		Returns a deep copy of self
 		:return: a deep copy of self
 		"""
+
+	def make_abstr_mdp(self, abstr_type, abstr_epsilon=0.0):
+		"""
+		Create an abstract MDP with the given abstraction type
+		:param abstr_type: the type of abstraction
+		:param abstr_epsilon: the epsilon threshold for approximate abstraction
+		:return: abstr_mdp
+		"""
+		vi = ValueIteration(self)
+		vi.run_value_iteration()
+		q_table = vi.get_q_table()
+		s_a = make_abstr(q_table, abstr_type, abstr_epsilon)
+		abstr_mdp = AbstractMDP(self, s_a)
+		return abstr_mdp

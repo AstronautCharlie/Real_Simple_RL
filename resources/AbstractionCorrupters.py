@@ -37,6 +37,32 @@ def uniform_random(s_a, proportion=1.0):
     c_s_a = StateAbstraction(corrupt_dict, abstr_type=s_a.abstr_type, epsilon=s_a.epsilon)
     return c_s_a
 
+'''
 def make_corruption(s_a, type, proportion):
     if type == Corr_type.UNI_RAND:
         return uniform_random(s_a, proportion=proportion)
+'''
+
+def make_corruption(abstr_mdp, states_to_corrupt, type=Corr_type.UNI_RAND):
+    """
+    Corrupt the given state abstraction by randomly reassigning the given list of states to incorrect abstract states
+    :param abstr_mdp: (AbstractMDP) the mdp to be corrupted
+    :param states_to_corrupt: (list of States) the ground states to be reassigned
+    :param type: method of reassigning the states
+    :return: c_s_a, a corrupted state abstraction with the states in states_to_corrupt randomly reassigned
+    """
+    orig_dict = abstr_mdp.get_state_abstr().get_abstr_dict()
+    corrupt_dict = copy.deepcopy(orig_dict)
+    abstr_states = list(orig_dict.values())
+
+    if type == Corr_type.UNI_RAND:
+        for state in states_to_corrupt:
+            while corrupt_dict[state] == orig_dict[state]:
+                corrupt_dict[state] = np.random.choice(abstr_states)
+    else:
+        raise ValueError(str(type) + " is not a supported abstraction type")
+
+    c_s_a = StateAbstraction(corrupt_dict,
+                             abstr_type=abstr_mdp.get_state_abstr().abstr_type,
+                             epsilon=abstr_mdp.get_state_abstr().epsilon)
+    return c_s_a

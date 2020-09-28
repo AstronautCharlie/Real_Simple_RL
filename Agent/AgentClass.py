@@ -14,6 +14,7 @@ from resources.AbstractionTypes import Abstr_type
 from MDP.StateClass import State
 from MDP.AbstractMDPClass import AbstractMDP
 
+
 class Agent():
 	def __init__(self,
 				 mdp,
@@ -81,7 +82,6 @@ class Agent():
 	# --------------
 	# Main functions
 	# --------------
-
 	def explore(self):
 		'''
 		Apply epsilon-greedy exploration and update q-table with 
@@ -213,7 +213,6 @@ class Agent():
 			if new_abstr.abstr_dict[key] not in unique_abstr_states:
 				unique_abstr_states.append(new_abstr.abstr_dict[key])
 		return len(unique_abstr_states), len(ground_states)
-
 
 	# --------------------------
 	# Getters, setters & utility
@@ -368,6 +367,37 @@ class Agent():
 		'''
 		self._q_table[(state, action)] = new_value
 
+	def get_learned_policy_as_string(self):
+		"""
+		Generate a dictionary (States -> Actions) of the learned policy
+		:return: policy_dict
+		"""
+		policy_dict = {}
+
+		# If the MDP is a abstract MDP, we can't query the ground states directly
+		if isinstance(self.mdp, AbstractMDP):
+			for state in self.mdp.get_all_possible_states():
+				abstr_state = self.mdp.get_state_abstr().get_abstr_from_ground(state)
+				policy_dict[str(abstr_state)] = str(self.get_best_action(abstr_state))
+		else:
+			for state in self.mdp.get_all_possible_states():
+				policy_dict[str(state)] = str(self.get_best_action(state))
+
+		return policy_dict
+
+	def get_learned_policy(self):
+		policy_dict = {}
+
+		# If the MDP is a abstract MDP, we can't query the ground states directly
+		if isinstance(self.mdp, AbstractMDP):
+			for state in self.mdp.get_all_possible_states():
+				abstr_state = self.mdp.get_state_abstr().get_abstr_from_ground(state)
+				policy_dict[abstr_state] = self.get_best_action(abstr_state)
+		else:
+			for state in self.mdp.get_all_possible_states():
+				policy_dict[state] = self.get_best_action(state)
+
+		return policy_dict
 
 
 

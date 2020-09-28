@@ -61,7 +61,7 @@ class AbstractGridWorldVisualizer():
         WINDOW_HEIGTH = (self.cell_size + self.margin) * HEIGHT_DIM + self.margin
         screen = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGTH))
         window = pygame.Rect(0, 0, WINDOW_HEIGTH, WINDOW_WIDTH)
-        walls = self.abstr_mdp.mdp._compute_walls()
+        walls = self.abstr_mdp.mdp.compute_walls()
         # draw background
         pygame.draw.rect(screen,
                          BLACK,
@@ -158,7 +158,7 @@ class AbstractGridWorldVisualizer():
         mdp_env = self.createAbstractGridWorldMDP()
         WIDTH_DIM = self.abstr_mdp.mdp.get_width()
         HEIGHT_DIM = self.abstr_mdp.mdp.get_height()
-        walls = self.abstr_mdp.mdp._compute_walls()
+        walls = self.abstr_mdp.mdp.compute_walls()
         pygame.init()
         complete_viz = False
         while True:
