@@ -42,9 +42,6 @@ class MDP():
 		'''
 		self.current_state = state
 
-	#@abc.abstractmethod
-	#def transition(self, state, action):
-
 	# --------------
 	# Main functions 
 	# --------------

@@ -15,7 +15,8 @@ class AbstractionAgent(Agent):
                  mdp,
                  s_a=None,
                  alpha=0.1,
-                 epsilon=0.1):
+                 epsilon=0.1,
+                 decay_exploration=True):
         """
         Create an agent with a state abstraction mapping
         :param mdp: an MDP environment
@@ -24,7 +25,7 @@ class AbstractionAgent(Agent):
         :param alpha: learning rate
         :param epsilon: exploration rate
         """
-        Agent.__init__(self, mdp, alpha, epsilon)
+        Agent.__init__(self, mdp, alpha, epsilon, decay_exploration=decay_exploration)
         self.s_a = s_a
 
         # Create a dictionary mapping each ground state to all other ground states with the same abstract state
@@ -58,13 +59,23 @@ class AbstractionAgent(Agent):
 
         # Update all states in the same abstract state
         old_q_value = self.get_q_value(state, action)
+        # This if/then is to keep the Q-values from exploding. As a result, the terminal state will always have
+        # value 0
         if not next_state.is_terminal():
             best_next_action_value = self.get_best_action_value(next_state)
         else:
             best_next_action_value = 0.0
+        # Calculate the new Q-value
         new_q_value = old_q_value + self._alpha * (reward + self.mdp.gamma * best_next_action_value - old_q_value)
+        # Apply the update to all states also mapped to this state
+        #if new_q_value > 0:
+        #    print(new_q_value, end=' ')
+        #    for state in states_to_update:
+        #        print(state, end= ' ')
+        #    print()
         for equiv_state in states_to_update:
             self._set_q_value(equiv_state, action, new_q_value)
+
 
     def detach_state(self, state):
         """

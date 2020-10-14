@@ -3,8 +3,8 @@
 import pygame
 import sys
 import randomcolor
-import pandas as pd
 import ast
+import pandas as pd
 import numpy as np
 from GridWorld.ActionEnums import Dir
 from GridWorld.GridWorldStateClass import  GridWorldState
@@ -85,7 +85,7 @@ class GridWorldVisualizer():
                 screen.blit(surface, (0, 0))
                 pygame.display.flip()
 
-    def create_gridworld_mdp(self, mdp):
+    def create_gridworld_mdp(self, mdp, background=BLACK):
         """
         Create a surface with the given GridWorld. Creates a black background and then draws white squares on it
         such that there is a border between them.
@@ -94,7 +94,8 @@ class GridWorldVisualizer():
         """
         mdp_width = mdp.get_width()
         mdp_height = mdp.get_height()
-
+        if background is None:
+            background = BLACK
         # Fence post calculation
         window_width = self.margin + (self.margin + self.cell_size) * mdp_width
         window_height = self.margin + (self.margin + self.cell_size) * mdp_height
@@ -105,7 +106,7 @@ class GridWorldVisualizer():
         walls = mdp.compute_walls()
 
         # Draw background
-        pygame.draw.rect(screen, BLACK, window)
+        pygame.draw.rect(screen, background, window)
 
         # Draw grid
         for col_idx, column in enumerate(range(1, mdp_width + 1, 1)):
@@ -121,26 +122,7 @@ class GridWorldVisualizer():
 
         return screen
 
-    '''
-    def display_gridworld_mdp(self, mdp):
-        """
-        Display a generic FourRooms MDP
-        :return:
-        """
-        screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        mdp = self.create_gridworld_mdp(mdp)
-
-        pygame.init()
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
-            screen.blit(mdp, (0, 0))
-            pygame.display.flip()
-    '''
-
     # Create abstract gridworld surface from file
-
     def create_abstract_gridworld_mdp_from_file(self, abstraction_file, key, err_list=None):
         """
         Create a pygame surface from the given abstract mdp. Color all cells
@@ -165,8 +147,8 @@ class GridWorldVisualizer():
             ground_state = GridWorldState(el[0][0], el[0][1])
             abstr_state = el[1]
             s_a[ground_state] = abstr_state
-        for k, value in s_a.items():
-            print(k, value)
+        #for k, value in s_a.items():
+            #print(k, value)
         mdp = AbstractMDP(ground_mdp, StateAbstraction(s_a, key[0]))
 
         # This will hold the abstract state to color mapping
@@ -175,11 +157,11 @@ class GridWorldVisualizer():
         # Unpack the err_list argument if it is given. Create dictionary of ground states to 2-tuples of
         #  (true abstr state, corrupt abstr state)
         if err_list:
-            print("Got err_list argument")
+            #print("Got err_list argument")
             err_dict = {}
             for err in err_list:
                 err_dict[err[0]] = (err[1], err[2])
-            print(err_dict)
+            #print(err_dict)
 
         for col_idx, col in enumerate(range(1, mdp.get_width() + 1, 1)):
             for row_idx, row in enumerate(range(mdp.get_height(), 0, -1)):
@@ -201,7 +183,7 @@ class GridWorldVisualizer():
                                        self.cell_size)
                     pygame.draw.rect(screen, color, cell)
                     if err_list and (col, row) in list(err_dict.keys()):
-                        print("Split coloring", (col, row))
+                        #print("Split coloring", (col, row))
                         cell = pygame.Rect((self.margin + self.cell_size) * col_idx + self.margin,
                                            (self.margin + self.cell_size) * row_idx + self.margin,
                                            self.cell_size,
@@ -219,7 +201,6 @@ class GridWorldVisualizer():
         return screen
 
     # Create abstract gridwold surface from MDP
-
     def create_abstract_gridworld_mdp(self, mdp, err_list=None):
         """
         Create a pygame surface from the given abstract mdp. Color all cells
@@ -239,11 +220,11 @@ class GridWorldVisualizer():
         # Unpack the err_list argument if it is given. Create dictionary of ground states to 2-tuples of
         #  (true abstr state, corrupt abstr state)
         if err_list:
-            print("Got err_list argument")
+            #print("Got err_list argument")
             err_dict = {}
             for err in err_list:
                 err_dict[err[0]] = (err[1], err[2])
-            print(err_dict)
+            #print(err_dict)
 
         for col_idx, col in enumerate(range(1, mdp.get_width() + 1, 1)):
             for row_idx, row in enumerate(range(mdp.get_height(), 0, -1)):
@@ -265,7 +246,7 @@ class GridWorldVisualizer():
                                        self.cell_size)
                     pygame.draw.rect(screen, color, cell)
                     if err_list and (col, row) in list(err_dict.keys()):
-                        print("Split coloring", (col, row))
+                        #print("Split coloring", (col, row))
                         cell = pygame.Rect((self.margin + self.cell_size) * col_idx + self.margin,
                                            (self.margin + self.cell_size) * row_idx + self.margin,
                                            self.cell_size,
@@ -282,7 +263,6 @@ class GridWorldVisualizer():
                         pygame.draw.rect(screen, color, cell)
         return screen
 
-
     def display_abstract_gridworld_mdp(self, mdp):
         """
         Display the abstract MDP with cells color-coded by their abstract state
@@ -298,42 +278,50 @@ class GridWorldVisualizer():
                 screen.blit(mdp, (0, 0))
                 pygame.display.flip()
 
-    def create_corruption_visualization(self, key, corrupt_abstr_file, err_file=None):
+    def create_corruption_visualization(self, key, corrupt_abstr_file, error_file=None):
         """
         Visualize the corrupt abstraction indicated by the key
         :param key: tuple of (Abstr_type, abstr_epsilon, corr_type, corr_proportion, batch_num)
         :param corrupt_abstr_file: path to the file containing the corrupt abstraction
-        :param err_file: optional path to the file containing the list of states that are errors
+        :param error_file: optional path to the file containing the list of states that are errors
         :return: a surface showing the corrupt abstract MDP, color-coded, with error states marked by a red circle
         """
         # Open files and isolate row of interest
+        '''
         corr_names = ['AbstrType', 'AbstrEpsilon', 'CorrType', 'CorrProp', 'Batch', 'S_A']
         corr_df = pd.read_csv(corrupt_abstr_file, names=corr_names)
 
         # Load the state abstraction file into an abstract MDP
+        print(corr_df.to_string())
         s_a_list = corr_df.loc[(corr_df['AbstrType'] == str(key[0]))
                                 & (corr_df['AbstrEpsilon'] == key[1])
                                 & (corr_df['CorrType'] == str(key[2]))
                                 & (corr_df['CorrProp'] == key[3])
                                 & (corr_df['Batch'] == key[4])]['S_A'].values[0]
         s_a_list = ast.literal_eval(s_a_list)
+        '''
+        s_a_list = self.parse_file_for_dict(key, corrupt_abstr_file)
         s_a = {}
         for i in range(len(s_a_list)):
             ground_state = GridWorldState(s_a_list[i][0][0], s_a_list[i][0][1])
             abstr_state = s_a_list[i][1]
             s_a[ground_state] = abstr_state
+
         corr_abstr_mdp = AbstractMDP(GridWorldMDP(), StateAbstraction(s_a, key[0]))
 
         # Load error_file data if that argument is given
         err_arg = None
-        if err_file:
+        if error_file:
+            '''
             names=['AbstrType', 'AbstrEps', 'Prop', 'Batch', 'ErrorStates']
-            error_df = pd.read_csv(err_file, names=names)
+            error_df = pd.read_csv(error_file, names=names)
             error_list = ast.literal_eval(error_df.loc[(error_df['AbstrType'] == str(key[0]))
                                                        & (error_df['AbstrEps'] == key[1])
                                                        & (error_df['Prop'] == key[3])
                                                        & (error_df['Batch'] == key[4])]['ErrorStates'].values[0])
 
+            '''
+            error_list = self.parse_file_for_dict(key, error_file)
             error_states = []
             for val in error_list:
                 error_states.append(((ast.literal_eval(val[0])),
@@ -343,11 +331,14 @@ class GridWorldVisualizer():
 
         # Create the surface for the corrupt abstract MDP
         corr_surface = self.create_abstract_gridworld_mdp(corr_abstr_mdp, err_list=err_arg)
+        if error_file:
+            corr_surface = self.draw_errors(corr_surface, key, error_file)
 
         return corr_surface
 
     def draw_errors(self, surface, key, error_file):
         # Parse error list; error_states contains a list of tuples of the coordinates of error states
+        '''
         error_names = ['AbstrType', 'AbstrEps', 'Prop', 'Batch', 'ErrorStates']
         error_df = pd.read_csv(error_file, names=error_names)
 
@@ -355,7 +346,8 @@ class GridWorldVisualizer():
                                                    & (error_df['AbstrEps'] == key[1])
                                                    & (error_df['Prop'] == key[3])
                                                    & (error_df['Batch'] == key[4])]['ErrorStates'].values[0])
-
+        '''
+        error_list = self.parse_file_for_dict(key, error_file)
         error_states = []
         for val in error_list:
             error_states.append(((ast.literal_eval(val[0])),
@@ -404,6 +396,60 @@ class GridWorldVisualizer():
             return Dir.DOWN
         else:
             raise ValueError("Cannot parse action " + action_string)
+
+    def parse_file_for_dict(self, key, file, agent_num=None):
+        """
+        Parse the given file and return the value associated with the key and batch num. Will work on any file where
+        key is a string all together and batch num is its own column.
+        :param key: a 2-tuple for a true abstraction, a 5-tuple for a corrupt abstraction, or the string "ground"
+        :param file: a csv file mapping keys and batch numbers to saved values of some kind
+        :param agent_num: optional integer indicating a particular agent. If provided, we'll look at a particular
+                            agent within the given key
+        :return: the value from the file matching the key and batch num
+        """
+        if agent_num is not None:
+            names = ['key', 'agent_num', 'dict']
+        else:
+            names = ['key', 'dict']
+        df = pd.read_csv(file, names=names)
+        # In this case we're in the ground state and the key is just 'ground'
+        if key == "ground":
+            df = df.loc[df['key'] == key]
+            if agent_num is not None:
+                df = df.loc[df['agent_num'] == agent_num]
+            value = ast.literal_eval(df['dict'].values[0])
+        # In this case we're in a true state abstraction, key is (Abstr_type, abstr_eps)
+        elif len(key) == 2:
+            # Split key into abstr_type and abstr_eps
+            #print(df['key'])
+            df['abstr_type'], df['abstr_eps'] = df['key'].str.split(', ').str
+            # Fill in abstr_eps field (for ground)
+            df['abstr_eps'] = df['abstr_eps'].fillna('0.0')
+            df['abstr_type'] = df['abstr_type'].map(lambda x: x.strip('(<: 1234>'))
+            df['abstr_eps'] = df['abstr_eps'].map(lambda x: x.strip('(<: >)'))
+            df = df.loc[(df['abstr_type'] == str(key[0]))
+                        & (df['abstr_eps'] == str(key[1]))]
+            if agent_num is not None:
+                df = df.loc[df['agent_num'] == agent_num]
+            value = ast.literal_eval(df['dict'].values[0])
+        # In this case we're in a corrupt abstraction, key is (Abstr_type, abstr_eps, corr_type, corr_prop, mdp_num)
+        elif len(key) == 5:
+            df['abstr_type'], df['abstr_eps'], df['corr_type'], df['corr_prop'], df['batch_num'] = df['key'].str.split(', ').str
+            df['abstr_type'] = df['abstr_type'].map(lambda x: x.strip('(<: 1234>'))
+            df['corr_type'] = df['corr_type'].map(lambda x: x.strip('<>: 1234'))
+            df['batch_num'] = df['batch_num'].map(lambda x: x.strip(')'))
+            df = df.loc[(df['abstr_type'] == str(key[0]))
+                        & (df['abstr_eps'].astype(float) == key[1])
+                        & (df['corr_type'] == str(key[2]))
+                        & (df['corr_prop'].astype(float) == key[3])
+                        & (df['batch_num'].astype(int) == key[4])]
+            if agent_num is not None:
+                df = df.loc[df['agent_num'] == agent_num]
+            value = ast.literal_eval(df['dict'].values[0])
+        else:
+            raise ValueError('Key provided is not of valid type (either "ground", 2-tuple, or 5-tuple)')
+
+        return value
 
     def generate_true_abstract_rollout(self, key, policy_file, abstraction_file, agent_num):
         """
@@ -463,13 +509,14 @@ class GridWorldVisualizer():
 
     def generate_corrupt_abstract_rollout(self, key, policy_file, abstraction_file, agent_num):
         """
-        Generate a sequence of (state, action) tuples ending in either a terminal state or in a loop. Assumes
-        policy_file/abstraction_file are for corrupted abstract MDPs
+        Generate a sequence of states ending in either a terminal state or in a loop. If ends in terminal state,
+        final element is None. Otherwise final element is the last action taken. Assumes
+        policy_file/abstraction_file are for corrupted abstract MDPs. Final element
         :param policy_file: file containing the learned policies
         :param abstraction_file: file containing the abstraction mappings
         :param key: (Abstr_type, abstr_epsilon, corr_type, corr_prop, batch_num) tuple
         :param agent_num: number of the agent in the ensemble, stored in policy_file
-        :return: rollout, a list of (State, Action) tuples
+        :return: rollout, a list of states with the final action or None as last element
         """
         # Create MDP
         mdp = GridWorldMDP()
@@ -489,9 +536,10 @@ class GridWorldVisualizer():
                                                        & (policy_df['AgentNum'] == agent_num)]['PolicyDict'].values[0])
         policy_dict = {}
         for policy_key in policy_string.keys():
-            policy_dict[int(policy_key)] = self.parse_action_string(policy_string[policy_key])
+            policy_dict[ast.literal_eval(policy_key)] = self.parse_action_string(policy_string[policy_key])
 
         # Load abstraction mapping into dictionary, identifying proper abstractions/agents based on key and agent_num
+        '''
         abstr_names = ['AbstrType', 'AbstrEps', 'CorrType', 'CorrProp', 'BatchNum', 'AbstrDict']
         abstr_df = pd.read_csv(abstraction_file, names=abstr_names)
         abstr_string = abstr_df.loc[(abstr_df['AbstrType'] == str(key[0]))
@@ -499,7 +547,8 @@ class GridWorldVisualizer():
                                     & (abstr_df['CorrType'] == str(key[2]))
                                     & (abstr_df['CorrProp'] == key[3])
                                     & (abstr_df['BatchNum'] == key[4])]['AbstrDict'].values[0]
-        abstr_string = ast.literal_eval(abstr_string)
+        '''
+        abstr_string = self.parse_file_for_dict(key, abstraction_file)
         abstr_dict = {}
         for entry in abstr_string:
             abstr_dict[entry[0]] = entry[1]
@@ -513,12 +562,17 @@ class GridWorldVisualizer():
         i = 0
         while not (state.is_terminal()) and (state not in visited_states):
             i += 1
-            abstr_state = abstr_dict[(state.x, state.y)]
-            action = policy_dict[abstr_state]
+            #abstr_state = abstr_dict[(state.x, state.y)]
+            #print(state.x, state.y)
+            #print(policy_dict)
+            #print(abstr_state)
+            #action = policy_dict[abstr_state]
+            action = policy_dict[(state.x, state.y)]
             next_state = mdp.transition(state, action)
             rollout.append((next_state.x, next_state.y))
             visited_states.append(state)
             state = next_state
+        rollout.append(action)
         return rollout
 
     def create_step_rectangle(self, state, next_state):
@@ -548,7 +602,8 @@ class GridWorldVisualizer():
         :return: surface with the rollout visualized
         """
         i = 0
-        while i < len(rollout) - 1:
+        # Draw a single line indicating the path the agent takes by following the greedy policy
+        while i < len(rollout) - 2:
             state = rollout[i]
             next_state = rollout[i + 1]
             state_pos = (self.cell_size * (state[0] - 1) + (self.cell_size / 2) + int(3 * agent_num / 2),
@@ -557,6 +612,25 @@ class GridWorldVisualizer():
                          self.cell_size * (HEIGHT - next_state[1]) + (self.cell_size / 2) + int(3 * agent_num/ 2))
             pygame.draw.line(surface, color, state_pos, next_state_pos, 2)
             i += 1
+        # If we're not in the goal state, draw a small black square in the direction of the last action taken which
+        #  resulted in a loop
+        if rollout[-1] != (11, 11):
+            final_cell = rollout[-2]
+            action = rollout[-1]
+            shrink_factor = 0.7
+            if action == Dir.UP:
+                margin = (0,1*shrink_factor)
+            elif action == Dir.DOWN:
+                margin = (0,-1*shrink_factor)
+            elif action == Dir.RIGHT:
+                margin = (1*shrink_factor,0)
+            elif action == Dir.LEFT:
+                margin = (-1*shrink_factor,0)
+            mid_loc = (self.cell_size * (final_cell[0] - 1) + (self.cell_size / 2) + int(3 * agent_num / 2),
+                       self.cell_size * (HEIGHT - final_cell[1]) + (self.cell_size / 2) + int(3 * agent_num / 2))
+            end_loc = (self.cell_size * (final_cell[0] - 1) + (self.cell_size / 2) + int(3 * agent_num / 2) + self.cell_size * margin[0],
+                       self.cell_size * (HEIGHT - final_cell[1]) + (self.cell_size / 2) + int(3 * agent_num / 2) + self.cell_size * margin[1])
+            pygame.draw.line(surface, BLACK, mid_loc, end_loc, 3)
         return surface
 
     def draw_true_ensemble_rollouts(self, surface, key, policy_file, abstraction_file, num_agents):
@@ -595,201 +669,149 @@ class GridWorldVisualizer():
         random_color = randomcolor.RandomColor()
         colors_used = []
         print("Generating rollouts for key", key)
-        for i in range(num_agents):
-            rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, i)
+        #for i in range(num_agents):
+        for agent_num in num_agents:
+            #rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, i)
+            rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, agent_num)
             print(rollout)
             color = random_color.generate()
             while color in colors_used:
                 color = random_color.generate()
             color = pygame.Color(color[0])
-            surface = self.draw_gridworld_rollout(surface, rollout, color, i)
+            #surface = self.draw_gridworld_rollout(surface, rollout, color, i)
+            surface = self.draw_gridworld_rollout(surface, rollout, color, agent_num)
         return surface
 
-    '''
-    def createGridWorldAgent(self):
+    def draw_state_value_gradient(self, key, agent_num, state_value_file, background=None, save=False):
         """
-        Creates and returns a Pygame Surface representing the agent this class is initialized with
-        :return:
+        Draw FourRooms with a gradient from dark to light, where high-value states are light and low-value states
+        are dark
+        :return: pygame surface
         """
-        screen = pygame.Surface((self.agent_size, self.agent_size))
-        screen.fill(WHITE)
-        pygame.draw.circle(screen, DARK_RED, (round(self.agent_size / 2), round(self.agent_size / 2)),
-                           round(self.agent_size / 2))
-        return screen
+        # Draw basic grid
+        mdp = GridWorldMDP()
+        surface = self.create_gridworld_mdp(mdp, background=background)
 
-    def placeAgentOnMDP(self,mdpSurface,agentSurface):
+        # Read in dictionary from file and parse dictionary
+        value_dict = self.parse_file_for_dict(key, state_value_file, agent_num=agent_num)
+        #for key, value in value_dict.items():
+        #    print(key, value)
+
+        # Draw rectangles that are dark if the state is low value and bright if the state is high value. This is
+        #  indexed against the maximum state value observed, such that the highest-value state observed will be white.
+        value_max = max(value_dict.values())
+        for square in value_dict.keys():
+            value_color = (np.floor(255 * value_dict[square] / value_max),
+                           np.floor(255 * value_dict[square] / value_max),
+                           np.floor(255 * value_dict[square] / value_max))
+            #print('square', square, 'value', value_dict[square], 'color', value_color)
+            cell = pygame.Rect((self.margin + self.cell_size) * (square[0] - 1) + self.margin,
+                               (self.margin + self.cell_size) * (11 - square[1]) + self.margin,
+                               self.cell_size,
+                               self.cell_size)
+            pygame.draw.rect(surface, value_color, cell)
+        if save:
+            abstr_string = self.get_abstr_name(key[0])
+            file_name = 'state_value_gradient_' + abstr_string + '_' + str(key[3]) + '_'\
+                        + str(key[4]) + '_' + agent_num + '.png'
+            pygame.image.save(surface, file_name)
+
+        return surface
+
+    def draw_misaggregations(self, surface, key, error_file, abstraction_file, save=False):
         """
-        Places the agent on the mdp at it's current state. Takes in a PyGame surface representing an agent and an MDP.
-        Does not check if MDP already has other states/actions on it
-        :return: Pygame surface with agentSurface placed on to mdpSurface based on the agent's current state
+        Visualize state aggregation errors on the given surface by drawing circles over the error states
+        and squares over the other ground states that share an abstract state with the error states. Each circle/square
+        will be colored such that one color represents one abstract state.
+        :param surface: a pygame Surface
+        :param key: a 5-tuple representing a key for a corrupt abstraction
+        :param error_file: file denoting the errors
+        :param abstraction_file: a file denoting the state abstractions for the given key
+        :return: the surface with the errors drawn on it
         """
-        mdp_env_rect = mdpSurface.get_rect()
-        agent_rect = agentSurface.get_rect()
-        cur_state = self.agent.get_current_state()
-        agent_rect.left = ((self.margin + self.cell_size) * (cur_state.x - 1)) + self.margin
-        # since indexing for state starts on bottom left
-        agent_rect.top = (mdp_env_rect.height - ((self.margin + self.cell_size) * (cur_state.y))) + self.margin
-        mdpSurface.blit(agentSurface, agent_rect)
-        return mdpSurface
+        # Read in the error file and abstraction file and parse the contents of error_list
+        error_list = self.parse_file_for_dict(key, error_file)
+        abstr_list = self.parse_file_for_dict(key, abstraction_file)
+        # Error_dict is a list of tuples where first element is ground tuple, second is true state integer, third is
+        #  corr state integer
+        error_list = [(ast.literal_eval(error[0]),
+                       ast.literal_eval(error[1]),
+                       ast.literal_eval(error[2])) for error in error_list]
 
-    def displayGridWorldMDPWithAgent(self):
-        """
-        Displays a window with this mdp and agent at the current state of the agent
-        :return:
-        """
+        # Create abstr_lookup_dict, which will map error states (or tuples of error states) to random colors, and
+        #  abstr_apply_dict, which will map colors to lists of ground states which are correctly mapped to the
+        #  abstract state represented by the color
+        abstr_lookup_dict = {}
+        abstr_apply_dict = {}
 
-        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
-        mdp_env = self.createGridWorldMDP()
-        agent = self.createGridWorldAgent()
-        mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
-        pygame.init()
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: sys.exit()
+        # Aggregate error groups
+        agged_states = []
+        for i in range(len(error_list)):
+            error_state = error_list[i][0]
+            true_state_int = error_list[i][1]
+            corr_state_int = error_list[i][2]
+            if corr_state_int in agged_states:
+                continue
+            temp = [error_state]
+            for j in range(i, len(error_list)):
+                if corr_state_int == error_list[j][2] and error_state != error_list[j][0]:
+                    temp.append(error_list[j][0])
+            #print('Assigning', true_state_int, 'to', temp)
+            abstr_lookup_dict[corr_state_int] = tuple(temp)
+            for state in temp:
+                agged_states.append(corr_state_int)
+        # Abstr_lookup_dict now maps abstract states to error_groups
 
-            screen.blit(mdp_and_agent, (0, 0))
-            pygame.display.flip()
+        error_states = [error_tuple[0] for error_tuple in error_list]
+        # Get mapping of abstract states to ground states correctly mapped to them for all abstract states with
+        #  errors in them
+        for abstr_state in abstr_lookup_dict.keys():
+            temp = []
+            for pairing in abstr_list:
+                if pairing[0] not in error_states and pairing[1] == abstr_state:
+                    temp.append(pairing[0])
+            abstr_apply_dict[abstr_state] = tuple(temp)
 
-    def createAction(self,action):
-        """
-        Creates and returns a pygame surface representing the given action
-        :param action:
-        :return:
-        """
-        right_arrow = pygame.image.load("Visualizer/viz_resources/arrow-icon-arrow-right.jpg")
-        right_arrow = pygame.transform.scale(right_arrow,(self.agent_size,self.agent_size))
-        if action==Dir.RIGHT:
-            return right_arrow
-        up_arrow = right_arrow.copy()
-        up_arrow = pygame.transform.rotate(up_arrow, 90)
-        if action==Dir.UP:
-            return up_arrow
-        left_arrow = up_arrow.copy()
-        left_arrow = pygame.transform.rotate(left_arrow, 90)
-        if action == Dir.LEFT:
-            return left_arrow
-        down_arrow = left_arrow.copy()
-        down_arrow = pygame.transform.rotate(down_arrow, 90)
-        return down_arrow
+        # Map each abstract state with an error group to a random color and store in color_map_dict
+        color_map_dict = {}
+        rc = randomcolor.RandomColor()
+        colors_used = []
+        for abstr_state in abstr_lookup_dict.keys():
+            color = rc.generate()
+            while color in colors_used:
+                color = rc.generate()
+            colors_used.append(color)
+            color = pygame.Color(color[0])
+            color_map_dict[abstr_state] = color
 
-    def placeAction(self,action_surface,state,mdpSurface):
-        """
-        Returns a PyGame surface with the given action placed on the given state in the mdp
-        :param action: the action we want to display
-        :return:
-        """
-        action_rect = action_surface.get_rect()
-        mdp_env_rect = mdpSurface.get_rect()
-
-        action_rect.left = ((self.margin + self.cell_size) * (state.x - 1)) + self.margin
-        # since indexing for state starts on bottom left
-        action_rect.top = (mdp_env_rect.height - ((self.margin + self.cell_size) * (state.y))) + self.margin
-        mdpSurface.blit(action_surface, action_rect)
-        return mdpSurface
-
-    def displayGridWorldMDPWithAction(self,action):
-        """
-        Displays a window with this mdp and agent at the current state of the agent
-        :return:
-        """
-
-        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
-        mdp_env = self.createGridWorldMDP()
-        action_surface = self.createAction(action)
-        mdp_and_action = self.placeAction(action_surface,self.agent.get_current_state,mdp_env)
-        pygame.init()
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: sys.exit()
-
-            screen.blit(mdp_and_action, (0, 0))
-            pygame.display.flip()
-
-    def visualizeExploration(self,steps,alpha_gain=10):
-        #TODO add another surface visualizing distribution of policies
-        """
-        Creates a visualization showing the distribution of various states visited during exploration of the mdp
-        carried out by the agent based on the explore method of the mdp class. Updates the agent in this visualization
-        with the knowledge gained through the exploration
-        :param steps: The number of steps to take during this exploration
-        param alpha_gain: initial alpha value of a state how much the alpha chanel increases by when a state is revisited
-        :return:
-        """
-        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
-        mdp_env = self.createGridWorldMDP()
-        agent = self.createGridWorldAgent()
-        agent.set_alpha(alpha_gain)
-        # see how often each state is visited
-
-        mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
-        pygame.init()
-        for i in range(steps):
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: sys.exit()
-            mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
-            current_state, action, next_state, _ = self.agent.explore()
-            action_img = self.createAction(action)
-            action_img.set_alpha(15)
-            mdp_and_agent_and_action = self.placeAction(action_img,current_state,mdp_and_agent)
-            screen.blit(mdp_and_agent_and_action, (0, 0))
-            pygame.display.flip()
-
-    def visualizeLearnedTrajectory(self, steps, alpha_gain=10):
-        """
-        Run after a policy is learnt, visualize the the trajectory learned (starting at initial state) and taking
-        the given number of steps
-        :return:
-        """
-        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
-        mdp_env = self.createGridWorldMDP()
-        agent = self.createGridWorldAgent()
-        agent.set_alpha(alpha_gain)
-        # see how often each state is visited
-
-        mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
-        pygame.init()
-        for i in range(steps):
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: sys.exit()
-            mdp_and_agent = self.placeAgentOnMDP(mdp_env, agent)
-            current_state, action, next_state,  = self.agent.apply_best_action()
-            action_img = self.createAction(action)
-            action_img.set_alpha(15)
-            mdp_and_agent_and_action = self.placeAction(action_img,current_state,mdp_and_agent)
-            screen.blit(mdp_and_agent_and_action, (0, 0))
-            pygame.display.flip()
-
-    def visualizeLearnedPolicy(self):
-        """
-        Shows best action learned at each state of the MDP
-        :return:
-        """
-        screen = pygame.display.set_mode([self.screen_width, self.screen_height])
-        mdp_env = self.createGridWorldMDP()
-        WIDTH_DIM = self.mdp.get_width()
-        HEIGHT_DIM = self.mdp.get_height()
-        walls = self.mdp.compute_walls()
-        pygame.init()
-        complete_viz = False
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT: sys.exit()
-            if (not complete_viz):
-                for col_idx, column in enumerate(range(1, HEIGHT_DIM + 1, 1)):
-                    for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
-                        if(not (column, row) in walls):
-                            state = GridWorldState(column,row)
-
-                            best_action = self.agent.get_best_action(state)
-                            action_img = self.createAction(best_action)
-                            mdp_and_action = self.placeAction(action_img, state, mdp_env)
-                            screen.blit(mdp_and_action, (0, 0))
-                            pygame.display.flip()
-            complete_viz = True
-    '''
+        # Finally, for each abstract state with an error group, draw circles on the states in the error group and
+        #  squares on the true states
+        for abstr_state in abstr_lookup_dict.keys():
+            color = color_map_dict[abstr_state]
+            # Draw circles on error group
+            for err_state in abstr_lookup_dict[abstr_state]:
+                col = int((self.margin + self.cell_size) * (err_state[0] - 1) + self.margin
+                          + np.floor(self.cell_size / 2))
+                row = int((self.margin + self.cell_size) * (HEIGHT - err_state[1]) + self.margin
+                          + np.floor(self.cell_size / 2))
+                radius = int(np.floor(self.cell_size / 3))
+                pygame.draw.circle(surface, color, (col, row), radius)
+            # Draw squares on correct ground states
+            for true_state in abstr_apply_dict[abstr_state]:
+                left = int((self.margin + self.cell_size) * (true_state[0] - 1) + self.margin + np.floor(self.cell_size / 3))
+                top = int((self.margin + self.cell_size) * (HEIGHT - true_state[1]) + self.margin + np.floor(self.cell_size / 3))
+                cell = pygame.Rect(left, top, int(np.floor(self.cell_size / 3)), int(np.floor(self.cell_size / 3)))
+                pygame.draw.rect(surface, color, cell)
 
 
+        return surface
 
+    def get_abstr_name(self, abstr):
+        abstr_string = str(abstr)
+        abstr_string = abstr_string[abstr_string.find('.') + 1:]
+        abstr_string = abstr_string[:abstr_string.find('_')]
+        abstr_string = abstr_string.lower()
+        return abstr_string
 
 
 

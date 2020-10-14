@@ -19,7 +19,8 @@ class Agent():
 	def __init__(self,
 				 mdp,
 				 alpha=0.1,
-				 epsilon=0.1):
+				 epsilon=0.1,
+				 decay_exploration=True):
 		'''
 		Parameters:
 			mdp: MDP
@@ -40,6 +41,7 @@ class Agent():
 		self._init_epsilon = epsilon 
 		self._step_counter = 0
 		self._episode_counter = 0
+		self.decay_exploration = decay_exploration
 
 	# ---------------------
 	# Exploration functions
@@ -76,7 +78,8 @@ class Agent():
 		Currently taken from David Abel's _anneal function, assumes 
 		episode number is always 1 
 		'''
-		self._epsilon = self._init_epsilon / (1.0 + (self._step_counter / 2000000))
+		if self.decay_exploration:
+			self._epsilon = self._init_epsilon / (1.0 + (self._step_counter / 2000000))
 		self._alpha = self._init_alpha / (1.0 + (self._step_counter / 2000000))
 
 	# --------------
@@ -386,6 +389,10 @@ class Agent():
 		return policy_dict
 
 	def get_learned_policy(self):
+		"""
+		Get the policy learned by the agent as a dictionary mapping states to actions
+		:return: policy_dict, a dictionary mapping states to actions
+		"""
 		policy_dict = {}
 
 		# If the MDP is a abstract MDP, we can't query the ground states directly
@@ -399,6 +406,31 @@ class Agent():
 
 		return policy_dict
 
+	def get_learned_state_values(self):
+		"""
+		Get the state values learned by the agent as a dictionary mapping states to values. This is done by taking
+		the max q-value as the state value.
+		:return: value_dict, a dictionary mapping states to values
+		"""
+		value_dict = {}
+
+		# If the MDP is an abstract MDP, can't query ground states directly
+		if isinstance(self.mdp, AbstractMDP):
+			for state in self.mdp.get_all_possible_states():
+				abstr_state = self.mdp.get_state_abstr().get_abstr_from_ground(state)
+				best_action = self.get_best_action(abstr_state)
+				if isinstance(abstr_state, State):
+					state_tag = abstr_state.data
+				else:
+					state_tag = abstr_state
+				value_dict[state_tag] = self.get_q_value(abstr_state, best_action)
+		# If not, query ground states directly
+		else:
+			for state in self.mdp.get_all_possible_states():
+				best_action = self.get_best_action(state)
+				value_dict[tuple(state.data)] = self.get_q_value(state, best_action)
+
+		return value_dict
 
 
 

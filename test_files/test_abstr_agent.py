@@ -12,6 +12,7 @@ from MDP.StateAbstractionClass import StateAbstraction
 from Visualizer.GridWorldVisualizer import GridWorldVisualizer
 
 import pandas as pd
+import pygame
 import ast
 import copy
 import csv
@@ -123,7 +124,7 @@ def test_get_abstraction_as_string(agent):
     print(agent.get_abstraction_as_string())
 
 # Test if iteratively detaching until a terminal roll-out produces non-trivial abstraction
-def iterate_detachment(key, batch_size=5000):
+def iterate_detachment(mdp_key, batch_size=5000):
     """
     Load an incorrect abstraction. Train the model, generate a roll-out, detach the first cycle state. Repeat until
     the roll-out achieves a terminal state. Save the adjusted abstraction and learned policy. Visualize the original
@@ -135,11 +136,11 @@ def iterate_detachment(key, batch_size=5000):
     # Load a poorly-performing abstraction
     names = ['AbstrType', 'AbstrEps', 'CorrType', 'CorrProp', 'Batch', 'Dict']
     df = pd.read_csv('../abstr_exp/corrupted/corrupted_abstractions.csv', names=names)
-    abstr_string = df.loc[(df['AbstrType'] == str(key[0]))
-                        & (df['AbstrEps'] == key[1])
-                        & (df['CorrType'] == str(key[2]))
-                        & (df['CorrProp'] == key[3])
-                        & (df['Batch'] == key[4])]['Dict'].values[0]
+    abstr_string = df.loc[(df['AbstrType'] == str(mdp_key[0]))
+                        & (df['AbstrEps'] == mdp_key[1])
+                        & (df['CorrType'] == str(mdp_key[2]))
+                        & (df['CorrProp'] == mdp_key[3])
+                        & (df['Batch'] == mdp_key[4])]['Dict'].values[0]
     abstr_list = ast.literal_eval(abstr_string)
     abstr_dict = {}
     for el in abstr_list:
@@ -151,8 +152,6 @@ def iterate_detachment(key, batch_size=5000):
     s_a = StateAbstraction(abstr_dict, abstr_type=Abstr_type.PI_STAR)
     mdp = GridWorldMDP()
     agent = AbstractionAgent(mdp, s_a=s_a)
-    for key, value in agent.s_a.abstr_dict.items():
-        print(key, value)
 
     # Generate a roll-out from untrained model (should be random and short)
     rollout = agent.generate_rollout()
@@ -161,7 +160,9 @@ def iterate_detachment(key, batch_size=5000):
         print(state, end=', ')
     print()
 
-    # Until rollout leads to terminal state, explore and detach last state of rollout
+    # Until roll-out leads to terminal state, explore and detach last state of roll-out. Record each of the detached
+    #  states so they can be visualized later
+    detached_states = []
     step_counter = 0
     while not rollout[-1].is_terminal():
         for i in range(batch_size):
@@ -172,24 +173,45 @@ def iterate_detachment(key, batch_size=5000):
         for state in rollout:
             print(state, end=', ')
         print()
+        print('State Q-value pre-detach:')
+        for action in agent.mdp.actions:
+            print(rollout[-1], action, agent.get_q_value(rollout[-1], action))
         detach_flag = agent.detach_state(rollout[-1])
         if detach_flag == 0:
             print('Detaching state', rollout[-1])
+            detached_states.append(rollout[-1])
         elif detach_flag == 1:
             print(rollout[-1], 'already a singleton state. No change.')
+        print('State Q-value post-detach:')
+        for action in agent.mdp.actions:
+            print(rollout[-1], action, agent.get_q_value(rollout[-1], action))
         print()
+    for key, value in agent.get_q_table():
+        print(key, value)
 
     # Save resulting adapted state abstraction and learned policy
-    s_a_file = open('abstr_exp/adapted/adapted_abstraction.csv', 'a')
+    s_a_file = open('../abstr_exp/adapted/adapted_abstraction.csv', 'w', newline='')
     s_a_writer = csv.writer(s_a_file)
-    s_a_writer.writerow((key[0], key[1], key[2], key[3], key[4], agent.get_abstraction_as_string()))
+    print(mdp_key)
+    s_a_writer.writerow((mdp_key[0], mdp_key[1], mdp_key[2], mdp_key[3], mdp_key[4], agent.get_abstraction_as_string()))
+    s_a_file.close()
 
-    policy_file = open('abstr_exp/adapted/learned_policy.csv', 'a')
+    policy_file = open('../abstr_exp/adapted/learned_policy.csv', 'w', newline='')
     policy_writer = csv.writer(policy_file)
-    policy_writer.writerow((key[0], key[1], key[2], key[3], key[4], agent.get_learned_policy_as_string()))
+    policy_writer.writerow((mdp_key[0], mdp_key[1], mdp_key[2], mdp_key[3], mdp_key[4],
+                            agent.get_learned_policy_as_string()))
+    policy_file.close()
 
     # Visualize the adapted state abstraction and learned policy, along with the original for comparison
-    viz =
+    viz = GridWorldVisualizer()
+    surface = viz.create_corruption_visualization(mdp_key,
+                                                  '../abstr_exp/adapted/adapted_abstraction.csv',
+                                                  error_file='../abstr_exp/corrupted/error_states.csv')
+    # Draw small white circles over the states that were detached
+    for state in detached_states:
+        print(state, end=', ')
+    #for d_state in
+    viz.display_surface(surface)
 
 if __name__ == '__main__':
     mdp = GridWorldMDP()
@@ -202,6 +224,6 @@ if __name__ == '__main__':
     #test_get_abstraction_as_string(agent)
 
     # Roll-out functions
-    key = (Abstr_type.PI_STAR, 0.0, Corr_type.UNI_RAND, 0.05, 2)
+    key = (Abstr_type.Q_STAR, 0.0, Corr_type.UNI_RAND, 0.05, 2)
     #test_rollout_adjustment(key)
-    #iterate_detachment(key, batch_size=10000)
+    iterate_detachment(key, batch_size=50000)

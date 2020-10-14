@@ -264,14 +264,16 @@ class GridWorldMDP(MDP):
         Returns a list containing all the possible states in the MDP
         :return: List of GridWorldState
         """
-        listOfStates = []
+        state_list = []
         walls = self.compute_walls()
         for col_idx, column in enumerate(range(1, self.height + 1, 1)):
             for row_idx, row in enumerate(range(self.width, 0, -1)):
                 if (not (column, row) in walls):
                     state = GridWorldState(column, row)
-                    listOfStates.append(state)
-        return listOfStates
+                    if (column, row) in self.goal_location:
+                        state._is_terminal = True
+                    state_list.append(state)
+        return state_list
 
     def reward(self, state, action, next_state):
         '''

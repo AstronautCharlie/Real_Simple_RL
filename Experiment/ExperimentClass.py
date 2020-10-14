@@ -1,3 +1,4 @@
+#TODO: Right now we're not recalculating value of optimal policy at the start of each episode
 """
 This class creates and runs a test of q-learning on the given MDP for the given abstraction
 types and epsilon values, and compares the value of each trajectory to the value of the
@@ -31,8 +32,12 @@ class Experiment():
                  num_corrupted_mdps=10,
                  num_agents=10,
                  num_episodes=100,
-                 results_dir='exp_output',
-                 agent_type='standard'):
+                 results_dir='exp_results',
+                 agent_type='abstraction',
+                 agent_exploration_epsilon=0.1,
+                 decay_exploration=True,
+                 exploring_starts=False,
+                 step_limit=10000):
         """
         Create an experiment, which will hold the ground MDP, the abstract MDPs (parameters dictated by abstr_epsilon_list),
         and an ensemble of (num_agents) q-learning agents on each MDP.
@@ -45,6 +50,10 @@ class Experiment():
         :param results_dir: directory where output of experiment will be stored
         :param agent_type: either 'standard' if we're doing Q-learning in an abstract MDP or 'abstraction' if we're
                             using an abstraction agent that generalizes
+        :param agent_exploration_epsilon: starting exploration rate of agent (probability of taking random action)
+        :param decay_exploration: if true, decay exploration rate
+        :param exploring_starts: if true, restart episode at random state instead of initial state
+        :param step_limit: cap on the number of steps in an episode. If limit is hit, reset agent
         """
         # Check that agent_type is valid
         if agent_type not in ['standard', 'abstraction']:
@@ -61,6 +70,10 @@ class Experiment():
         self.results_dir = results_dir
         self.num_episodes = num_episodes
         self.agent_type = agent_type
+        self.decay_exploration = decay_exploration
+        self.exploring_starts = exploring_starts
+        self.step_limit = step_limit
+        self.agent_exploration_epsilon = agent_exploration_epsilon
 
         # Agent ensembles will be stored in a dict where key is the (abstr_type, epsilon) tuple ('ground' in the case
         # of the ground MDP) and values are lists of agents. In the case of corrupted MDPs, the key will be
@@ -78,11 +91,11 @@ class Experiment():
         self.abstr_mdp_dict = {}
         file_string = 'true/abstractions.csv'
         with open(os.path.join(self.results_dir, file_string), 'w', newline='') as abstr_file:
-            writer = csv.writer(abstr_file)
+            abstr_writer = csv.writer(abstr_file)
             for val in abstr_epsilon_list:
                 state_abstr = make_abstr(q_table, val[0], val[1])
                 self.abstr_mdp_dict[(val[0], val[1])] = AbstractMDP(mdp, state_abstr)
-                writer.writerow((val[0], val[1], AbstractMDP(mdp, state_abstr).abstr_to_string()))
+                abstr_writer.writerow((val[0], val[1], AbstractMDP(mdp, state_abstr).abstr_to_string()))
 
         # Create (self.num_corrupted_mdps) corrupted versions of MDPs (if applicable) from each element of
         #  corruption_list
@@ -95,47 +108,44 @@ class Experiment():
         #  in the same ground states
         self.corrupt_mdp_dict = {}
         if len(corruption_list) > 0:
-            with open(os.path.join(self.results_dir, 'corrupted/corrupted_abstractions.csv'), 'w', newline='') as corr_abstr_file:
-                file_string = 'corrupted/error_states.csv'
-                with open(os.path.join(self.results_dir, file_string), 'w', newline='') as err_state_file:
-                    writer = csv.writer(corr_abstr_file)
-                    for val in corruption_list:
-                        # Unpack the values in corruption list; first is corruption type and second is proportion
-                        corr_type = val[0]
-                        prop = val[1]
-                        # We generate 1 corrupt MDP per abstraction type at a time. This way, we can ensure that all
-                        # corrupt MDPs with the same key and batch number have the same error states. Also write to file
-                        # so they can be visualized later
-                        err_writer = csv.writer(err_state_file)
-                        for i in range(self.num_corrupted_mdps):
-                            states_to_corrupt = np.random.choice(self.ground_mdp.get_all_possible_states(),
-                                                                 size=int(np.floor(len(self.ground_mdp.get_all_possible_states()) * prop)),
-                                                                 replace=False)
-                            for key in self.abstr_mdp_dict.keys():
-                                # Create a corrupt state abstraction for this batch number and list of states
-                                abstr_mdp = self.abstr_mdp_dict[key]
-                                c_s_a = make_corruption(abstr_mdp, states_to_corrupt, type=corr_type)
-                                # Get the correct and incorrect abstract states for the corrupted ground states
-                                #  and write all these to a file
-                                error_line = []
-                                for state in states_to_corrupt:
-                                    true_state = abstr_mdp.get_abstr_from_ground(state)
-                                    corr_state = c_s_a.get_abstr_from_ground(state)
-                                    error_line.append((str(state), str(true_state), str(corr_state)))
-                                err_writer.writerow((key[0], key[1], prop, i, error_line))
-                                # Make an abstract MDP with this corrupted state abstraction
-                                corrupt_abstr_mdp = AbstractMDP(self.ground_mdp, c_s_a)
-                                writer.writerow((abstr_mdp.abstr_type,
-                                                 abstr_mdp.abstr_epsilon,
-                                                 corr_type,
-                                                 prop,
-                                                 i,
-                                                 corrupt_abstr_mdp.abstr_to_string()))
-                                self.corrupt_mdp_dict[(abstr_mdp.abstr_type,
-                                                      abstr_mdp.abstr_epsilon,
-                                                      corr_type,
-                                                      prop,
-                                                      i)] = corrupt_abstr_mdp
+            corr_abstr_file = open(os.path.join(self.results_dir, 'corrupted/corrupted_abstractions.csv'), 'w', newline='')
+            err_state_file = open(os.path.join(self.results_dir, 'corrupted/error_states.csv'), 'w', newline='')
+            abstr_writer = csv.writer(corr_abstr_file)
+            err_writer = csv.writer(err_state_file)
+            for val in corruption_list:
+                # Unpack the values in corruption list; first is corruption type and second is proportion
+                corr_type = val[0]
+                prop = val[1]
+                # We generate 1 corrupt MDP per abstraction type at a time. This way, we can ensure that all
+                # corrupt MDPs with the same key and batch number have the same error states. Also write to file
+                # so they can be visualized later
+                for i in range(self.num_corrupted_mdps):
+                    states_to_corrupt = np.random.choice(self.ground_mdp.get_all_possible_states(),
+                                                         size=int(np.floor(len(self.ground_mdp.get_all_possible_states()) * prop)),
+                                                         replace=False)
+                    for key in self.abstr_mdp_dict.keys():
+                        # Create a corrupt state abstraction for this batch number and list of states
+                        abstr_mdp = self.abstr_mdp_dict[key]
+                        c_s_a = make_corruption(abstr_mdp, states_to_corrupt, type=corr_type)
+                        # Get the correct and incorrect abstract states for the corrupted ground states
+                        #  and write all these to a file
+                        error_line = []
+                        for state in states_to_corrupt:
+                            true_state = abstr_mdp.get_abstr_from_ground(state)
+                            corr_state = c_s_a.get_abstr_from_ground(state)
+                            error_line.append((str(state), str(true_state), str(corr_state)))
+                        temp_key = (abstr_mdp.abstr_type, abstr_mdp.abstr_epsilon, corr_type, prop, i)
+                        # Record the error states
+                        err_writer.writerow((temp_key, error_line))
+                        # Make an abstract MDP with this corrupted state abstraction
+                        corrupt_abstr_mdp = AbstractMDP(self.ground_mdp, c_s_a)
+                        # Record the dictionary describing the state abstraction
+                        abstr_writer.writerow((temp_key, corrupt_abstr_mdp.abstr_to_string()))
+                        self.corrupt_mdp_dict[(abstr_mdp.abstr_type,
+                                               abstr_mdp.abstr_epsilon,
+                                               corr_type,
+                                               prop,
+                                               i)] = corrupt_abstr_mdp
 
         # Create agents on ground mdp
         ground_agents = []
@@ -143,9 +153,9 @@ class Experiment():
             temp_mdp = self.ground_mdp.copy()
             # If agent_type == 'standard', use regular q-learning. If 'abstraction', use abstraction agent
             if self.agent_type == 'standard':
-                agent = Agent(temp_mdp)
+                agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
             else:
-                agent = AbstractionAgent(temp_mdp)
+                agent = AbstractionAgent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
             ground_agents.append(agent)
         self.agents['ground'] = ground_agents
 
@@ -156,12 +166,12 @@ class Experiment():
                 # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = abstract_mdp.copy()
-                    agent = Agent(temp_mdp)
+                    agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
                     abstract_mdp_ensemble.append(agent)
                 else:
                     temp_mdp = self.ground_mdp.copy()
                     s_a = copy.deepcopy(abstract_mdp.state_abstr)
-                    agent = AbstractionAgent(temp_mdp, s_a)
+                    agent = AbstractionAgent(temp_mdp, s_a, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
                     abstract_mdp_ensemble.append(agent)
             self.agents[(abstract_mdp.abstr_type, abstract_mdp.abstr_epsilon)] = abstract_mdp_ensemble
 
@@ -176,13 +186,13 @@ class Experiment():
                 # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = self.corrupt_mdp_dict[corr_key].copy()
-                    agent = Agent(temp_mdp)
+                    agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
                     corr_ensemble.append(agent)
                 else:
                     temp_mdp = self.ground_mdp.copy()
                     corr_mdp = self.corrupt_mdp_dict[corr_key].copy()
                     s_a = corr_mdp.state_abstr
-                    agent = AbstractionAgent(temp_mdp, s_a)
+                    agent = AbstractionAgent(temp_mdp, s_a, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
                     corr_ensemble.append(agent)
 
             self.corr_agents[corr_key] = corr_ensemble
@@ -193,7 +203,7 @@ class Experiment():
             result += str(key) + ': ' + str(len(self.agents[key])) + '\n'
         return result
 
-    def run_trajectory(self, agent, step_limit=10000):
+    def run_trajectory(self, agent, step_limit):
         """
         Run an agent on its MDP until it reaches a terminal state. Record the discounted rewards achieved along the way
         and the starting state
@@ -214,14 +224,22 @@ class Experiment():
         discount = 1
 
         # Explore until a terminal state is reached
-        while not current_state.is_terminal() and step_count < step_limit:
+        while not current_state.is_terminal(): #and step_count < step_limit:
+            if step_limit is not None and step_count > step_limit:
+                break
             _, action, next_state, reward = agent.explore()
             sum_rewards += discount * reward
             current_state = next_state
             discount *= agent.mdp.gamma
             step_count += 1
-        # Reset agent's MDP to initial state
-        agent.mdp.reset_to_init()
+        # Reset agent's MDP to initial state (or random state if self.exploring_starts)
+        if self.exploring_starts:
+            random_state = np.random.choice(agent.mdp.get_all_possible_states())
+            while random_state.is_terminal():
+                random_state = np.random.choice(agent.mdp.get_all_possible_states())
+            agent.mdp.set_current_state(random_state)
+        else:
+            agent.mdp.reset_to_init()
         # Return the sum of discounted rewards from the trajectory and value of optimal policy
         return sum_rewards, optimal_value, step_count
 
@@ -235,7 +253,7 @@ class Experiment():
         reward_fractions = []
         step_counts = []
         for agent in ensemble:
-            actual_rewards, optimal_rewards, step_count = self.run_trajectory(agent)
+            actual_rewards, optimal_rewards, step_count = self.run_trajectory(agent, step_limit=self.step_limit)
             reward_fractions.append(actual_rewards / optimal_rewards)
             step_counts.append(step_count)
         return reward_fractions, step_counts
@@ -259,71 +277,84 @@ class Experiment():
         # This chunk runs the ensembles on the ground MDP and all the correct abstract MDPs
         # csvfile contains the average rewards obtained in every episode
         # stepfile contains the average number of steps per episode
-        with open(os.path.join(self.results_dir, "true/step_counts.csv"), 'w', newline='') as stepfile:
-            with open(os.path.join(self.results_dir, "true/exp_output.csv"), 'w', newline='') as csvfile:
-                with open(os.path.join(self.results_dir, "true/learned_policies.csv"), 'w', newline='') as policyfile:
-                    writer = csv.writer(csvfile)
-                    stepwriter = csv.writer(stepfile)
-                    policywriter = csv.writer(policyfile)
-                    # The for loop below iterates through all ensembles in self.agents. Each key in the self.agents dict
-                    #  represents a single ensemble of agents on a single MDP
-                    for ensemble_key in self.agents.keys():
-                        print(ensemble_key)
-                        # The two lines below are done so that each list of data is preceded by the key for that
-                        #  ensemble.
-                        #  This is done so we know which data belongs to which ensemble
-                        avg_reward_fractions = [ensemble_key]
-                        avg_step_counts = [ensemble_key]
-                        for episode in range(self.num_episodes):
-                            print("On episode", episode)
-                            # Reward_fractions and step_counts are lists of the fraction of the optimal policy captured
-                            #  and the number of steps taken (respectively) in a single trajectory by each agent in the
-                            #  ensemble
-                            reward_fractions, step_counts = self.run_ensemble(self.agents[ensemble_key])
-                            # We average these across the whole ensemble
-                            avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
-                            avg_reward_fractions.append(avg_reward_fraction)
-                            avg_step_count = sum(step_counts) / len(step_counts)
-                            # Hacky step to make step-counts cumulative
-                            if len(avg_step_counts) > 1:
-                                avg_step_counts.append(avg_step_count + avg_step_counts[-1])
-                            else:
-                                avg_step_counts.append(avg_step_count)
-                        writer.writerow(avg_reward_fractions)
-                        stepwriter.writerow(avg_step_counts)
-                        for i in range(len(self.agents[ensemble_key])):
-                            policywriter.writerow((ensemble_key, i, self.agents[ensemble_key][i].get_learned_policy_as_string()))
+        step_file = open(os.path.join(self.results_dir, "true/step_counts.csv"), 'w', newline='')
+        csv_file = open(os.path.join(self.results_dir, "true/exp_output.csv"), 'w', newline='')
+        policy_file = open(os.path.join(self.results_dir, "true/learned_policies.csv"), 'w', newline='')
+        value_file = open(os.path.join(self.results_dir, 'true/learned_state_values.csv'), 'w', newline='')
+        writer = csv.writer(csv_file)
+        step_writer = csv.writer(step_file)
+        policy_writer = csv.writer(policy_file)
+        value_writer = csv.writer(value_file)
+        # The for loop below iterates through all ensembles in self.agents. Each key in the self.agents dict
+        #  represents a single ensemble of agents on a single MDP
+        for ensemble_key in self.agents.keys():
+            print(ensemble_key)
+            # The two lines below are done so that each list of data is preceded by the key for that
+            #  ensemble.
+            #  This is done so we know which data belongs to which ensemble
+            avg_reward_fractions = [ensemble_key]
+            avg_step_counts = [ensemble_key]
+            for episode in range(self.num_episodes):
+                if episode % 10 == 0:
+                    print("On episode", episode)
+                # Reward_fractions and step_counts are lists of the fraction of the optimal policy captured
+                #  and the number of steps taken (respectively) in a single trajectory by each agent in the
+                #  ensemble
+                reward_fractions, step_counts = self.run_ensemble(self.agents[ensemble_key])
+                # We average these across the whole ensemble
+                avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
+                avg_reward_fractions.append(avg_reward_fraction)
+                avg_step_count = sum(step_counts) / len(step_counts)
+                # Hacky step to make step-counts cumulative
+                if len(avg_step_counts) > 1:
+                    avg_step_counts.append(avg_step_count + avg_step_counts[-1])
+                else:
+                    avg_step_counts.append(avg_step_count)
+            # Write average rewards per episode
+            writer.writerow(avg_reward_fractions)
+            # Write average step count per episode
+            step_writer.writerow(avg_step_counts)
+            # Write the policy learned by each agent
+            for i in range(len(self.agents[ensemble_key])):
+                policy_writer.writerow((ensemble_key, i, self.agents[ensemble_key][i].get_learned_policy_as_string()))
+            for i in range(len(self.agents[ensemble_key])):
+                value_writer.writerow((ensemble_key, i, self.agents[ensemble_key][i].get_learned_state_values()))
 
         # This chunk runs the ensembles on all the corrupted MDPs
         if include_corruption:
-            with open(os.path.join(self.results_dir, "corrupted/step_counts.csv"), 'w', newline='') as stepfile:
-                with open(os.path.join(self.results_dir, "corrupted/exp_output.csv"), 'w', newline='') as csvfile:
-                    with open(os.path.join(self.results_dir, "corrupted/learned_policies.csv"), 'w', newline='') as policyfile:
-                        reward_writer = csv.writer(csvfile)
-                        step_writer = csv.writer(stepfile)
-                        policy_writer = csv.writer(policyfile)
-                        for ensemble_key in self.corr_agents.keys():
-                            print(ensemble_key)
-                            avg_reward_fractions = [ensemble_key]
-                            avg_step_counts = [ensemble_key]
-                            for episode in range(self.num_episodes):
-                                print("On episode", episode)
-                                reward_fractions, step_counts = self.run_ensemble(self.corr_agents[ensemble_key])
-                                avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
-                                avg_reward_fractions.append(avg_reward_fraction)
-                                avg_step_count = sum(step_counts) / len(step_counts)
-                                if len(avg_step_counts) > 1:
-                                    avg_step_counts.append(avg_step_count + avg_step_counts[-1])
-                                else:
-                                    avg_step_counts.append(avg_step_count)
-                            # This is the fraction of the optimal policy captured, on average, per agent per episode
-                            reward_writer.writerow(avg_reward_fractions)
-                            # This is the average number of step counts per agent per episode
-                            step_writer.writerow(avg_step_counts)
-                            # Write learned policy
-                            for i in range(len(self.corr_agents[ensemble_key])):
-                                policy_writer.writerow((ensemble_key, i, self.corr_agents[ensemble_key][i].get_learned_policy_as_string()))
-
+            stepfile = open(os.path.join(self.results_dir, "corrupted/step_counts.csv"), 'w', newline='')
+            csvfile = open(os.path.join(self.results_dir, "corrupted/exp_output.csv"), 'w', newline='')
+            policyfile = open(os.path.join(self.results_dir, "corrupted/learned_policies.csv"), 'w', newline='')
+            valuefile = open(os.path.join(self.results_dir, 'corrupted/learned_state_values.csv'), 'w', newline='')
+            reward_writer = csv.writer(csvfile)
+            step_writer = csv.writer(stepfile)
+            policy_writer = csv.writer(policyfile)
+            value_writer = csv.writer(valuefile)
+            for ensemble_key in self.corr_agents.keys():
+                print(ensemble_key)
+                avg_reward_fractions = [ensemble_key]
+                avg_step_counts = [ensemble_key]
+                for episode in range(self.num_episodes):
+                    if episode % 10 == 0:
+                        print("On episode", episode)
+                    reward_fractions, step_counts = self.run_ensemble(self.corr_agents[ensemble_key])
+                    avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
+                    avg_reward_fractions.append(avg_reward_fraction)
+                    avg_step_count = sum(step_counts) / len(step_counts)
+                    if len(avg_step_counts) > 1:
+                        avg_step_counts.append(avg_step_count + avg_step_counts[-1])
+                    else:
+                        avg_step_counts.append(avg_step_count)
+                # This is the fraction of the optimal policy captured, on average, per agent per episode
+                reward_writer.writerow(avg_reward_fractions)
+                # This is the average number of step counts per agent per episode
+                step_writer.writerow(avg_step_counts)
+                # Write learned policy
+                for i in range(len(self.corr_agents[ensemble_key])):
+                    policy_writer.writerow((ensemble_key, i, self.corr_agents[ensemble_key][i].get_learned_policy_as_string()))
+                # Write learned state values
+                for i in range(len(self.corr_agents[ensemble_key])):
+                    value_writer.writerow((ensemble_key, i, self.corr_agents[ensemble_key][i].get_learned_state_values()))
         if include_corruption:
             return os.path.join(self.results_dir, "true/exp_output.csv"), \
                    os.path.join(self.results_dir, "true/step_counts.csv"), \
@@ -452,7 +483,6 @@ class Experiment():
             file_name = 'corrupted/{}{}'.format(file_name, '.png')
             print(file_name)
             plt.savefig(os.path.join(outdirpath, file_name))
-            #plt.show()
             plt.clf()
 
     def visualize_corrupt_abstraction(self, key):
