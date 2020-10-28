@@ -76,7 +76,6 @@ class AbstractionAgent(Agent):
         for equiv_state in states_to_update:
             self._set_q_value(equiv_state, action, new_q_value)
 
-
     def detach_state(self, state):
         """
         Change the abstraction mapping such that the given state is now mapped to a new, singleton abstract state.
@@ -138,6 +137,36 @@ class AbstractionAgent(Agent):
             state = next_state
         return rollout
 
+    def check_for_optimal_action_and_value(self, state):
+        """
+        Take every possible action in the given state and return the action that yields the highest reward plus
+        discount * max next state Q value
+        :param state: a state in the MDP
+        :return: tuple, (optimal action, value of optimal action)
+        """
+        actions = self.mdp.actions
+        optimal_action = None
+        optimal_action_value = float('-inf')
+        for action in actions:
+            self.mdp.set_current_state(state)
+            next_state = self.mdp.transition(state, action)
+            reward = self.mdp.reward(state, action, next_state)
+            next_state_q_value = self.get_best_action_value(next_state)
+            next_val = reward + self.mdp.gamma * next_state_q_value
+            if next_val > optimal_action_value:
+                optimal_action = action
+                optimal_action_value = next_val
+        self.mdp.reset_to_init()
+        return (optimal_action, optimal_action_value)
+
+    def check_for_optimal_action(self, state):
+        action, _ = self.check_for_optimal_action_and_value(state)
+        return action
+
+    def check_for_optimal_action_value(self, state):
+        _, val = self.check_for_optimal_action_and_value(state)
+        return val 
+
     def get_abstraction_as_string(self):
         """
         Create string representation of the agents abstraction mapping. Takes the form of a list of tuples where first
@@ -148,4 +177,3 @@ class AbstractionAgent(Agent):
         for g_state, a_state in self.s_a.abstr_dict.items():
             abstr_list.append((g_state.data, a_state))
         return str(abstr_list)
-

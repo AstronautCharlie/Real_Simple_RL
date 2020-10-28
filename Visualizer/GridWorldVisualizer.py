@@ -6,6 +6,7 @@ import randomcolor
 import ast
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from GridWorld.ActionEnums import Dir
 from GridWorld.GridWorldStateClass import  GridWorldState
 from GridWorld.GridWorldMDPClass import GridWorldMDP
@@ -478,7 +479,8 @@ class GridWorldVisualizer():
                                                        & (policy_df['AgentNum'] == agent_num)]['PolicyDict'].values[0])
         policy_dict = {}
         for policy_key in policy_string.keys():
-            policy_dict[int(policy_key)] = self.parse_action_string(policy_string[policy_key])
+            #print(policy_string[policy_key])
+            policy_dict[ast.literal_eval(policy_key)] = self.parse_action_string(policy_string[policy_key])
 
         # Load abstraction mapping into dictionary, identifying proper abstractions/agents based on key and agent_num
         abstr_names = ['AbstrType', 'AbstrEps', 'AbstrDict']
@@ -497,10 +499,13 @@ class GridWorldVisualizer():
         visited_states = []
         rollout = [(state.x, state.y)]
         i = 0
+        print('policy_dict', policy_dict)
         while not (state.is_terminal()) and (state not in visited_states):
             i += 1
-            abstr_state = abstr_dict[(state.x, state.y)]
-            action = policy_dict[abstr_state]
+            #abstr_state = abstr_dict[(state.x, state.y)]
+            #print('abstract state', abstr_state)
+            #action = policy_dict[abstr_state]
+            action = policy_dict[(state.x, state.y)]
             next_state = mdp.transition(state, action)
             rollout.append((next_state.x, next_state.y))
             visited_states.append(state)
@@ -614,14 +619,15 @@ class GridWorldVisualizer():
             i += 1
         # If we're not in the goal state, draw a small black square in the direction of the last action taken which
         #  resulted in a loop
-        if rollout[-1] != (11, 11):
-            final_cell = rollout[-2]
+        if (rollout[-1] != (11, 11)) and (rollout[-2] != (11, 11)):
+            # This the cell where we take the action that enters the cycle
+            final_cell = rollout[-3]
             action = rollout[-1]
             shrink_factor = 0.7
             if action == Dir.UP:
-                margin = (0,1*shrink_factor)
-            elif action == Dir.DOWN:
                 margin = (0,-1*shrink_factor)
+            elif action == Dir.DOWN:
+                margin = (0,1*shrink_factor)
             elif action == Dir.RIGHT:
                 margin = (1*shrink_factor,0)
             elif action == Dir.LEFT:
@@ -645,7 +651,7 @@ class GridWorldVisualizer():
         """
         random_color = randomcolor.RandomColor()
         colors_used = []
-        print("Generating rollouts for key", key)
+        print("True roll-out for key", key, num_agents, end='   ')
         for i in range(num_agents):
             rollout = self.generate_true_abstract_rollout(key, policy_file, abstraction_file, i)
             print(rollout)
@@ -668,9 +674,10 @@ class GridWorldVisualizer():
         """
         random_color = randomcolor.RandomColor()
         colors_used = []
-        print("Generating rollouts for key", key)
+        print("Corrupt roll-out, (corr, type, MDP, agent)", key[3], self.get_abstr_name(key[0]), key[4], end=' ')
         #for i in range(num_agents):
         for agent_num in num_agents:
+            print(agent_num, end=': ')
             #rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, i)
             rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, agent_num)
             print(rollout)
@@ -694,8 +701,6 @@ class GridWorldVisualizer():
 
         # Read in dictionary from file and parse dictionary
         value_dict = self.parse_file_for_dict(key, state_value_file, agent_num=agent_num)
-        #for key, value in value_dict.items():
-        #    print(key, value)
 
         # Draw rectangles that are dark if the state is low value and bright if the state is high value. This is
         #  indexed against the maximum state value observed, such that the highest-value state observed will be white.
@@ -704,7 +709,6 @@ class GridWorldVisualizer():
             value_color = (np.floor(255 * value_dict[square] / value_max),
                            np.floor(255 * value_dict[square] / value_max),
                            np.floor(255 * value_dict[square] / value_max))
-            #print('square', square, 'value', value_dict[square], 'color', value_color)
             cell = pygame.Rect((self.margin + self.cell_size) * (square[0] - 1) + self.margin,
                                (self.margin + self.cell_size) * (11 - square[1]) + self.margin,
                                self.cell_size,
@@ -812,6 +816,46 @@ class GridWorldVisualizer():
         abstr_string = abstr_string[:abstr_string.find('_')]
         abstr_string = abstr_string.lower()
         return abstr_string
+
+    def create_value_heatmap(self, key, agent_num, state_value_file):
+        """
+        Create an annotated heatmap of the learned state values
+        """
+        # Read in state value dictionary
+        value_dict = self.parse_file_for_dict(key, state_value_file, agent_num=agent_num)
+
+        # Turn value dictionary into 2d array so that we can heatmap it
+        value_arr = np.empty((WIDTH, HEIGHT))
+        for i in range(1, WIDTH + 1):
+            for j in range(1, HEIGHT + 1):
+                if (i, j) in value_dict.keys():
+                    value_arr[i - 1][j - 1] = value_dict[(i, j)]
+                else:
+                    value_arr[i - 1][j - 1] = 0
+
+        # Create actual heatmap
+        fig, ax = plt.subplots(figsize=(8,8))
+        im = ax.pcolor(np.transpose(value_arr))
+
+        ax.set_xticks(0.5 + np.arange(WIDTH))
+        ax.set_yticks(0.5 + np.arange(HEIGHT))
+        ax.set_xticklabels(1 + np.arange(WIDTH))
+        ax.set_yticklabels(1 + np.arange(HEIGHT))
+
+        round_value = 1
+        rounded_arr = np.round(value_arr, round_value)
+        rounded_unique_arr = np.unique(rounded_arr)
+        unrounded_unique_arr = np.unique(value_arr)
+        while len(rounded_unique_arr) < len(unrounded_unique_arr):
+            round_value += 1
+            rounded_arr = np.round(value_arr, round_value)
+            rounded_unique_arr = np.unique(rounded_arr)
+
+        for i in range(WIDTH):
+            for j in range(HEIGHT):
+                text = ax.text(i + 0.5, j + 0.5, round(value_arr[i][j], 3), ha='center', va='center', color='w')
+
+        return fig
 
 
 
