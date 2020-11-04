@@ -325,9 +325,10 @@ class GridWorldVisualizer():
             error_list = self.parse_file_for_dict(key, error_file)
             error_states = []
             for val in error_list:
-                error_states.append(((ast.literal_eval(val[0])),
-                                     (ast.literal_eval(val[1])),
-                                     (ast.literal_eval(val[2]))))
+                #error_states.append(((ast.literal_eval(val[0])),
+                #                     (ast.literal_eval(val[1])),
+                #                     (ast.literal_eval(val[2]))))
+                error_states.append((val[0], val[1], val[2]))
             err_arg = error_states
 
         # Create the surface for the corrupt abstract MDP
@@ -351,9 +352,10 @@ class GridWorldVisualizer():
         error_list = self.parse_file_for_dict(key, error_file)
         error_states = []
         for val in error_list:
-            error_states.append(((ast.literal_eval(val[0])),
-                                 (ast.literal_eval(val[1])),
-                                 (ast.literal_eval(val[2]))))
+            #error_states.append(((ast.literal_eval(val[0])),
+            #                     (ast.literal_eval(val[1])),
+            #                     (ast.literal_eval(val[2]))))
+            error_states.append((val[0], val[1], val[2]))
         # Mark errors with circles
         for error in error_states:
             col = int((self.margin + self.cell_size) * (error[0][0] - 1) + self.margin + np.floor(self.cell_size / 2))
@@ -632,6 +634,9 @@ class GridWorldVisualizer():
                 margin = (1*shrink_factor,0)
             elif action == Dir.LEFT:
                 margin = (-1*shrink_factor,0)
+            else:
+                print('No action learned for', agent_num, rollout)
+                margin = (0, 0)
             mid_loc = (self.cell_size * (final_cell[0] - 1) + (self.cell_size / 2) + int(3 * agent_num / 2),
                        self.cell_size * (HEIGHT - final_cell[1]) + (self.cell_size / 2) + int(3 * agent_num / 2))
             end_loc = (self.cell_size * (final_cell[0] - 1) + (self.cell_size / 2) + int(3 * agent_num / 2) + self.cell_size * margin[0],
@@ -738,10 +743,10 @@ class GridWorldVisualizer():
         abstr_list = self.parse_file_for_dict(key, abstraction_file)
         # Error_dict is a list of tuples where first element is ground tuple, second is true state integer, third is
         #  corr state integer
-        error_list = [(ast.literal_eval(error[0]),
-                       ast.literal_eval(error[1]),
-                       ast.literal_eval(error[2])) for error in error_list]
-
+        #error_list = [(ast.literal_eval(error[0]),
+        #               ast.literal_eval(error[1]),
+        #               ast.literal_eval(error[2])) for error in error_list]
+        error_list = [(error[0], error[1], error[2]) for error in error_list]
         # Create abstr_lookup_dict, which will map error states (or tuples of error states) to random colors, and
         #  abstr_apply_dict, which will map colors to lists of ground states which are correctly mapped to the
         #  abstract state represented by the color

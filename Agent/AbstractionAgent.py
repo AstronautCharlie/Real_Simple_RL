@@ -8,6 +8,8 @@ their Q-value. If done properly, this should yield the same behavior as an agent
 from Agent.AgentClass import Agent
 from GridWorld.ActionEnums import Dir
 from collections import defaultdict
+import random
+from statistics import pstdev
 
 
 class AbstractionAgent(Agent):
@@ -31,6 +33,7 @@ class AbstractionAgent(Agent):
         # Create a dictionary mapping each ground state to all other ground states with the same abstract state
         #  This is done so that we don't have to iterate through all states to check abstract state mapping when
         #  performing an update
+        # NO LONGER USED
         self.group_dict = {}
         if self.s_a is not None:
             for state in s_a.abstr_dict.keys():
@@ -76,7 +79,7 @@ class AbstractionAgent(Agent):
         for equiv_state in states_to_update:
             self._set_q_value(equiv_state, action, new_q_value)
 
-    def detach_state(self, state):
+    def detach_state(self, state, reset_q_value=False):
         """
         Change the abstraction mapping such that the given state is now mapped to a new, singleton abstract state.
         Also reset the Q-table for abstract state to 0 for all state-action pairs.
@@ -91,6 +94,7 @@ class AbstractionAgent(Agent):
             raise ValueError(
                 'Attempting to detach state that is not mapped to an abstract state. State is ' + str(state.data))
 
+        '''
         # Check if state is already in a singleton abstract state. If so, do nothing
         if not self.group_dict[state]:
             return 1
@@ -98,17 +102,59 @@ class AbstractionAgent(Agent):
         # If state is terminal, its abstract state doesn't matter so we remove it
         if state.is_terminal():
             return 2
+        '''
+        # First check that this state is not a singleton. If it is, do not detach
+        temp = []
+        for temp_state, temp_value in self.s_a.abstr_dict.items():
+            if temp_value == self.s_a.abstr_dict[state] and temp_state != state:
+                temp.append(temp_state)
+        if len(temp) == 0:
+            print('State', state, 'is not mapped to any other abstract states, so is already a singleton. Not detaching')
+            print()
+            return 1
 
         # Set state to its own abstract state
-        self.s_a.abstr_dict.pop(state, None)
+        print('About to pop state', state)
+        old_abstr_state = self.s_a.abstr_dict.pop(state, None)
+        print('Original abstr state was', old_abstr_state)
+        print('State was originally mapped with', end=' ')
+        for t in temp:
+            print(t, end=' ')
+        print()
+        max_abstr_state = max(self.s_a.abstr_dict.values())
+        self.s_a.abstr_dict[state] = max_abstr_state + 1
+        print('State is now mapped to', self.s_a.abstr_dict[state])
+        temp = []
+        for temp_state, temp_value in self.s_a.abstr_dict.items():
+            if temp_value == old_abstr_state:
+                temp.append(temp_state)
+        print('States originally mapped with popped state (should be same as above)', end = ' ')
+        for x in temp:
+            print(x, end=' ')
+        print('\n'*2)
+
+        '''
+        print('About to pop', state)
+        print('Current group dict for state is', end = ' ')#, self.group_dict[state])
+        for temp in self.group_dict[state]:
+            print(temp, end = ' ')
+        print()
+        other_state = self.group_dict[state][0]
         self.group_dict.pop(state, None)
         max_abstr_state = max(self.s_a.abstr_dict.values())
         self.s_a.abstr_dict[state] = max_abstr_state + 1
         self.group_dict[state] = []
+        print('After popping, group dict for state is', self.group_dict[state])
+        print('Group dict for other state in original abstract state', end = ' ')#, [temp for temp in self.group_dict[other_state]])
+        for temp in self.group_dict[other_state]:
+            print(temp, end = ' ')
+        print()
+        '''
 
         # Reset Q-table to 0 for this state
-        for action in self.mdp.actions:
-            self._set_q_value(state, action, 0)
+        if reset_q_value:
+            for action in self.mdp.actions:
+                self._set_q_value(state, action, 0)
         return 0
 
     def generate_rollout(self, start_from_init=True):
@@ -137,35 +183,157 @@ class AbstractionAgent(Agent):
             state = next_state
         return rollout
 
-    def check_for_optimal_action_and_value(self, state):
+    def check_for_optimal_action_value_next_state(self, state, verbose=False):
         """
         Take every possible action in the given state and return the action that yields the highest reward plus
         discount * max next state Q value
         :param state: a state in the MDP
-        :return: tuple, (optimal action, value of optimal action)
+        :return: optimal action, value of optimal action
         """
         actions = self.mdp.actions
+        # Check actions in a random order so that if two actions are equally optimal, we select a random one
+        random.shuffle(actions)
         optimal_action = None
         optimal_action_value = float('-inf')
+        optimal_next_state = None
+        if verbose:
+            print('Checking actions for state', state)
         for action in actions:
             self.mdp.set_current_state(state)
             next_state = self.mdp.transition(state, action)
             reward = self.mdp.reward(state, action, next_state)
             next_state_q_value = self.get_best_action_value(next_state)
             next_val = reward + self.mdp.gamma * next_state_q_value
+            if verbose:
+                print(action, next_state, reward, next_state_q_value, next_val)
             if next_val > optimal_action_value:
                 optimal_action = action
                 optimal_action_value = next_val
+                optimal_next_state = next_state
+        if verbose:
+            print('Best action, action value', optimal_action, optimal_action_value)
         self.mdp.reset_to_init()
-        return (optimal_action, optimal_action_value)
+        return optimal_action, optimal_action_value, optimal_next_state
 
     def check_for_optimal_action(self, state):
-        action, _ = self.check_for_optimal_action_and_value(state)
+        action, _, _ = self.check_for_optimal_action_value_next_state(state)
         return action
 
     def check_for_optimal_action_value(self, state):
-        _, val = self.check_for_optimal_action_and_value(state)
-        return val 
+        _, val, _ = self.check_for_optimal_action_value_next_state(state)
+        return val
+
+    def check_for_optimal_next_state(self, state):
+        _, _, next_state = self.check_for_optimal_action_value_next_state(state)
+        return next_state
+
+    def check_abstract_state_consistency(self,
+                                         abstr_state,
+                                         variance_threshold=None,
+                                         prevent_cycles=False,
+                                         verbose=False):
+        """
+        Check if all constituent ground states in the given abstract state share the same optimal action. Return a
+        list of ground states whose optimal actions differ from action learned by abstract state
+        :param abstr_state: abstract state whose constituent states we are checking
+        :param variance_threshold: If set, states whose optimal action value is more than variance_threshold standard
+                                    deviations away from the mean
+        :param prevent_cycles: If true, states where the optimal action keeps the agent in the state it is in are
+                                treated as errors
+        :return: a list of states whose actions differ from action learned by abstract state. Return None if
+                no such states exist
+        """
+        error_states = []
+        best_action_values = []
+        constituent_state_dict = {}
+        # Get all ground states mapped to this abstract state. If there is only one constituent state, we
+        #  do nothing and return
+        constituent_states = self.get_ground_states_from_abstract_state(abstr_state)
+        if len(constituent_states) == 1:
+            return None
+        # Get best action learned. Since all ground states in one abstract state will have the same
+        #  learned best action, we just grab the best action from the first constituent state
+        best_abstr_action, best_action_value, _ = self.check_for_optimal_action_value_next_state(constituent_states[0])
+        # If the states haven't been visited/updated yet, return nothing
+        if best_action_value == 0:
+            return None
+
+        # Check the optimal action of each constituent state. If it differs from the best abstract action (or keeps
+        #   agent in current state if prevent_cycles == True), then add it to error states
+        for state in constituent_states:
+            best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state)
+            constituent_state_dict[state] = (best_action, best_action_value, next_state)
+            if best_action != best_abstr_action:
+                error_states.append(state)
+            elif prevent_cycles and next_state == state:
+                error_states.append(state)
+            else:
+                best_action_values.append(best_action_value)
+        if verbose:
+            print(abstr_state, 'best action is', best_abstr_action)
+            for key, value in constituent_state_dict.items():
+                print(key, value[0], round(value[1], 3), value[2], end='\t')
+            print()
+
+        # If variance threshold is set, mark as errors all states where the value of the optimal action differs
+        #  from the mean by more than variance threshold standard deviations
+        if variance_threshold is not None:
+            action_value_mean = sum(best_action_values) / len(best_action_values)
+            action_value_std_dev = pstdev(best_action_values)
+            threshold_diff = variance_threshold * action_value_std_dev
+            for state in constituent_states:
+                if abs(constituent_state_dict[state][1] - action_value_mean) > threshold_diff:
+                    error_states.append(state)
+
+        #print('error states:', end=' ')
+        #for state in error_states:
+        #    print(state, end=' ')
+        #print()
+
+        return error_states
+
+    def detach_inconsistent_states(self,
+                                   variance_threshold=None,
+                                   prevent_cycles=False,
+                                   reset_q_value=False,
+                                   verbose=False):
+        """
+        Iterate through all abstract states, check their consistency, and detach any states that are marked errors
+        :param variance_threshold: If provided, states whose optimal action values are more than this many standard
+                                    deviations away from the average for the abstract state will be treated as errors
+        :param prevent_cycles: If true, states whose optimal actions keep them in their current state are treated
+                                as errors
+        :return: list of detached states
+        """
+        abstr_states = self.get_abstract_states()
+        detached_states = []
+
+        for abstr_state in abstr_states:
+            error_states = self.check_abstract_state_consistency(abstr_state,
+                                                                 variance_threshold=variance_threshold,
+                                                                 prevent_cycles=prevent_cycles,
+                                                                 verbose=verbose)
+            if error_states is not None:
+                detached_states += error_states
+
+                for state in error_states:
+                    result_check = self.detach_state(state, reset_q_value=reset_q_value)
+                    if result_check == 1:
+                        print('State is already singleton')
+                    elif result_check == 2:
+                        print('State is terminal')
+
+        if verbose:
+            print('Number of detached states', len(detached_states))
+            print('Detached states are', end=' ')
+            for state in detached_states:
+                print(state, end=' ')
+            print()
+        return detached_states
+
+    # -----------------
+    # Getters & setters
+    # -----------------
 
     def get_abstraction_as_string(self):
         """
@@ -177,3 +345,21 @@ class AbstractionAgent(Agent):
         for g_state, a_state in self.s_a.abstr_dict.items():
             abstr_list.append((g_state.data, a_state))
         return str(abstr_list)
+
+    def get_ground_states_from_abstract_state(self, abstr_state):
+        """
+        Return a list of ground states mapped to the given abstract state
+        :param abstr_state: an abstract state
+        :return: list of ground states
+        """
+        ground_states = []
+        for ground, abstr in self.s_a.abstr_dict.items():
+            if abstr == abstr_state:
+                ground_states.append(ground)
+        return ground_states
+
+    def get_abstract_states(self):
+        """
+        :return: list of abstract states
+        """
+        return list(set(list(self.s_a.abstr_dict.values())))

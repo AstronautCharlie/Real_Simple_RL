@@ -125,7 +125,6 @@ class Agent():
 		next_state, reward = self.mdp.act(best_action)
 		return current_state, best_action, next_state
 
-
 	def apply_action(self, action):
 		'''
 		Apply the given action to agent's current state, get 
@@ -142,7 +141,6 @@ class Agent():
 		'''
 		next_state, reward = self.mdp.act(action)
 		return next_state, reward
-
 
 	def update(self, state, action, next_state, reward):
 		'''

@@ -16,9 +16,13 @@ NUM_CORR_MDPS = 5
 NUM_AGENTS = 5
 EPS = 0.0
 ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
-CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.05), (Corr_type.UNI_RAND, 0.1)]
+#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.05), (Corr_type.UNI_RAND, 0.1)]
+#ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS)]
+CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.1)]
 MDP = GridWorldMDP()
 MDP_STR = 'rooms'
+DETACH_INTERVAL = 500
+PREVENT_CYCLES = True
 
 def run_experiment():
     start_time = time.time()
@@ -31,14 +35,16 @@ def run_experiment():
                      num_episodes=NUM_EPISODES,
                      results_dir='exp_output/hot',
                      agent_type='abstraction',
-                     agent_exploration_epsilon=0.5,
+                     agent_exploration_epsilon=0.1,
                      decay_exploration=False,
-                     exploring_starts=False,
-                     step_limit=5000)
+                     exploring_starts=True,
+                     step_limit=10000,
+                     detach_interval=DETACH_INTERVAL,
+                     prevent_cycles=PREVENT_CYCLES)
 
     # Run experiment. This will write results to files
     # Commented out for testing visualization
-    data, steps, corr_data, corr_steps = exp.run_all_ensembles(include_corruption=True)
+    data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=True)
 
     # Plot performance for true results
     exp.visualize_results(data, outfilename='true_aggregated_results.png')
@@ -46,6 +52,12 @@ def run_experiment():
     # Plot performance for corrupt results
     if len(CORRUPTION_LIST) > 0:
         exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png')
+
+    # Plot performance for corrupt w/ detach results
+    if DETACH_INTERVAL is not None:
+        exp.visualize_corrupt_results(corr_detach_data,
+                                      outfilename='corrupt_detach_aggregated_results.png',
+                                      individual_mdp_dir='corrupted_w_detach')
 
     # Write a summary of the parameters to this file
     param_file = open(os.path.join(exp.results_dir, 'param_summary.txt'), 'w')

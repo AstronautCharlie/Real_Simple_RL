@@ -37,7 +37,12 @@ class Experiment():
                  agent_exploration_epsilon=0.1,
                  decay_exploration=True,
                  exploring_starts=False,
-                 step_limit=10000):
+                 step_limit=10000,
+                 detach_interval=None,
+                 prevent_cycles=False,
+                 variance_threshold=None,
+                 reset_q_value=False,
+                 verbose=False):
         """
         Create an experiment, which will hold the ground MDP, the abstract MDPs (parameters dictated by abstr_epsilon_list),
         and an ensemble of (num_agents) q-learning agents on each MDP.
@@ -74,6 +79,10 @@ class Experiment():
         self.exploring_starts = exploring_starts
         self.step_limit = step_limit
         self.agent_exploration_epsilon = agent_exploration_epsilon
+        self.detach_interval = detach_interval
+        self.prevent_cycle = prevent_cycles
+        self.variance_threshold = variance_threshold
+        self.reset_q_value = reset_q_value
 
         # Agent ensembles will be stored in a dict where key is the (abstr_type, epsilon) tuple ('ground' in the case
         # of the ground MDP) and values are lists of agents. In the case of corrupted MDPs, the key will be
@@ -133,7 +142,7 @@ class Experiment():
                         for state in states_to_corrupt:
                             true_state = abstr_mdp.get_abstr_from_ground(state)
                             corr_state = c_s_a.get_abstr_from_ground(state)
-                            error_line.append((str(state), str(true_state), str(corr_state)))
+                            error_line.append(((state.x, state.y), true_state.data, corr_state.data))
                         temp_key = (abstr_mdp.abstr_type, abstr_mdp.abstr_epsilon, corr_type, prop, i)
                         # Record the error states
                         err_writer.writerow((temp_key, error_line))
@@ -197,11 +206,35 @@ class Experiment():
 
             self.corr_agents[corr_key] = corr_ensemble
 
+        # If detach_state_interval is set, create another set of agents which will detach inconsistent abstract states
+        #   every (detach_state_interval) episodes
+        self.corr_detach_agents = {}
+        for corr_key in self.corrupt_mdp_dict.keys():
+            corr_ensemble = []
+            for i in range(self.num_agents):
+                # Create agents according to agent_type parameter
+                if self.agent_type == 'standard':
+                    temp_mdp = self.corrupt_mdp_dict[corr_key].copy()
+                    agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    corr_ensemble.append(agent)
+                else:
+                    temp_mdp = self.ground_mdp.copy()
+                    corr_mdp = self.corrupt_mdp_dict[corr_key].copy()
+                    s_a = corr_mdp.state_abstr
+                    agent = AbstractionAgent(temp_mdp, s_a, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    corr_ensemble.append(agent)
+
+            self.corr_detach_agents[corr_key] = corr_ensemble
+
     def __str__(self):
         result = 'key: num agents\n'
         for key in self.agents.keys():
             result += str(key) + ': ' + str(len(self.agents[key])) + '\n'
         return result
+
+    # ----------------------------
+    # Functions for running agents
+    # ----------------------------
 
     def run_trajectory(self, agent, step_limit):
         """
@@ -257,6 +290,21 @@ class Experiment():
             reward_fractions.append(actual_rewards / optimal_rewards)
             step_counts.append(step_count)
         return reward_fractions, step_counts
+
+    def detach_ensemble(self, ensemble):
+        """
+        For each agent, check the consistency of abstract states and detach inconsistent ground states
+        """
+        detached_states = {}
+        #for agent in ensemble:
+        for i in range(len(ensemble)):
+            agent = ensemble[i]
+            error_states = agent.detach_inconsistent_states(variance_threshold=self.variance_threshold,
+                                                            prevent_cycles=self.prevent_cycle,
+                                                            reset_q_value=self.reset_q_value)
+            if error_states is not None:
+                detached_states[i] = error_states
+        return detached_states
 
     def run_all_ensembles(self, include_corruption=False):
         """
@@ -355,14 +403,94 @@ class Experiment():
                 # Write learned state values
                 for i in range(len(self.corr_agents[ensemble_key])):
                     value_writer.writerow((ensemble_key, i, self.corr_agents[ensemble_key][i].get_learned_state_values()))
+
+        # This chunk runs the detach agents, if that parameter is set
+        if self.detach_interval is not None:
+            stepfile = open(os.path.join(self.results_dir, "corrupted_w_detach/step_counts.csv"), 'w', newline='')
+            csvfile = open(os.path.join(self.results_dir, "corrupted_w_detach/exp_output.csv"), 'w', newline='')
+            policyfile = open(os.path.join(self.results_dir, "corrupted_w_detach/learned_policies.csv"), 'w', newline='')
+            valuefile = open(os.path.join(self.results_dir, 'corrupted_w_detach/learned_state_values.csv'), 'w', newline='')
+            detachfile = open(os.path.join(self.results_dir, 'corrupted_w_detach/detached_states.csv'), 'w', newline='')
+            finalSAfile = open(os.path.join(self.results_dir, 'corrupted_w_detach/final_s_a.csv'), 'w', newline='')
+            reward_writer = csv.writer(csvfile)
+            step_writer = csv.writer(stepfile)
+            policy_writer = csv.writer(policyfile)
+            value_writer = csv.writer(valuefile)
+            detach_writer = csv.writer(detachfile)
+            finalSA_writer = csv.writer(finalSAfile)
+            for ensemble_key in self.corr_detach_agents.keys():
+                print(ensemble_key, 'detaching states')
+                avg_reward_fractions = [ensemble_key]
+                avg_step_counts = [ensemble_key]
+                detached_state_record = {}
+                for agent_num in range(self.num_agents):
+                    detached_state_record[agent_num] = []
+                for episode in range(self.num_episodes):
+                    if episode % 10 == 0:
+                        print("On episode", episode)
+                    reward_fractions, step_counts = self.run_ensemble(self.corr_detach_agents[ensemble_key])
+                    avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
+                    avg_reward_fractions.append(avg_reward_fraction)
+                    avg_step_count = sum(step_counts) / len(step_counts)
+                    if len(avg_step_counts) > 1:
+                        avg_step_counts.append(avg_step_count + avg_step_counts[-1])
+                    else:
+                        avg_step_counts.append(avg_step_count)
+                    if episode > 0 and episode % self.detach_interval == 0:
+                        detach_dict = self.detach_ensemble(self.corr_detach_agents[ensemble_key])
+                        print('detached states')
+                        for key, value in detach_dict.items():
+                            print(key, len(value), end=' ')
+                            detached_states = []
+                            for state in value:
+                                print(state, end=' ')
+                                detached_states.append((state.x, state.y))
+                            detached_state_record[key] += detached_states
+                            #detach_writer.writerow((ensemble_key, key, episode, detached_states))
+                            print()
+                    # If on the last episode, write all the detached states to a file
+                    if episode == self.num_episodes - 1:
+                        for i in range(len(self.corr_detach_agents[ensemble_key])):
+                            detach_writer.writerow((ensemble_key, i, detached_state_record[i]))
+                print()
+                # This is the fraction of the optimal policy captured, on average, per agent per episode
+                reward_writer.writerow(avg_reward_fractions)
+                # This is the average number of step counts per agent per episode
+                step_writer.writerow(avg_step_counts)
+                # Write learned policy
+                for i in range(len(self.corr_detach_agents[ensemble_key])):
+                    policy_writer.writerow(
+                        (ensemble_key, i, self.corr_detach_agents[ensemble_key][i].get_learned_policy_as_string()))
+                # Write learned state values
+                for i in range(len(self.corr_detach_agents[ensemble_key])):
+                    value_writer.writerow(
+                        (ensemble_key, i, self.corr_detach_agents[ensemble_key][i].get_learned_state_values()))
+                # Write final state abstractions
+                for i in range(len(self.corr_detach_agents[ensemble_key])):
+                    finalSA_writer.writerow(
+                        (ensemble_key, i, self.corr_detach_agents[ensemble_key][i].get_abstraction_as_string())
+                    )
+
+        # Return files
         if include_corruption:
-            return os.path.join(self.results_dir, "true/exp_output.csv"), \
-                   os.path.join(self.results_dir, "true/step_counts.csv"), \
-                   os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
-                   os.path.join(self.results_dir, "corrupted/step_counts.csv")
+            if self.detach_interval is None:
+                return os.path.join(self.results_dir, "true/exp_output.csv"), \
+                        os.path.join(self.results_dir, "true/step_counts.csv"), \
+                        os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
+                        os.path.join(self.results_dir, "corrupted/step_counts.csv")
+            else:
+                return os.path.join(self.results_dir, "true/exp_output.csv"), \
+                        os.path.join(self.results_dir, "true/step_counts.csv"), \
+                        os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
+                        os.path.join(self.results_dir, "corrupted/step_counts.csv"), \
+                        os.path.join(self.results_dir, 'corrupted_w_detach/exp_output.csv'), \
+                        os.path.join(self.results_dir, 'corrupted_w_detach/step_counts.csv')
         else:
             return os.path.join(self.results_dir, "exp_output.csv"), os.path.join(self.results_dir, "step_counts.csv")
 
+    # -----------------------
+    # Visualization functions
+    # -----------------------
     def visualize_results(self, infilepath, outdirpath=None, outfilename=None):
         """
         :param infilepath: the name of the file from which to read the results of the experiment
@@ -401,7 +529,12 @@ class Experiment():
         plt.savefig(os.path.join(outdirpath, outfilename))
         plt.clf()
 
-    def visualize_corrupt_results(self, infilepath, outdirpath=None, outfilename=False, graph_between=False):
+    def visualize_corrupt_results(self,
+                                  infilepath,
+                                  outdirpath=None,
+                                  outfilename=False,
+                                  individual_mdp_dir=None,
+                                  graph_between=False):
         """
         Graph the results from the corrupted MDPs
         :param infilepath: name of the file with the data to be graphed
@@ -479,8 +612,10 @@ class Experiment():
             # This creates a nice file name for the graph
             file_name = str(a_t) + '_' +  str(c_p)
             print(file_name)
-            file_name = file_name.replace('.','')
-            file_name = 'corrupted/{}{}'.format(file_name, '.png')
+            file_name = file_name.replace('.', '')
+            if individual_mdp_dir is None:
+                individual_mdp_dir = 'corrupted'
+            file_name = individual_mdp_dir + '/{}{}'.format(file_name, '.png')
             print(file_name)
             plt.savefig(os.path.join(outdirpath, file_name))
             plt.clf()
@@ -497,6 +632,9 @@ class Experiment():
         corr_vis = vis(self.corrupt_mdp_dict[key])
         corr_vis.displayAbstractMDP()
 
+    # -----------------
+    # Getters & setters
+    # -----------------
     def get_corrupt_policy_differences(self, key):
         """
         Get the differences between the modal policy learned by the ensemble on the corrupt MDP with the given key
@@ -537,9 +675,6 @@ class Experiment():
 
         return policy_diff_dict
 
-    # -----------------
-    # Getters & setters
-    # -----------------
     def set_num_episodes(self, new_num):
         """
         Set the number of episodes for the experiment to a new value
