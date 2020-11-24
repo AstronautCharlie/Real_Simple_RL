@@ -18,9 +18,9 @@ class StateAbstraction():
         """
         self.abstr_dict = abstr_dict
         self.abstr_type = abstr_type
-        if abstr_dict is not None and abstr_type is None:
-            raise ValueError('Cannot create non-trivial state abstraction without abstraction type argument. '
-                             'Please provide abstr_type=(type of abstraction)')
+        #if abstr_dict is not None and abstr_type is None:
+        #    raise ValueError('Cannot create non-trivial state abstraction without abstraction type argument. '
+        #                     'Please provide abstr_type=(type of abstraction)')
         self.epsilon = epsilon
 
     def get_abstr_dict(self):

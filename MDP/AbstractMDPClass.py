@@ -7,6 +7,7 @@ Written so that the Experiment class can stamp out abstract MDPs without knowing
 type of the MDP
 '''
 
+#from SimpleMDP import SimpleMDP
 import copy
 
 class AbstractMDP():
@@ -22,6 +23,14 @@ class AbstractMDP():
 		self.current_state = mdp.current_state
 
 	def copy(self):
+		# Super hacky work-around
+		#if isinstance(self.mdp, SimpleMDP.SimpleMDP):
+		#	new_mdp = SimpleMDP.SimpleMDP()
+		#	s_a = copy.copy(self.state_abstr)
+		#	copied_mdp = AbstractMDP(new_mdp, s_a)
+		#	return copied_mdp
+
+		#else:
 		new_mdp = self.mdp.copy()
 		state_abstr = copy.copy(self.state_abstr)
 		copied_mdp = AbstractMDP(new_mdp, state_abstr)

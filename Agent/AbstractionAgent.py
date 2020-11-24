@@ -71,11 +71,6 @@ class AbstractionAgent(Agent):
         # Calculate the new Q-value
         new_q_value = old_q_value + self._alpha * (reward + self.mdp.gamma * best_next_action_value - old_q_value)
         # Apply the update to all states also mapped to this state
-        #if new_q_value > 0:
-        #    print(new_q_value, end=' ')
-        #    for state in states_to_update:
-        #        print(state, end= ' ')
-        #    print()
         for equiv_state in states_to_update:
             self._set_q_value(equiv_state, action, new_q_value)
 
@@ -94,7 +89,7 @@ class AbstractionAgent(Agent):
             raise ValueError(
                 'Attempting to detach state that is not mapped to an abstract state. State is ' + str(state.data))
 
-        '''
+
         # Check if state is already in a singleton abstract state. If so, do nothing
         if not self.group_dict[state]:
             return 1
@@ -102,7 +97,7 @@ class AbstractionAgent(Agent):
         # If state is terminal, its abstract state doesn't matter so we remove it
         if state.is_terminal():
             return 2
-        '''
+
         # First check that this state is not a singleton. If it is, do not detach
         temp = []
         for temp_state, temp_value in self.s_a.abstr_dict.items():
@@ -114,47 +109,65 @@ class AbstractionAgent(Agent):
             return 1
 
         # Set state to its own abstract state
-        print('About to pop state', state)
+        #print('About to pop state', state)
         old_abstr_state = self.s_a.abstr_dict.pop(state, None)
-        print('Original abstr state was', old_abstr_state)
-        print('State was originally mapped with', end=' ')
-        for t in temp:
-            print(t, end=' ')
-        print()
+        #print('Original abstr state was', old_abstr_state)
+        #print('State was originally mapped with', end=' ')
+        #for t in temp:
+        #    print(t, end=' ')
+        #print()
+        for val in self.s_a.abstr_dict.values():
+            print(val, type(val), end = '  ')#val.data, type(val.data), end='   ')
+        #abstr_state_values = []
+        #for val in self.s_a.abstr_dict.values():
+        #    abstr_state_values.append(val.data)
+        for key, value in self.s_a.abstr_dict.items():
+            print(key, type(key), value, type(value))
         max_abstr_state = max(self.s_a.abstr_dict.values())
+        #max_abstr_state = max(abstr_state_values)
         self.s_a.abstr_dict[state] = max_abstr_state + 1
-        print('State is now mapped to', self.s_a.abstr_dict[state])
+        #print('State is now mapped to', self.s_a.abstr_dict[state])
         temp = []
         for temp_state, temp_value in self.s_a.abstr_dict.items():
             if temp_value == old_abstr_state:
                 temp.append(temp_state)
-        print('States originally mapped with popped state (should be same as above)', end = ' ')
-        for x in temp:
-            print(x, end=' ')
-        print('\n'*2)
+        #print('States originally mapped with popped state (should be same as above)', end = ' ')
+        #for x in temp:
+        #    print(x, end=' ')
+        #print('\n'*2)
 
-        '''
-        print('About to pop', state)
-        print('Current group dict for state is', end = ' ')#, self.group_dict[state])
-        for temp in self.group_dict[state]:
-            print(temp, end = ' ')
-        print()
-        other_state = self.group_dict[state][0]
-        self.group_dict.pop(state, None)
-        max_abstr_state = max(self.s_a.abstr_dict.values())
-        self.s_a.abstr_dict[state] = max_abstr_state + 1
-        self.group_dict[state] = []
-        print('After popping, group dict for state is', self.group_dict[state])
-        print('Group dict for other state in original abstract state', end = ' ')#, [temp for temp in self.group_dict[other_state]])
-        for temp in self.group_dict[other_state]:
-            print(temp, end = ' ')
-        print()
-        '''
-
-        # Reset Q-table to 0 for this state
+        # Reset Q-value for each action in this state by taking the action, finding the max Q-value of the next
+        #  state, and assigning the Q-value for the state-action pair to that max Q-value
         if reset_q_value:
+            #print("SHOULD BE HERE")
+            cycle_actions = []
+            non_cycle_values = []
+            # Take a 1-step roll-out for each action and reassign the Q-value of the action to the reward + gamma *
+            #  max Q-value of next state
+            #print('Q-value Reset')
             for action in self.mdp.actions:
-                self._set_q_value(state, action, 0)
+            #    print('state, action =', state, action)
+                self.mdp.set_current_state(state)
+                next_state = self.mdp.transition(state, action)
+            #    print('next state =', next_state)
+                reward = self.mdp.reward(state, action, next_state)
+                next_state_q_value = self.get_best_action_value(next_state)
+                next_val = reward + self.mdp.gamma * next_state_q_value
+            #    print('value of next state =', next_val)
+                if next_state == state:
+            #        print('action leads to cycle')
+                    cycle_actions.append(action)
+                else:
+            #        print('no cycle, action =', action)
+                    non_cycle_values.append(next_val)
+                    self._set_q_value(state, action, next_val)
+            # For any actions that kept the agent in the current state, set the Q-value to gamma * max Q-value of
+            #  non-cycle actions
+            for action in cycle_actions:
+            #    print('setting cycle action value', state, action, self.mdp.gamma * max(non_cycle_values))
+                self._set_q_value(state, action, self.mdp.gamma * max(non_cycle_values))
+            #print()
+
         return 0
 
     def generate_rollout(self, start_from_init=True):
@@ -173,7 +186,6 @@ class AbstractionAgent(Agent):
         # Dictionary mapping states to actions learned so far
         policy = self.get_learned_policy()
         state = self.get_current_state()
-        #while not state.is_terminal() and state not in rollout:
         while state not in rollout:
             rollout.append(state)
             if state.is_terminal():
@@ -190,7 +202,7 @@ class AbstractionAgent(Agent):
         :param state: a state in the MDP
         :return: optimal action, value of optimal action
         """
-        actions = self.mdp.actions
+        actions = list(self.mdp.actions)
         # Check actions in a random order so that if two actions are equally optimal, we select a random one
         random.shuffle(actions)
         optimal_action = None
@@ -269,7 +281,7 @@ class AbstractionAgent(Agent):
                 error_states.append(state)
             else:
                 best_action_values.append(best_action_value)
-        if verbose:
+        #if verbose:
             print(abstr_state, 'best action is', best_abstr_action)
             for key, value in constituent_state_dict.items():
                 print(key, value[0], round(value[1], 3), value[2], end='\t')
@@ -284,12 +296,10 @@ class AbstractionAgent(Agent):
             for state in constituent_states:
                 if abs(constituent_state_dict[state][1] - action_value_mean) > threshold_diff:
                     error_states.append(state)
-
-        #print('error states:', end=' ')
-        #for state in error_states:
-        #    print(state, end=' ')
-        #print()
-
+        print('error states are', end = ' ')
+        for state in error_states:
+            print(state, end = ' ')
+        print()
         return error_states
 
     def detach_inconsistent_states(self,
@@ -305,6 +315,7 @@ class AbstractionAgent(Agent):
                                 as errors
         :return: list of detached states
         """
+        print('Checking for inconsistent states, reset q value is', reset_q_value)
         abstr_states = self.get_abstract_states()
         detached_states = []
 

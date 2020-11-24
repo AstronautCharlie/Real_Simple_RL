@@ -80,7 +80,7 @@ class Agent():
 		'''
 		if self.decay_exploration:
 			self._epsilon = self._init_epsilon / (1.0 + (self._step_counter / 2000000))
-		self._alpha = self._init_alpha / (1.0 + (self._step_counter / 2000000))
+			self._alpha = self._init_alpha / (1.0 + (self._step_counter / 2000000))
 
 	# --------------
 	# Main functions
@@ -141,6 +141,18 @@ class Agent():
 		'''
 		next_state, reward = self.mdp.act(action)
 		return next_state, reward
+
+	def apply_action_w_update(self, action):
+		"""
+		Take the given action and update the q-table with result. Used for exploring starts
+		:param action: an explicit action to be taken
+		:return: new q-value of the taken action
+		"""
+		state = self.mdp.get_current_state()
+		next_state, reward = self.mdp.act(action)
+		self.update(state, action, next_state, reward)
+		new_q_value = self.get_q_value(state, action)
+		return new_q_value
 
 	def update(self, state, action, next_state, reward):
 		'''

@@ -16,20 +16,24 @@ from Visualizer.GridWorldVisualizer import GridWorldVisualizer
 
 # Set these parameters before running
 # Directory containing the output of an experiment
-DATA_DIR = '../exp_output/cold/archive4'
+DATA_DIR = '../exp_output/hot'
 # True or corrupted MDPs
 MDP_TYPE = 'corrupted'
 # Where to store the visualizations
-OUTPUT_DIR = '../exp_output/cold/archive4/visualizations'
+OUTPUT_DIR = '../exp_output/hot/visualizations'
+RANDOM_OR_EXPLICIT = 'explicit'
 
 if __name__ == '__main__':
     # This is the directory containing the output of an experiment
     data_dir = DATA_DIR
 
+    # Make files if does not exist
+    #if not os.path.exists(OUT)
+
     # ----------------------
     # Corrupt Visualizations
     # ----------------------
-
+    print('Generating visualizations for corrupt MDPs')
     # Name corrupted data files
     corr_value_file = os.path.join(data_dir, 'corrupted/learned_state_values.csv')
     error_file = os.path.join(data_dir, 'corrupted/error_states.csv')
@@ -53,10 +57,18 @@ if __name__ == '__main__':
         elif 'Q_STAR' in string_list[0]:
             key.append(Abstr_type.Q_STAR)
         key.append(ast.literal_eval(string_list[1][1:]))
-        key.append(Corr_type.UNI_RAND)
-        key.append(ast.literal_eval(string_list[3][1:]))
+        if RANDOM_OR_EXPLICIT == 'explicit':
+            key.append("'explicit errors'")
+            key.append(ast.literal_eval(string_list[3][1:]))
+        elif RANDOM_OR_EXPLICIT == 'random':
+            key.append(Corr_type.UNI_RAND)
+            key.append(ast.literal_eval(string_list[3][1:]))
+        else:
+            raise ValueError('RANDOM OR EXPLICIT must be set to \'random\' or \'explicit\'. Is currently ' + RANDOM_OR_EXPLICIT)
+
         key.append(ast.literal_eval(string_list[4][1:-1]))
         parsed_keys.append(tuple(key))
+    print(parsed_keys)
 
     # Now go through all the keys and agent numbers present in the files and create roll-out/state-value gradient images
     viz = GridWorldVisualizer()
@@ -64,8 +76,6 @@ if __name__ == '__main__':
         for agent_num in agent_nums:
             # Create generic file names and paths
             abstr_string = viz.get_abstr_name(key[0])
-            #folder_path = 'corrupted/corr' + str(key[3]) + '/mdp' + str(key[4])
-            #file_name = abstr_string + str(agent_num) + '.png'
             folder_path = 'corrupted'
             file_name = 'corr' + str(key[3])+'mdp'+str(key[4]) + abstr_string + str(agent_num) + '.png'
 
@@ -76,6 +86,7 @@ if __name__ == '__main__':
             if not os.path.exists(ensemble_folder_path):
                 os.makedirs(ensemble_folder_path)
             # Draw ensemble roll-out
+            print('Generating roll-out for key', key)
             surface = viz.create_corruption_visualization(key,
                                                           corr_abstraction_file,
                                                           error_file)
@@ -122,6 +133,7 @@ if __name__ == '__main__':
     # ------------------------------------
     # Corrupt w/ detachment visualizations
     # ------------------------------------
+    print('Generating visualizations for corrupt MDPs w/ detachments')
     corr_value_file = os.path.join(data_dir, 'corrupted_w_detach/learned_state_values.csv')
     error_file = os.path.join(data_dir, 'corrupted/error_states.csv')
     corr_abstraction_file = os.path.join(data_dir, 'corrupted/corrupted_abstractions.csv')
@@ -144,8 +156,15 @@ if __name__ == '__main__':
         elif 'Q_STAR' in string_list[0]:
             key.append(Abstr_type.Q_STAR)
         key.append(ast.literal_eval(string_list[1][1:]))
-        key.append(Corr_type.UNI_RAND)
-        key.append(ast.literal_eval(string_list[3][1:]))
+        if RANDOM_OR_EXPLICIT == 'explicit':
+            key.append("'explicit errors'")
+            key.append(ast.literal_eval(string_list[3][1:]))
+        elif RANDOM_OR_EXPLICIT == 'random':
+            key.append(Corr_type.UNI_RAND)
+            key.append(ast.literal_eval(string_list[3][1:]))
+        else:
+            raise ValueError(
+                'RANDOM OR EXPLICIT must be set to \'random\' or \'explicit\'. Is currently ' + RANDOM_OR_EXPLICIT)
         key.append(ast.literal_eval(string_list[4][1:-1]))
         parsed_keys.append(tuple(key))
 
@@ -212,7 +231,7 @@ if __name__ == '__main__':
     # ----------------------
     # True Visualizations
     # ----------------------
-
+    print('Generating visualizations for true MDPs')
     # Name true data files
     true_value_file = os.path.join(data_dir, 'true/learned_state_values.csv')
     true_abstraction_file = os.path.join(data_dir, 'true/abstractions.csv')
@@ -228,7 +247,7 @@ if __name__ == '__main__':
     for string_key in unique_keys:
         key = []
         string_list = string_key.split(',')
-        print(string_list)
+        #print(string_list)
         if 'PI_STAR' in string_list[0]:
             key.append(Abstr_type.PI_STAR)
         elif 'A_STAR' in string_list[0]:
@@ -245,7 +264,7 @@ if __name__ == '__main__':
     viz = GridWorldVisualizer()
     for key in parsed_keys:
         for agent_num in agent_nums:
-            print('agent_num', agent_num)
+            #print('agent_num', agent_num)
             abstr_string = viz.get_abstr_name(key[0])
             abstr_eps = None
             if len(key) > 1:

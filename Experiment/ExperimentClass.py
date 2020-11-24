@@ -29,12 +29,14 @@ class Experiment():
                  mdp,
                  abstr_epsilon_list=(),
                  corruption_list=(),
+                 error_dicts=None,
                  num_corrupted_mdps=10,
                  num_agents=10,
                  num_episodes=100,
                  results_dir='exp_results',
                  agent_type='abstraction',
                  agent_exploration_epsilon=0.1,
+                 agent_learning_rate=0.1,
                  decay_exploration=True,
                  exploring_starts=False,
                  step_limit=10000,
@@ -49,6 +51,8 @@ class Experiment():
         :param mdp: MDP
         :param abstr_epsilon_list: list of tuples, where first element is abstraction type and second is the epsilon
         :param corruption_list: list of tuples, where first element is the corruption type and second is the proportion
+        :param error_dictionary: dictionary mapping error states to corrupted states they will share an abstract state
+                                with
         :param num_corrupted_mdps: number of corrupted MDPs to create for each entry in corruption_list
         :param num_agents: the number of agents making up an ensemble on a given MDP
         :param num_episodes: the number of episodes each ensemble will be run on each MDP
@@ -65,11 +69,13 @@ class Experiment():
             raise ValueError('"agent_type" variable must be "standard" or "abstraction". Is currently '+str(agent_type))
 
         self.ground_mdp = mdp
-        for val in abstr_epsilon_list:
-            if val[0] not in Abstr_type or val[1] < 0 or val[1] > 1:
-                raise ValueError('Abstraction Epsilon List is invalid', abstr_epsilon_list)
+        if abstr_epsilon_list is not None:
+            for val in abstr_epsilon_list:
+                if val[0] not in Abstr_type or val[1] < 0 or val[1] > 1:
+                    raise ValueError('Abstraction Epsilon List is invalid', abstr_epsilon_list)
         self.abstr_epsilon_list = abstr_epsilon_list
         self.corruption_list = corruption_list
+        self.error_dicts = error_dicts
         self.num_agents = num_agents
         self.num_corrupted_mdps = num_corrupted_mdps
         self.results_dir = results_dir
@@ -79,6 +85,7 @@ class Experiment():
         self.exploring_starts = exploring_starts
         self.step_limit = step_limit
         self.agent_exploration_epsilon = agent_exploration_epsilon
+        self.agent_learning_rate = agent_learning_rate
         self.detach_interval = detach_interval
         self.prevent_cycle = prevent_cycles
         self.variance_threshold = variance_threshold
@@ -116,7 +123,9 @@ class Experiment():
         # These are generated in such a way that all corrupt MDPs with the same batch number will have errors
         #  in the same ground states
         self.corrupt_mdp_dict = {}
-        if len(corruption_list) > 0:
+        if self.corruption_list is not None:
+            if not os.path.exists(os.path.join(self.results_dir, 'corrupted')):
+                os.makedirs(os.path.join(self.results_dir, 'corrupted'))
             corr_abstr_file = open(os.path.join(self.results_dir, 'corrupted/corrupted_abstractions.csv'), 'w', newline='')
             err_state_file = open(os.path.join(self.results_dir, 'corrupted/error_states.csv'), 'w', newline='')
             abstr_writer = csv.writer(corr_abstr_file)
@@ -135,7 +144,7 @@ class Experiment():
                     for key in self.abstr_mdp_dict.keys():
                         # Create a corrupt state abstraction for this batch number and list of states
                         abstr_mdp = self.abstr_mdp_dict[key]
-                        c_s_a = make_corruption(abstr_mdp, states_to_corrupt, type=corr_type)
+                        c_s_a = make_corruption(abstr_mdp, states_to_corrupt, corr_type=corr_type)
                         # Get the correct and incorrect abstract states for the corrupted ground states
                         #  and write all these to a file
                         error_line = []
@@ -155,6 +164,43 @@ class Experiment():
                                                corr_type,
                                                prop,
                                                i)] = corrupt_abstr_mdp
+        #elif len(self.error_dict.keys()) > 0:
+        elif self.error_dicts is not None:
+            corr_abstr_file = open(os.path.join(self.results_dir, 'corrupted/corrupted_abstractions.csv'), 'w', newline='')
+            err_state_file = open(os.path.join(self.results_dir, 'corrupted/error_states.csv'), 'w', newline='')
+            abstr_writer = csv.writer(corr_abstr_file)
+            err_writer = csv.writer(err_state_file)
+
+            # We generate 1 corrupt MDP per abstraction type at a time. This way, we can ensure that all
+            # corrupt MDPs with the same key and batch number have the same error states. Also write to file
+            # so they can be visualized later
+            for j in range(len(self.error_dicts)):
+                error_dict = self.error_dicts[j]
+                for i in range(self.num_corrupted_mdps):
+                    for key in self.abstr_mdp_dict.keys():
+                        # Create a corrupt state abstraction for this batch number and list of states
+                        abstr_mdp = self.abstr_mdp_dict[key]
+                        c_s_a = make_corruption(abstr_mdp, reassignment_dict=error_dict)
+                        # Get the correct and incorrect abstract states for the corrupted ground states
+                        #  and write all these to a file
+                        error_line = []
+                        for state in error_dict.keys():
+                            true_state = abstr_mdp.get_abstr_from_ground(state)
+                            corr_state = c_s_a.get_abstr_from_ground(state)
+                            error_line.append(((state.x, state.y), true_state.data, corr_state.data))
+                        #temp_key = (abstr_mdp.abstr_type, abstr_mdp.abstr_epsilon, corr_type, prop, i)
+                        temp_key = (abstr_mdp.abstr_type, abstr_mdp.abstr_epsilon, 'explicit errors', j, i)
+                        # Record the error states
+                        err_writer.writerow((temp_key, error_line))
+                        # Make an abstract MDP with this corrupted state abstraction
+                        corrupt_abstr_mdp = AbstractMDP(self.ground_mdp, c_s_a)
+                        # Record the dictionary describing the state abstraction
+                        abstr_writer.writerow((temp_key, corrupt_abstr_mdp.abstr_to_string()))
+                        self.corrupt_mdp_dict[(abstr_mdp.abstr_type,
+                                               abstr_mdp.abstr_epsilon,
+                                               'explicit errors',
+                                               j,
+                                               i)] = corrupt_abstr_mdp
 
         # Create agents on ground mdp
         ground_agents = []
@@ -162,9 +208,15 @@ class Experiment():
             temp_mdp = self.ground_mdp.copy()
             # If agent_type == 'standard', use regular q-learning. If 'abstraction', use abstraction agent
             if self.agent_type == 'standard':
-                agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                agent = Agent(temp_mdp,
+                              epsilon=agent_exploration_epsilon,
+                              alpha=self.agent_learning_rate,
+                              decay_exploration=decay_exploration)
             else:
-                agent = AbstractionAgent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                agent = AbstractionAgent(temp_mdp,
+                                         epsilon=agent_exploration_epsilon,
+                                         alpha=self.agent_learning_rate,
+                                         decay_exploration=decay_exploration)
             ground_agents.append(agent)
         self.agents['ground'] = ground_agents
 
@@ -175,12 +227,19 @@ class Experiment():
                 # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = abstract_mdp.copy()
-                    agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    agent = Agent(temp_mdp,
+                                  epsilon=agent_exploration_epsilon,
+                                  alpha=self.agent_learning_rate,
+                                  decay_exploration=decay_exploration)
                     abstract_mdp_ensemble.append(agent)
                 else:
                     temp_mdp = self.ground_mdp.copy()
                     s_a = copy.deepcopy(abstract_mdp.state_abstr)
-                    agent = AbstractionAgent(temp_mdp, s_a, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    agent = AbstractionAgent(temp_mdp,
+                                             s_a,
+                                             epsilon=agent_exploration_epsilon,
+                                             alpha=self.agent_learning_rate,
+                                             decay_exploration=decay_exploration)
                     abstract_mdp_ensemble.append(agent)
             self.agents[(abstract_mdp.abstr_type, abstract_mdp.abstr_epsilon)] = abstract_mdp_ensemble
 
@@ -195,13 +254,20 @@ class Experiment():
                 # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = self.corrupt_mdp_dict[corr_key].copy()
-                    agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    agent = Agent(temp_mdp,
+                                  epsilon=agent_exploration_epsilon,
+                                  alpha=self.agent_learning_rate,
+                                  decay_exploration=decay_exploration)
                     corr_ensemble.append(agent)
                 else:
                     temp_mdp = self.ground_mdp.copy()
                     corr_mdp = self.corrupt_mdp_dict[corr_key].copy()
                     s_a = corr_mdp.state_abstr
-                    agent = AbstractionAgent(temp_mdp, s_a, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    agent = AbstractionAgent(temp_mdp,
+                                             s_a,
+                                             epsilon=agent_exploration_epsilon,
+                                             alpha=self.agent_learning_rate,
+                                             decay_exploration=decay_exploration)
                     corr_ensemble.append(agent)
 
             self.corr_agents[corr_key] = corr_ensemble
@@ -215,13 +281,20 @@ class Experiment():
                 # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = self.corrupt_mdp_dict[corr_key].copy()
-                    agent = Agent(temp_mdp, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    agent = Agent(temp_mdp,
+                                  epsilon=agent_exploration_epsilon,
+                                  alpha=self.agent_learning_rate,
+                                  decay_exploration=decay_exploration)
                     corr_ensemble.append(agent)
                 else:
                     temp_mdp = self.ground_mdp.copy()
                     corr_mdp = self.corrupt_mdp_dict[corr_key].copy()
                     s_a = corr_mdp.state_abstr
-                    agent = AbstractionAgent(temp_mdp, s_a, epsilon=agent_exploration_epsilon, decay_exploration=decay_exploration)
+                    agent = AbstractionAgent(temp_mdp,
+                                             s_a,
+                                             epsilon=agent_exploration_epsilon,
+                                             alpha=self.agent_learning_rate,
+                                             decay_exploration=decay_exploration)
                     corr_ensemble.append(agent)
 
             self.corr_detach_agents[corr_key] = corr_ensemble
@@ -260,17 +333,20 @@ class Experiment():
         while not current_state.is_terminal(): #and step_count < step_limit:
             if step_limit is not None and step_count > step_limit:
                 break
-            _, action, next_state, reward = agent.explore()
+            blah, action, next_state, reward = agent.explore()
             sum_rewards += discount * reward
             current_state = next_state
             discount *= agent.mdp.gamma
             step_count += 1
-        # Reset agent's MDP to initial state (or random state if self.exploring_starts)
+        # Reset agent's MDP to initial state
+        # If exploring_starts, then randomly select state-action pair to be applied first
         if self.exploring_starts:
             random_state = np.random.choice(agent.mdp.get_all_possible_states())
             while random_state.is_terminal():
                 random_state = np.random.choice(agent.mdp.get_all_possible_states())
             agent.mdp.set_current_state(random_state)
+            random_action = np.random.choice(agent.mdp.actions)
+            agent.apply_action_w_update(random_action)
         else:
             agent.mdp.reset_to_init()
         # Return the sum of discounted rewards from the trajectory and value of optimal policy
@@ -406,6 +482,8 @@ class Experiment():
 
         # This chunk runs the detach agents, if that parameter is set
         if self.detach_interval is not None:
+            if not os.path.exists(os.path.join(self.results_dir, 'corrupted_w_detach')):
+                os.makedirs(os.path.join(self.results_dir, 'corrupted_w_detach'))
             stepfile = open(os.path.join(self.results_dir, "corrupted_w_detach/step_counts.csv"), 'w', newline='')
             csvfile = open(os.path.join(self.results_dir, "corrupted_w_detach/exp_output.csv"), 'w', newline='')
             policyfile = open(os.path.join(self.results_dir, "corrupted_w_detach/learned_policies.csv"), 'w', newline='')
@@ -438,21 +516,15 @@ class Experiment():
                         avg_step_counts.append(avg_step_count)
                     if episode > 0 and episode % self.detach_interval == 0:
                         detach_dict = self.detach_ensemble(self.corr_detach_agents[ensemble_key])
-                        print('detached states')
                         for key, value in detach_dict.items():
-                            print(key, len(value), end=' ')
                             detached_states = []
                             for state in value:
-                                print(state, end=' ')
                                 detached_states.append((state.x, state.y))
                             detached_state_record[key] += detached_states
-                            #detach_writer.writerow((ensemble_key, key, episode, detached_states))
-                            print()
                     # If on the last episode, write all the detached states to a file
                     if episode == self.num_episodes - 1:
                         for i in range(len(self.corr_detach_agents[ensemble_key])):
                             detach_writer.writerow((ensemble_key, i, detached_state_record[i]))
-                print()
                 # This is the fraction of the optimal policy captured, on average, per agent per episode
                 reward_writer.writerow(avg_reward_fractions)
                 # This is the average number of step counts per agent per episode
@@ -521,6 +593,9 @@ class Experiment():
             episodes = [i for i in range(1, len(mdp))]
             plt.plot(episodes, [float(i) for i in mdp[1:]], label="%s" % (mdp[0],))
 
+        plt.xlabel('Episode Number')
+        plt.ylabel('Proportion of Optimal Policy')
+        plt.suptitle('Average Proportion of Optimal Policy Captured by Ensemble')
         leg = plt.legend(loc='best', ncol=2, mode="expand", shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)
 

@@ -6,41 +6,114 @@ import time
 
 from Experiment.ExperimentClass import Experiment
 from GridWorld.GridWorldMDPClass import GridWorldMDP
+from GridWorld.GridWorldStateClass import GridWorldState
 from GridWorld.TaxiMDPClass import TaxiMDP
 from Agent.AgentClass import Agent
 from resources.AbstractionTypes import Abstr_type
 from resources.AbstractionCorrupters import *
 
-NUM_EPISODES = 1000
-NUM_CORR_MDPS = 5
-NUM_AGENTS = 5
+# Experiment parameters
+NUM_EPISODES = 10
+NUM_CORR_MDPS = 1
+NUM_AGENTS = 10
 EPS = 0.0
-ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
-#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.05), (Corr_type.UNI_RAND, 0.1)]
-#ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS)]
-CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.1)]
 MDP = GridWorldMDP()
 MDP_STR = 'rooms'
-DETACH_INTERVAL = 500
+EXPLORATION_EPSILON = 0.25
+DETACH_INTERVAL = 5
 PREVENT_CYCLES = True
+RESET_Q_VALUE = True
+VARIANCE_THRESHOLD = None
+EXPLORING_STARTS = True
+DECAY_EXPLORATION = False
+STEP_LIMIT = 10000
+NOTES = 'Pi* errors, 1 state'
+
+#ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
+
+# Q* specific
+'''
+ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS)]
+ERROR_DICTS = [{GridWorldState(6,3): GridWorldState(10,9),
+                GridWorldState(9,10): GridWorldState(9,3)},
+               {GridWorldState(1,5): GridWorldState(1,2),
+                GridWorldState(3,6): GridWorldState(3,9)},
+               {GridWorldState(9,8): GridWorldState(2,1),
+                GridWorldState(9,11): GridWorldState(2,4)}]
+CORRUPTION_LIST = None
+'''
+
+# A* specific
+'''
+ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS)]
+ERROR_DICTS = [{GridWorldState(4,2): GridWorldState(9,9),
+                GridWorldState(7,4): GridWorldState(7,3),
+                GridWorldState(7,11): GridWorldState(7,10)},
+               {GridWorldState(2,4): GridWorldState(8,10),
+                GridWorldState(2,9): GridWorldState(9,10)},
+               {GridWorldState(4,9): GridWorldState(9,10),
+                GridWorldState(10,11): GridWorldState(2,4)},
+               {GridWorldState(2,11): GridWorldState(7,10)},
+               {GridWorldState(5,1): GridWorldState(7,9),
+                GridWorldState(7,8): GridWorldState(11,10)}]
+CORRUPTION_LIST = None
+'''
+
+
+# Pi* specific
+
+ABSTR_EPSILON_LIST = [(Abstr_type.PI_STAR, EPS)]
+ERROR_DICTS = [{#GridWorldState(4,2): GridWorldState(1,5),
+                #GridWorldState(5,5): GridWorldState(1,5),
+                #GridWorldState(4,3): GridWorldState(1,2),
+                #GridWorldState(6,3): GridWorldState(1,2),
+                #GridWorldState(7,4): GridWorldState(1,2),
+                GridWorldState(7,11): GridWorldState(1,2)},
+                #GridWorldState(1,11): GridWorldState(4,5),
+                #GridWorldState(9,10): GridWorldState(11,9)},
+               {GridWorldState(3,5): GridWorldState(1,11)},
+                #GridWorldState(8,2): GridWorldState(1,11),
+                #GridWorldState(2,4): GridWorldState(1,5),
+                #GridWorldState(3,2): GridWorldState(1,5),
+                #GridWorldState(2,9): GridWorldState(1,2)},
+               {GridWorldState(9,11): GridWorldState(1,2)}]
+                #GridWorldState(9,8): GridWorldState(1,5),
+                #GridWorldState(1,11): GridWorldState(1,2),
+                #GridWorldState(4,9): GridWorldState(2,1)}]
+CORRUPTION_LIST = None
+
+
+
+# Uncomment this if applying random corruption of a given proportion
+'''
+CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.05), (Corr_type.UNI_RAND, 0.1)]
+ERROR_DICTS = None
+
+ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
+CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.01)]
+'''
 
 def run_experiment():
     start_time = time.time()
+
+
 
     exp = Experiment(MDP,
                      num_agents=NUM_AGENTS,
                      abstr_epsilon_list=ABSTR_EPSILON_LIST,
                      corruption_list=CORRUPTION_LIST,
+                     error_dicts=ERROR_DICTS,
                      num_corrupted_mdps=NUM_CORR_MDPS,
                      num_episodes=NUM_EPISODES,
                      results_dir='exp_output/hot',
                      agent_type='abstraction',
-                     agent_exploration_epsilon=0.1,
-                     decay_exploration=False,
-                     exploring_starts=True,
-                     step_limit=10000,
+                     agent_exploration_epsilon=EXPLORATION_EPSILON,
+                     decay_exploration=DECAY_EXPLORATION,
+                     exploring_starts=EXPLORING_STARTS,
+                     step_limit=STEP_LIMIT,
                      detach_interval=DETACH_INTERVAL,
-                     prevent_cycles=PREVENT_CYCLES)
+                     prevent_cycles=PREVENT_CYCLES,
+                     reset_q_value=RESET_Q_VALUE)
 
     # Run experiment. This will write results to files
     # Commented out for testing visualization
@@ -50,7 +123,7 @@ def run_experiment():
     exp.visualize_results(data, outfilename='true_aggregated_results.png')
 
     # Plot performance for corrupt results
-    if len(CORRUPTION_LIST) > 0:
+    if CORRUPTION_LIST is not None or ERROR_DICTS is not None:
         exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png')
 
     # Plot performance for corrupt w/ detach results
@@ -63,22 +136,40 @@ def run_experiment():
     param_file = open(os.path.join(exp.results_dir, 'param_summary.txt'), 'w')
     abs_sum = 'Abstraction types:'.ljust(30) + str(ABSTR_EPSILON_LIST) + '\n'
     corr_sum = 'Corruptions applied:'.ljust(30) + str(CORRUPTION_LIST) + '\n'
+    error_sum = ''
+    if exp.error_dicts is not None:
+        error_sum += 'Error dictionary:'.ljust(30)
+        for dic in exp.error_dicts:
+            error_sum += '{'
+            for key, value in dic.items():
+                error_sum += str(key) + ': ' + str(value) + ', '
+            # Cut off last comma
+            error_sum = error_sum[:-2]
+            error_sum += '}\n'
     mdp_num_sum = '# corrupt MDPs:'.ljust(30) + str(NUM_CORR_MDPS) + '\n'
     ep_num_sum = '# episodes trained:'.ljust(30) + str(NUM_EPISODES) + '\n'
     exp_num_sum = 'Starting exploration epsilon:'.ljust(30) + str(exp.agent_exploration_epsilon) + '\n'
     decay_sum = 'Decay exploration?:'.ljust(30) + str(exp.decay_exploration) + '\n'
     exp_sum = 'Exploring starts?:'.ljust(30) + str(exp.exploring_starts) + '\n'
+    detach_sum = 'Detach interval:'.ljust(30) + str(exp.detach_interval) + '\n'\
+                 + 'Reset Q-value:'.ljust(30) + str(exp.reset_q_value) + '\n'\
+                 + 'Prevent cycles?:'.ljust(30) + str(exp.prevent_cycle) + '\n'\
+                 + 'Variance threshold:'.ljust(30) + str(exp.variance_threshold) + '\n'
     step_limit = 'Step limit:'.ljust(30) + str(exp.step_limit) + '\n'
-    runtime = 'Runtime:'.ljust(30) + str(round(time.time() - start_time))
+    runtime = 'Runtime:'.ljust(30) + str(round(time.time() - start_time)) + '\n'
 
-    param_file.write(abs_sum + corr_sum + mdp_num_sum + ep_num_sum + exp_num_sum + decay_sum + exp_sum + step_limit
-                     + runtime)
-
-    # Plot step counts for true results
-    #exp.visualize_results(steps, outfilename='true_step_counts.png')
-
-    # Plot step counts for corrupt results
-    #exp.visualize_corrupt_results(corr_steps, outfilename='corrupt_step_counts.png')
+    param_file.write(abs_sum
+                     + corr_sum
+                     + mdp_num_sum
+                     + error_sum
+                     + ep_num_sum
+                     + exp_num_sum
+                     + decay_sum
+                     + exp_sum
+                     + detach_sum
+                     + step_limit
+                     + runtime
+                     + NOTES)
 
 if __name__ == '__main__':
     run_experiment()

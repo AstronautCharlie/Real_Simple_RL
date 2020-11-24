@@ -81,6 +81,9 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
         abstr_dict[tup[0]] = tup[1]
     #print('Abstraction dictionary:', abstr_dict)
 
+    # Label all error states
+    error_states = [tup[0] for tup in error_tuples]
+
     # Go through all corrupted abstract states and get the corrupted ground states
     corrupted_states = []
     for tup in error_tuples:
@@ -92,23 +95,55 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
     # Label all non-error states
     non_error_states = []
     for key in abstr_dict.keys():
-        if key not in error_tuples and key not in corrupted_states:
+        if key not in error_states and key not in corrupted_states:
             non_error_states.append(key)
 
     # Get error states
-    error_states = [tup[0] for tup in error_tuples]
 
-    print('Error states', error_states)
-    print('Corrupted states', corrupted_states)
-    print('Non-error states', non_error_states)
+    # Remove duplicates
+    non_error_states = list(dict.fromkeys(non_error_states))
+    error_states = list(dict.fromkeys(error_states))
+    corrupted_states = list(dict.fromkeys(corrupted_states))
 
+
+    #print('Error states', error_states)
+    #print('Corrupted states', corrupted_states)
+    #print('Non-error states', non_error_states)
+
+    # Categorize states
     counter_dict = {'error': 0, 'corrupted': 0, 'non-error': 0}
+    sum_error = []
+    sum_corrupted = []
+    sum_nonerror = []
     for state in detached_states:
         if state in error_states:
             counter_dict['error'] += 1
+            sum_error.append(state)
         elif state in corrupted_states:
             counter_dict['corrupted'] += 1
+            sum_corrupted.append(state)
         elif state in non_error_states:
             counter_dict['non-error'] += 1
+            sum_nonerror.append(state)
+
+    # Print results
+    print('Error states:', error_states)
+    print('Corrupted states:', corrupted_states)
     print(counter_dict)
+    if len(sum_error) > 0:
+        print('Error states detached:', end=' ')
+        for state in sum_error:
+            print(state, end=' ')
+        print()
+    if len(sum_corrupted) > 0:
+        print('Corrupted states detached:', end=' ')
+        for state in sum_corrupted:
+            print(state, end=' ')
+        print()
+    if len(sum_nonerror) > 0:
+        print('Non-error states detached:', end=' ')
+        for state in sum_nonerror:
+            print(state, end=' ')
+        print()
+    print()
     # Go through detached states and see if they are in the error file

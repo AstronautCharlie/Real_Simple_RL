@@ -43,24 +43,33 @@ def make_corruption(s_a, type, proportion):
         return uniform_random(s_a, proportion=proportion)
 '''
 
-def make_corruption(abstr_mdp, states_to_corrupt, type=Corr_type.UNI_RAND):
+def make_corruption(abstr_mdp, states_to_corrupt=None, corr_type=Corr_type.UNI_RAND, reassignment_dict=None):
     """
-    Corrupt the given state abstraction by randomly reassigning the given list of states to incorrect abstract states
+    Corrupt the given state abstraction. If states to corrupt and type are not null, randomly reassign the given states
+    to incorrect abstract states. If reassignment dict is not null, explicitly reassign key states to the same
+    abstract state as value states
     :param abstr_mdp: (AbstractMDP) the mdp to be corrupted
     :param states_to_corrupt: (list of States) the ground states to be reassigned
-    :param type: method of reassigning the states
+    :param corr_type: method of reassigning the states
+    :param reassignment_dict: dictionary mapping error states to corrupted states
     :return: c_s_a, a corrupted state abstraction with the states in states_to_corrupt randomly reassigned
     """
     orig_dict = abstr_mdp.get_state_abstr().get_abstr_dict()
     corrupt_dict = copy.deepcopy(orig_dict)
     abstr_states = list(orig_dict.values())
 
-    if type == Corr_type.UNI_RAND:
+    # In this case, map keys in reassignment dict to the same abstract state as the value
+    if reassignment_dict is not None:
+        for error_state, corrupt_state in reassignment_dict.items():
+            new_abstr_state = orig_dict[corrupt_state]
+            corrupt_dict[error_state] = new_abstr_state
+    # In this case, randomly reassign the given states
+    elif corr_type == Corr_type.UNI_RAND:
         for state in states_to_corrupt:
             while corrupt_dict[state] == orig_dict[state]:
                 corrupt_dict[state] = np.random.choice(abstr_states)
     else:
-        raise ValueError(str(type) + " is not a supported abstraction type")
+        raise ValueError(str(corr_type) + " is not a supported abstraction type")
 
     c_s_a = StateAbstraction(corrupt_dict,
                              abstr_type=abstr_mdp.get_state_abstr().abstr_type,

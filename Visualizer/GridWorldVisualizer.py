@@ -438,18 +438,35 @@ class GridWorldVisualizer():
         # In this case we're in a corrupt abstraction, key is (Abstr_type, abstr_eps, corr_type, corr_prop, mdp_num)
         elif len(key) == 5:
             df['abstr_type'], df['abstr_eps'], df['corr_type'], df['corr_prop'], df['batch_num'] = df['key'].str.split(', ').str
+            # Added post-hoc to deal with case where errors are explicitly enumerated
+            #if "'explicit errors'" in list(df['corr_type'].astype(str)):
+
             df['abstr_type'] = df['abstr_type'].map(lambda x: x.strip('(<: 1234>'))
             df['corr_type'] = df['corr_type'].map(lambda x: x.strip('<>: 1234'))
             df['batch_num'] = df['batch_num'].map(lambda x: x.strip(')'))
+            #print('Pre-loc df')
+            #print(df[:3].to_string())
+            #print('Key is')
+            #print(key)
             df = df.loc[(df['abstr_type'] == str(key[0]))
                         & (df['abstr_eps'].astype(float) == key[1])
                         & (df['corr_type'] == str(key[2]))
                         & (df['corr_prop'].astype(float) == key[3])
                         & (df['batch_num'].astype(int) == key[4])]
+            #print('Post-loc df')
+            #print(df[:3].to_string())
             if agent_num is not None:
                 df = df.loc[df['agent_num'] == agent_num]
+            #print('Post-post-loc df')
+            #print(df)
+            #if len(list(df['dict'])) > 1:
+            #    print('FUCK')
+            #    print(df)
+            #    quit()
             value = ast.literal_eval(df['dict'].values[0])
         else:
+            print(key)
+            print(len(key))
             raise ValueError('Key provided is not of valid type (either "ground", 2-tuple, or 5-tuple)')
 
         return value
@@ -501,7 +518,7 @@ class GridWorldVisualizer():
         visited_states = []
         rollout = [(state.x, state.y)]
         i = 0
-        print('policy_dict', policy_dict)
+        #print('policy_dict', policy_dict)
         while not (state.is_terminal()) and (state not in visited_states):
             i += 1
             #abstr_state = abstr_dict[(state.x, state.y)]
@@ -623,7 +640,10 @@ class GridWorldVisualizer():
         #  resulted in a loop
         if (rollout[-1] != (11, 11)) and (rollout[-2] != (11, 11)):
             # This the cell where we take the action that enters the cycle
-            final_cell = rollout[-3]
+            if len(rollout) == 2:
+                final_cell = rollout[-2]
+            else:
+                final_cell = rollout[-3]
             action = rollout[-1]
             shrink_factor = 0.7
             if action == Dir.UP:
