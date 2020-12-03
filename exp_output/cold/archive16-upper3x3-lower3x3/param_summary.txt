@@ -1,0 +1,25 @@
+Abstraction types:            [(<Abstr_type.A_STAR: 2>, 0.0), (<Abstr_type.PI_STAR: 3>, 0.0), (<Abstr_type.Q_STAR: 1>, 0.0)]
+Corruptions applied:          [(<Corr_type.UNI_RAND: 1>, 1), (<Corr_type.UNI_RAND: 1>, 2)]
+# corrupt MDPs:               5
+# episodes trained:           100
+Starting exploration epsilon: 0.1
+Decay exploration?:           False
+Exploring starts?:            True
+Detach interval:              25
+Reset Q-value:                True
+Prevent cycles?:              True
+Variance threshold:           None
+Step limit:                   10000
+Runtime:                      428
+Small environment
+upper width:        3
+upper height:      3
+upper offset:      0
+lower width:       3
+lower height:      3
+lower offset:      0
+hallway states:    [2]
+hallway height:    1
+start location:    (1,1)
+goal location:     [(3, 7)]
+slip probability:  0.0

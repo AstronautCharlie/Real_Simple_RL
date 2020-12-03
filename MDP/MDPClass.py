@@ -42,6 +42,9 @@ class MDP():
 		'''
 		self.current_state = state
 
+	def reset_to_init(self):
+		self.set_current_state(self.get_init_state())
+
 	# --------------
 	# Main functions 
 	# --------------
@@ -80,7 +83,7 @@ class MDP():
 		:return: reward:float
 		'''
 	@abc.abstractmethod
-	def next_possible_states(self,state,action):
+	def get_next_possible_states(self, state, action):
 		"""
 		Given a state, return a dictionary containing all states that can result from taking the given action on it along
 		with the probability of ending up in that state

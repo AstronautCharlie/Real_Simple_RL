@@ -8,31 +8,43 @@ from Experiment.ExperimentClass import Experiment
 from GridWorld.GridWorldMDPClass import GridWorldMDP
 from GridWorld.GridWorldStateClass import GridWorldState
 from GridWorld.TaxiMDPClass import TaxiMDP
+from GridWorld.TwoRoomsMDP import TwoRoomsMDP
 from Agent.AgentClass import Agent
 from resources.AbstractionTypes import Abstr_type
 from resources.AbstractionCorrupters import *
 
-# Experiment parameters
-NUM_EPISODES = 10
-NUM_CORR_MDPS = 1
-NUM_AGENTS = 10
-EPS = 0.0
+# MDP details
 MDP = GridWorldMDP()
-MDP_STR = 'rooms'
-EXPLORATION_EPSILON = 0.25
-DETACH_INTERVAL = 5
+#MDP = TwoRoomsMDP(lower_width=3, lower_height=3, upper_width=3, upper_height=3, hallway_states=[3],
+#                  goal_location=[(1,7)])
+#MDP = TwoRoomsMDP()
+
+# Experiment parameters
+NUM_EPISODES = 100
+NUM_CORR_MDPS = 1
+NUM_AGENTS = 5
+EPS = 0.0
+#MDP_STR = 'rooms'
+EXPLORATION_EPSILON = 0.1
+DETACH_INTERVAL = 200
+#DETACH_INTERVAL = None
 PREVENT_CYCLES = True
 RESET_Q_VALUE = True
 VARIANCE_THRESHOLD = None
 EXPLORING_STARTS = True
 DECAY_EXPLORATION = False
 STEP_LIMIT = 10000
-NOTES = 'Pi* errors, 1 state'
+NOTES = 'Q* errors'
 
-#ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
+# No errors
+'''
+ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
+ERROR_DICTS = None
+CORRUPTION_LIST = None
+'''
 
 # Q* specific
-'''
+
 ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS)]
 ERROR_DICTS = [{GridWorldState(6,3): GridWorldState(10,9),
                 GridWorldState(9,10): GridWorldState(9,3)},
@@ -41,7 +53,8 @@ ERROR_DICTS = [{GridWorldState(6,3): GridWorldState(10,9),
                {GridWorldState(9,8): GridWorldState(2,1),
                 GridWorldState(9,11): GridWorldState(2,4)}]
 CORRUPTION_LIST = None
-'''
+NUM_CORR_MDPS = 1
+
 
 # A* specific
 '''
@@ -61,7 +74,7 @@ CORRUPTION_LIST = None
 
 
 # Pi* specific
-
+'''
 ABSTR_EPSILON_LIST = [(Abstr_type.PI_STAR, EPS)]
 ERROR_DICTS = [{#GridWorldState(4,2): GridWorldState(1,5),
                 #GridWorldState(5,5): GridWorldState(1,5),
@@ -81,17 +94,19 @@ ERROR_DICTS = [{#GridWorldState(4,2): GridWorldState(1,5),
                 #GridWorldState(1,11): GridWorldState(1,2),
                 #GridWorldState(4,9): GridWorldState(2,1)}]
 CORRUPTION_LIST = None
+'''
 
 
 
 # Uncomment this if applying random corruption of a given proportion
-'''
-CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.05), (Corr_type.UNI_RAND, 0.1)]
-ERROR_DICTS = None
 
-ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
-CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.01)]
-'''
+#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.05)]#, (Corr_type.UNI_RAND, 0.1)]
+#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 1), (Corr_type.UNI_RAND, 2)]
+#ERROR_DICTS = None
+
+#ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
+#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.01)]
+
 
 def run_experiment():
     start_time = time.time()
@@ -117,7 +132,10 @@ def run_experiment():
 
     # Run experiment. This will write results to files
     # Commented out for testing visualization
-    data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=True)
+    if DETACH_INTERVAL is not None:
+        data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=True)
+    else:
+        data, steps, corr_data, corr_steps = exp.run_all_ensembles(include_corruption=True)
 
     # Plot performance for true results
     exp.visualize_results(data, outfilename='true_aggregated_results.png')
@@ -127,7 +145,7 @@ def run_experiment():
         exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png')
 
     # Plot performance for corrupt w/ detach results
-    if DETACH_INTERVAL is not None:
+    if (CORRUPTION_LIST is not None or ERROR_DICTS is not None) and DETACH_INTERVAL is not None:
         exp.visualize_corrupt_results(corr_detach_data,
                                       outfilename='corrupt_detach_aggregated_results.png',
                                       individual_mdp_dir='corrupted_w_detach')
@@ -169,7 +187,9 @@ def run_experiment():
                      + detach_sum
                      + step_limit
                      + runtime
-                     + NOTES)
+                     + NOTES + '\n')
+    if isinstance(MDP, TwoRoomsMDP):
+        param_file.write(MDP.get_params())
 
 if __name__ == '__main__':
     run_experiment()

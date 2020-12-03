@@ -7,7 +7,7 @@ from resources.CorruptionTypes import Corr_type
 import copy
 import numpy as np
 
-def uniform_random(s_a, proportion=1.0):
+def uniform_random(s_a, count=0):#proportion=1.0):
     """
     Scramble a state abstraction by reassigning ground states to abstract states with uniform probability. Note that
     this enforces that a ground state cannot be randomly assigned to its correct ground state. 'Proportion'
@@ -17,8 +17,8 @@ def uniform_random(s_a, proportion=1.0):
     :param proportion: the proportion of states to be reassigned
     :return: c_s_a: the corrupted state abstraction
     """
-    if proportion > 1.0:
-        raise ValueError("Cannot have proporton greater than 1")
+    #if proportion > 1.0:
+    #    raise ValueError("Cannot have proporton greater than 1")
 
     # Get the original dictionary mapping ground states to abstract states and the lists of ground and abstract states
     orig_dict = s_a.get_abstr_dict()
@@ -29,7 +29,9 @@ def uniform_random(s_a, proportion=1.0):
     corrupt_dict = copy.deepcopy(orig_dict)
 
     # Randomly a proportion of ground states. These will be randomly reassigned to abstract states
-    corrupt_states = np.random.choice(ground_states, size=int(np.floor(proportion * len(ground_states))), replace=False)
+    #corrupt_states = np.random.choice(ground_states, size=int(np.floor(proportion * len(ground_states))), replace=False)
+    corrupt_states = np.random.choice(ground_states, size=count, replace=False)
+    print('corrupt states are', corrupt_states)
     for state in corrupt_states:
         while corrupt_dict[state] == orig_dict[state]:
             corrupt_dict[state] = np.random.choice(abstr_states)

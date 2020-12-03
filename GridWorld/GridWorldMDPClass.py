@@ -168,7 +168,7 @@ class GridWorldMDP(MDP):
             next_state.set_terminal(True)
         return next_state
 
-    def next_possible_states(self, state, action):
+    def get_next_possible_states(self, state, action):
         """
         For value iteration, part of model: given a state and an action, outputs a dictionary of State->probability
         that gives each state that the agent can end up in from the given state if they took the given action and with what probability

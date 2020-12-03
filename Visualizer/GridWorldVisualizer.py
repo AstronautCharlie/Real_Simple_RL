@@ -38,39 +38,6 @@ class GridWorldVisualizer():
         """
         This class uses Pygame to visualize a GridWorldMDP and an agent in it
         """
-    '''
-    def createGridWorldMDP(self):
-        """
-        Creates and returns a Pygame Surface from the MDP this class is initialized with.
-        :return:
-        """
-        WIDTH_DIM = self.mdp.get_width()
-        HEIGHT_DIM = self.mdp.get_height()
-
-        WINDOW_WIDTH = (self.cell_size + self.margin) * WIDTH_DIM + self.margin
-        WINDOW_HEIGTH = (self.cell_size + self.margin) * HEIGHT_DIM + self.margin
-        screen = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGTH))
-        window = pygame.Rect(0, 0, WINDOW_HEIGTH, WINDOW_WIDTH)
-        walls = self.mdp._compute_walls()
-        # draw background
-        pygame.draw.rect(screen,
-                         BLACK,
-                         window)
-        # draw cells
-
-        for col_idx, column in enumerate(range(1, HEIGHT_DIM + 1, 1)):
-            for row_idx, row in enumerate(range(WIDTH_DIM, 0, -1)):
-                color = WHITE
-                if (column, row) in walls:
-                    color = BLACK
-                pygame.draw.rect(screen,
-                                 color,
-                                 [(self.margin + self.cell_size) * (col_idx) + self.margin,
-                                  (self.margin + self.cell_size) * (row_idx) + self.margin,
-                                  self.cell_size,
-                                  self.cell_size])
-        return screen
-    '''
 
     def display_surface(self, surface):
         """
@@ -229,7 +196,8 @@ class GridWorldVisualizer():
 
         for col_idx, col in enumerate(range(1, mdp.get_width() + 1, 1)):
             for row_idx, row in enumerate(range(mdp.get_height(), 0, -1)):
-                if (col, row) not in mdp.mdp.compute_walls():
+                #if (col, row) not in mdp.mdp.compute_walls():
+                if mdp.mdp.is_inside_rooms(GridWorldState(col, row)):
                     ground_state = GridWorldState(col, row)
                     abstr_state_class = mdp.get_abstr_from_ground(ground_state)
                     abstr_state = abstr_state_class.data
@@ -264,6 +232,7 @@ class GridWorldVisualizer():
                         pygame.draw.rect(screen, color, cell)
         return screen
 
+    # Not needed
     def display_abstract_gridworld_mdp(self, mdp):
         """
         Display the abstract MDP with cells color-coded by their abstract state
@@ -313,15 +282,6 @@ class GridWorldVisualizer():
         # Load error_file data if that argument is given
         err_arg = None
         if error_file:
-            '''
-            names=['AbstrType', 'AbstrEps', 'Prop', 'Batch', 'ErrorStates']
-            error_df = pd.read_csv(error_file, names=names)
-            error_list = ast.literal_eval(error_df.loc[(error_df['AbstrType'] == str(key[0]))
-                                                       & (error_df['AbstrEps'] == key[1])
-                                                       & (error_df['Prop'] == key[3])
-                                                       & (error_df['Batch'] == key[4])]['ErrorStates'].values[0])
-
-            '''
             error_list = self.parse_file_for_dict(key, error_file)
             error_states = []
             for val in error_list:
@@ -365,23 +325,6 @@ class GridWorldVisualizer():
 
         return surface
 
-    '''
-    def display_corrupt_visualization(self, key, corrupt_abstr_file, error_file, display_errors=True):
-        """
-        Create the surface for the corrupt visualization and display it
-        """
-        screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        mdp = self.create_corruption_visualization(key, corrupt_abstr_file, error_file)
-        if display_errors:
-            mdp = self.create_errors(mdp, key, error_file)
-        pygame.init()
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
-                screen.blit(mdp, (0, 0))
-                pygame.display.flip()
-    '''
     def parse_action_string(self, action_string):
         """
         Return the direction enum associated with the string. Necessary because when we read in data from files,
@@ -439,30 +382,18 @@ class GridWorldVisualizer():
         elif len(key) == 5:
             df['abstr_type'], df['abstr_eps'], df['corr_type'], df['corr_prop'], df['batch_num'] = df['key'].str.split(', ').str
             # Added post-hoc to deal with case where errors are explicitly enumerated
-            #if "'explicit errors'" in list(df['corr_type'].astype(str)):
 
             df['abstr_type'] = df['abstr_type'].map(lambda x: x.strip('(<: 1234>'))
             df['corr_type'] = df['corr_type'].map(lambda x: x.strip('<>: 1234'))
             df['batch_num'] = df['batch_num'].map(lambda x: x.strip(')'))
-            #print('Pre-loc df')
-            #print(df[:3].to_string())
-            #print('Key is')
-            #print(key)
             df = df.loc[(df['abstr_type'] == str(key[0]))
                         & (df['abstr_eps'].astype(float) == key[1])
                         & (df['corr_type'] == str(key[2]))
                         & (df['corr_prop'].astype(float) == key[3])
                         & (df['batch_num'].astype(int) == key[4])]
-            #print('Post-loc df')
-            #print(df[:3].to_string())
+
             if agent_num is not None:
                 df = df.loc[df['agent_num'] == agent_num]
-            #print('Post-post-loc df')
-            #print(df)
-            #if len(list(df['dict'])) > 1:
-            #    print('FUCK')
-            #    print(df)
-            #    quit()
             value = ast.literal_eval(df['dict'].values[0])
         else:
             print(key)
@@ -491,14 +422,11 @@ class GridWorldVisualizer():
         policy_df['AbstrType'] = policy_df['AbstrType'].map(lambda x: x.strip('(<: 1234>'))
         policy_df = policy_df.loc[policy_df['AbstrType'] != 'ground']
         policy_df['AbstrEps'] = policy_df['AbstrEps'].map(lambda x: x.strip('(<: >)'))
-        #print(policy_df.dtypes)
-        #print(policy_df.to_string())
         policy_string = ast.literal_eval(policy_df.loc[(policy_df['AbstrType'] == str(key[0]))
                                                        & (policy_df['AbstrEps'] == str(key[1]))
                                                        & (policy_df['AgentNum'] == agent_num)]['PolicyDict'].values[0])
         policy_dict = {}
         for policy_key in policy_string.keys():
-            #print(policy_string[policy_key])
             policy_dict[ast.literal_eval(policy_key)] = self.parse_action_string(policy_string[policy_key])
 
         # Load abstraction mapping into dictionary, identifying proper abstractions/agents based on key and agent_num
@@ -518,12 +446,8 @@ class GridWorldVisualizer():
         visited_states = []
         rollout = [(state.x, state.y)]
         i = 0
-        #print('policy_dict', policy_dict)
         while not (state.is_terminal()) and (state not in visited_states):
             i += 1
-            #abstr_state = abstr_dict[(state.x, state.y)]
-            #print('abstract state', abstr_state)
-            #action = policy_dict[abstr_state]
             action = policy_dict[(state.x, state.y)]
             next_state = mdp.transition(state, action)
             rollout.append((next_state.x, next_state.y))
@@ -563,15 +487,6 @@ class GridWorldVisualizer():
             policy_dict[ast.literal_eval(policy_key)] = self.parse_action_string(policy_string[policy_key])
 
         # Load abstraction mapping into dictionary, identifying proper abstractions/agents based on key and agent_num
-        '''
-        abstr_names = ['AbstrType', 'AbstrEps', 'CorrType', 'CorrProp', 'BatchNum', 'AbstrDict']
-        abstr_df = pd.read_csv(abstraction_file, names=abstr_names)
-        abstr_string = abstr_df.loc[(abstr_df['AbstrType'] == str(key[0]))
-                                    & (abstr_df['AbstrEps'] == key[1])
-                                    & (abstr_df['CorrType'] == str(key[2]))
-                                    & (abstr_df['CorrProp'] == key[3])
-                                    & (abstr_df['BatchNum'] == key[4])]['AbstrDict'].values[0]
-        '''
         abstr_string = self.parse_file_for_dict(key, abstraction_file)
         abstr_dict = {}
         for entry in abstr_string:
@@ -586,11 +501,6 @@ class GridWorldVisualizer():
         i = 0
         while not (state.is_terminal()) and (state not in visited_states):
             i += 1
-            #abstr_state = abstr_dict[(state.x, state.y)]
-            #print(state.x, state.y)
-            #print(policy_dict)
-            #print(abstr_state)
-            #action = policy_dict[abstr_state]
             action = policy_dict[(state.x, state.y)]
             next_state = mdp.transition(state, action)
             rollout.append((next_state.x, next_state.y))

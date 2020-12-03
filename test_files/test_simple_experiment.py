@@ -17,19 +17,26 @@ state_abstrs = [{s1: 1,
                  e: 3}]
 
 # Parameters
-NUM_EPISODES = 20
+NUM_AGENTS = 5
+NUM_CORR_MDPS = 1
+NUM_EPISODES = 50
 DETACH_INTERVAL = 10
 RESET_Q_VALUE = True
+LEARNING_RATE = 0.1
+EXPLORATION_EPSILON = 0.2
+
 
 if __name__ == '__main__':
     mdp = SimpleMDP()
     exp = SimpleExperiment(mdp,
                            abstr_dicts=state_abstrs,
-                           num_agents=1,
-                           num_corrupted_mdps=1,
+                           num_agents=NUM_AGENTS,
+                           num_corrupted_mdps=NUM_CORR_MDPS,
                            num_episodes=NUM_EPISODES,
                            detach_interval=DETACH_INTERVAL,
-                           reset_q_value=RESET_Q_VALUE
+                           reset_q_value=RESET_Q_VALUE,
+                           agent_learning_rate=LEARNING_RATE,
+                           agent_exploration_epsilon=EXPLORATION_EPSILON
                            )
 
     # Test that agents were created correctly
@@ -59,5 +66,15 @@ if __name__ == '__main__':
     '''
 
     # Test run_all_ensembles
-    exp.run_all_ensembles()
+    data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles()
 
+    # Plot performance for true results
+    exp.visualize_results(data, outfilename='true_aggregated_results.png')
+
+    # Plot performance for corrupt results
+    exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png')
+
+    # Plot performance for corrupt w/ detach results
+    exp.visualize_corrupt_results(corr_detach_data,
+                                  outfilename='corrupt_detach_aggregated_results.png',
+                                  individual_mdp_dir='corrupted_w_detach')

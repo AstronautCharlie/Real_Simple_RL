@@ -268,7 +268,7 @@ class TaxiMDP(MDP):
     # ----------------------------
     # Inherited abstract functions
     # ----------------------------
-    def next_possible_states(self, state, action):
+    def get_next_possible_states(self, state, action):
         """
         Given a state, return a dictionary containing all states that can result from taking the given action on it along
         with the probability of ending up in that state

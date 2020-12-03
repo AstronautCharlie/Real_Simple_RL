@@ -24,6 +24,11 @@ def test_detach_state(agent):
     #  We select this state to remove since we are guaranteed to always interact with it
     state_to_remove = GridWorldState(1, 1)
     print('State and abstr state prior to detach:', state_to_remove, agent.s_a.abstr_dict[state_to_remove])
+    print('Other states in this abstract state: ', end = '')
+    for temp_state in agent.mdp.get_all_possible_states():
+        if agent.s_a.abstr_dict[temp_state] == agent.s_a.abstr_dict[state_to_remove]:
+            print(temp_state, end = ' ')
+    print()
     for i in range(5000):
         agent.explore()
     print()
@@ -31,7 +36,7 @@ def test_detach_state(agent):
     for i in range(len(agent.mdp.actions)):
         print(agent.mdp.actions[i], agent.get_q_value(state_to_remove, agent.mdp.actions[i]))
     print()
-    agent.detach_state(state_to_remove)
+    agent.detach_state(state_to_remove, reset_q_value=True)
 
     print('State and abstr state after detach:', state_to_remove, agent.s_a.abstr_dict[state_to_remove])
     print('Q-value of state after detaching: (should be zero)')
@@ -283,7 +288,7 @@ if __name__ == '__main__':
     agent = AbstractionAgent(mdp, s_a=abstr_mdp.state_abstr)
 
     # Basic functions
-    #test_detach_state(agent)
+    test_detach_state(agent)
     #test_generate_rollout(agent)
     #test_get_abstraction_as_string(agent)
     #test_get_ground_states_from_abstact_state()
@@ -299,4 +304,4 @@ if __name__ == '__main__':
 
     #test_check_abstract_state_consistency()
 
-    test_detach_inconsistent_states(Abstr_type.Q_STAR)
+    #test_detach_inconsistent_states(Abstr_type.Q_STAR)

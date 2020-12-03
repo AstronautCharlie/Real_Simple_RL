@@ -56,9 +56,15 @@ class AbstractionAgent(Agent):
         """
         # Get all states mapped to the same abstract state as the current state
         states_to_update = [state]
+        '''
         if self.s_a is not None and state in self.group_dict.keys():
             for equiv_state in self.group_dict[state]:
                 states_to_update.append(equiv_state)
+        '''
+        if self.s_a is not None:
+            for other_state in self.mdp.get_all_possible_states():
+                if self.s_a.abstr_dict[state] == self.s_a.abstr_dict[other_state]:
+                    states_to_update.append(other_state)
 
         # Update all states in the same abstract state
         old_q_value = self.get_q_value(state, action)
@@ -89,13 +95,17 @@ class AbstractionAgent(Agent):
             raise ValueError(
                 'Attempting to detach state that is not mapped to an abstract state. State is ' + str(state.data))
 
-
         # Check if state is already in a singleton abstract state. If so, do nothing
         if not self.group_dict[state]:
             return 1
 
         # If state is terminal, its abstract state doesn't matter so we remove it
         if state.is_terminal():
+            return 2
+
+        # This is a hack. For some reason the above statement wasn't catching the TwoRoomMDP terminal states, so I
+        #  did this instead
+        if (state.x, state.y) in self.mdp.goal_location:
             return 2
 
         # First check that this state is not a singleton. If it is, do not detach
@@ -109,63 +119,44 @@ class AbstractionAgent(Agent):
             return 1
 
         # Set state to its own abstract state
-        #print('About to pop state', state)
         old_abstr_state = self.s_a.abstr_dict.pop(state, None)
-        #print('Original abstr state was', old_abstr_state)
-        #print('State was originally mapped with', end=' ')
-        #for t in temp:
-        #    print(t, end=' ')
-        #print()
-        for val in self.s_a.abstr_dict.values():
-            print(val, type(val), end = '  ')#val.data, type(val.data), end='   ')
-        #abstr_state_values = []
-        #for val in self.s_a.abstr_dict.values():
-        #    abstr_state_values.append(val.data)
-        for key, value in self.s_a.abstr_dict.items():
-            print(key, type(key), value, type(value))
+
         max_abstr_state = max(self.s_a.abstr_dict.values())
-        #max_abstr_state = max(abstr_state_values)
         self.s_a.abstr_dict[state] = max_abstr_state + 1
-        #print('State is now mapped to', self.s_a.abstr_dict[state])
         temp = []
         for temp_state, temp_value in self.s_a.abstr_dict.items():
             if temp_value == old_abstr_state:
                 temp.append(temp_state)
-        #print('States originally mapped with popped state (should be same as above)', end = ' ')
-        #for x in temp:
-        #    print(x, end=' ')
-        #print('\n'*2)
 
         # Reset Q-value for each action in this state by taking the action, finding the max Q-value of the next
         #  state, and assigning the Q-value for the state-action pair to that max Q-value
         if reset_q_value:
-            #print("SHOULD BE HERE")
             cycle_actions = []
             non_cycle_values = []
             # Take a 1-step roll-out for each action and reassign the Q-value of the action to the reward + gamma *
             #  max Q-value of next state
-            #print('Q-value Reset')
             for action in self.mdp.actions:
-            #    print('state, action =', state, action)
                 self.mdp.set_current_state(state)
                 next_state = self.mdp.transition(state, action)
-            #    print('next state =', next_state)
                 reward = self.mdp.reward(state, action, next_state)
                 next_state_q_value = self.get_best_action_value(next_state)
                 next_val = reward + self.mdp.gamma * next_state_q_value
-            #    print('value of next state =', next_val)
                 if next_state == state:
-            #        print('action leads to cycle')
                     cycle_actions.append(action)
                 else:
-            #        print('no cycle, action =', action)
                     non_cycle_values.append(next_val)
                     self._set_q_value(state, action, next_val)
             # For any actions that kept the agent in the current state, set the Q-value to gamma * max Q-value of
             #  non-cycle actions
+            if len(non_cycle_values) == 0:
+                print('Somehow entered trapped state', state)
+                quit()
             for action in cycle_actions:
-            #    print('setting cycle action value', state, action, self.mdp.gamma * max(non_cycle_values))
-                self._set_q_value(state, action, self.mdp.gamma * max(non_cycle_values))
+                try:
+                    self._set_q_value(state, action, self.mdp.gamma * max(non_cycle_values))
+                except:
+                    print('failed with state, action, non_cycle_values', state, (state.x, state.y) in self.mdp.goal_location, action, non_cycle_values)
+                    quit()
             #print()
 
         return 0
@@ -266,6 +257,7 @@ class AbstractionAgent(Agent):
         # Get best action learned. Since all ground states in one abstract state will have the same
         #  learned best action, we just grab the best action from the first constituent state
         best_abstr_action, best_action_value, _ = self.check_for_optimal_action_value_next_state(constituent_states[0])
+        print('Best action, value for abstr state', abstr_state, 'is', best_abstr_action, round(best_action_value, 3))
         # If the states haven't been visited/updated yet, return nothing
         if best_action_value == 0:
             return None
@@ -274,18 +266,22 @@ class AbstractionAgent(Agent):
         #   agent in current state if prevent_cycles == True), then add it to error states
         for state in constituent_states:
             best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state)
+            print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
             constituent_state_dict[state] = (best_action, best_action_value, next_state)
             if best_action != best_abstr_action:
+                print('Mismatch!')
                 error_states.append(state)
             elif prevent_cycles and next_state == state:
+                print('Causes cycle!')
                 error_states.append(state)
             else:
                 best_action_values.append(best_action_value)
+        print()
         #if verbose:
-            print(abstr_state, 'best action is', best_abstr_action)
-            for key, value in constituent_state_dict.items():
-                print(key, value[0], round(value[1], 3), value[2], end='\t')
-            print()
+            #print(abstr_state, 'best action is', best_abstr_action)
+            #for key, value in constituent_state_dict.items():
+            #    print(key, value[0], round(value[1], 3), value[2], end='\t')
+            #print()
 
         # If variance threshold is set, mark as errors all states where the value of the optimal action differs
         #  from the mean by more than variance threshold standard deviations
@@ -296,10 +292,10 @@ class AbstractionAgent(Agent):
             for state in constituent_states:
                 if abs(constituent_state_dict[state][1] - action_value_mean) > threshold_diff:
                     error_states.append(state)
-        print('error states are', end = ' ')
-        for state in error_states:
-            print(state, end = ' ')
-        print()
+        #print('error states are', end = ' ')
+        #for state in error_states:
+        #    print(state, end = ' ')
+        #print()
         return error_states
 
     def detach_inconsistent_states(self,
@@ -328,11 +324,12 @@ class AbstractionAgent(Agent):
                 detached_states += error_states
 
                 for state in error_states:
+                    #print('Detaching state', state)
                     result_check = self.detach_state(state, reset_q_value=reset_q_value)
-                    if result_check == 1:
-                        print('State is already singleton')
-                    elif result_check == 2:
-                        print('State is terminal')
+                    #if result_check == 1:
+                        #print('State is already singleton')
+                    #elif result_check == 2:
+                        #print('State is terminal')
 
         if verbose:
             print('Number of detached states', len(detached_states))

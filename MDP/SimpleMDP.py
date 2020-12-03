@@ -114,7 +114,7 @@ class SimpleMDP(MDP):
     def get_all_possible_states(self):
         return [s1, s2, s3, e]
 
-    def next_possible_states(self, state, action):
+    def get_next_possible_states(self, state, action):
         # e
         if state == e:
             return {e: 1}

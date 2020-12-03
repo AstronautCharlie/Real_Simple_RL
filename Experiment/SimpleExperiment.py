@@ -7,6 +7,8 @@ from MDP.AbstractMDPClass import AbstractMDP
 from MDP.SimpleMDP import SimpleMDP
 from Agent.AbstractionAgent import AbstractionAgent
 from resources.AbstractionCorrupters import *
+import matplotlib.pyplot as plt
+import pandas as pd
 import csv
 import os
 
@@ -293,16 +295,19 @@ class SimpleExperiment:
                         avg_step_counts.append(avg_step_count)
                     # Run detachment at given interval
                     if episode > 0 and episode % self.detach_interval == 0:
+                        print('In experiment, about to detach states')
                         detach_dict = self.detach_ensemble(self.corr_detach_agents[ensemble_key])
                         for key, value in detach_dict.items():
                             detached_states = []
                             for state in value:
                                 detached_states.append(state.data)
                             detached_state_record[key] += detached_states
+                        print('Detach state record is', detached_state_record)
                         # If on last episode, write all detached states to a file
-                        if episode == self.num_episodes - 1:
-                            for i in range(len(self.corr_detach_agents[ensemble_key])):
-                                detach_writer.writerow((ensemble_key, i, detached_state_record[i]))
+                    if episode == self.num_episodes - 1:
+                        print('Writing detached states to file')
+                        for i in range(len(self.corr_detach_agents[ensemble_key])):
+                            detach_writer.writerow((ensemble_key, i, detached_state_record[i]))
                 # Write the results
                 reward_writer.writerow(avg_reward_fractions)
                 step_writer.writerow(avg_step_counts)
@@ -316,6 +321,144 @@ class SimpleExperiment:
         else:
             return os.path.join(self.results_dir, 'true/rewards.csv'), \
                    os.path.join(self.results_dir, 'true/step_counts.csv')
+
+    # ------------------------
+    # Visualizations functions
+    # ------------------------
+    def visualize_results(self, infilepath, outdirpath=None, outfilename=None):
+        """
+        Graph the results in the given file and save the results to the given outfile
+
+        Copied from Experiment Class
+        """
+        if outdirpath is None:
+            outdirpath = self.results_dir
+        if not os.path.exists(outdirpath):
+            os.makedirs(outdirpath)
+
+        exp_res = open(infilepath, 'r')
+        plt.style.use('seaborn-whitegrid')
+        ax = plt.subplot()
+
+        for mdp in exp_res:
+            mdp = mdp.split('\"')
+            if ('ground' in mdp[0]):
+                mdp = mdp[0].split(',')
+            else:
+                mdp = [mdp[1]] + [m for m in mdp[2].split(',') if m != ""]
+
+            episodes = [i for i in range(1, len(mdp))]
+            plt.plot(episodes, [float(i) for i in mdp[1:]], label='%s' % (mdp[0],))
+
+        plt.xlabel('Episode Number')
+        plt.ylabel('Proportion of Optimal Policy')
+        plt.suptitle('Average Proportion of Optimal Policy Captured by Ensemble')
+        leg = plt.legend(loc='best', ncol=2, mode='expand', shadow=True, fancybox=True)
+        leg.get_frame().set_alpha(0.5)
+
+        if outfilename is None:
+            outfilename = 'true_results.png'
+        plt.savefig(os.path.join(outdirpath, outfilename))
+        plt.clf()
+
+    def visualize_corrupt_results(self,
+                                  infilepath,
+                                  outdirpath=None,
+                                  outfilename=False,
+                                  individual_mdp_dir=None,
+                                  graph_between=False):
+        """
+        Graph the results of the corrupted MDPs
+        """
+        if outdirpath is None:
+            outdirpath = self.results_dir
+        if not os.path.exists(outdirpath):
+            os.makedirs(outdirpath)
+        plt.style.use('seaborn-whitegrid')
+
+        # Read in data as dataframe, get 'key' which consists of the abstraction type, the abstraction epsilon,
+        #  the corruption value, and the number within that batch
+        # infile looks like: key | ep 1 | ep 2 | ep3...
+        names = ['key'] + [i for i in range(self.num_episodes)]
+        df = pd.read_csv(infilepath, names=names)
+        # Turn string representing key into a list of values
+        df['key'] = df['key'].str.replace('(', '').str.replace(')','').str.replace(', ',',').str.split(',')
+
+        # This extracts the batch number from the key and parses the key into usable columns
+        def remove_batch_num(row):
+            return tuple(row['key'][:-1])
+        def convert_key_to_tuple(row):
+            return tuple(row['key'])
+        # key is the unique identifier for a single ensemble on one corrupt MDP
+        df['key'] = df.apply(convert_key_to_tuple, axis=1)
+        # batch is the combination of abstract MDP and corruption data; will match to as many rows as we have
+        #  exp.num_corr_mdps
+        df['batch'] = df.apply(remove_batch_num, axis=1)
+        print(df)
+        #df[['abstr_type', 'abstr_epsilon', 'corr_type', 'corr_prop', 'batch_num']] = pd.DataFrame(df.key.tolist(),
+        #                                                                                          index=df.index)
+        df[['key', 'mdp', 'batch_num']] = pd.DataFrame(df.key.tolist(), index=df.index)
+
+        # This section calculates the averages and standard deviations of fractions of optimal value captured
+        #  across different abstraction types, graphs the results across episodes, and saves the figure
+        avg_df = df.groupby('batch').mean()
+        std_df = df.groupby('batch').std()
+
+        episodes = [i for i in range(1, self.num_episodes + 1)]
+        for i in range(avg_df.shape[0]):
+            upper = avg_df.iloc[i] + std_df.iloc[i]
+            lower = avg_df.iloc[i] - std_df.iloc[i]
+            print(avg_df)
+            plt.plot(episodes, list(avg_df.iloc[i]), label="%s" % ([avg_df.index[i][0]]))#, avg_df.index[i][3]]))
+            if graph_between:
+                plt.fill_between(episodes, upper, lower, alpha=0.2)
+        leg = plt.legend(loc='upper left', fancybox=True)
+        if outfilename is None:
+            outfilename = 'corrupt_results.png'
+        plt.savefig(os.path.join(outdirpath, outfilename))
+        plt.clf()
+
+        # This section graphs the average performance of each ensemble on each corrupt MDP separately and saves
+        #  the results
+        # Get all abstr_type/abstr_epsilon/corr_type/corr_prop combinations
+        batch_list = list(df['batch'].drop_duplicates())
+
+        # Iterate through each of these values and subset the full dataframe for those rows matching the given
+        #  parameters
+        for batch in batch_list:
+            temp_df = df.loc[df['batch'] == batch]
+
+            # This is used for the filename later
+            #a_t = str(temp_df['abstr_type'].values[0])
+            a_t = str(temp_df['key'].values[0])
+            start = a_t.find('.') + 1
+            end = a_t.find(':')
+            a_t = a_t[start:end].lower()
+            #c_p = temp_df['corr_prop'].values[0]
+
+            # Strip away everything except the data itself
+            print(temp_df.to_string())
+            temp_df = temp_df.drop(columns=['key'])#, 'batch', 'abstr_type', 'abstr_epsilon', 'corr_type', 'corr_prop'])
+            temp_df = temp_df.set_index('batch_num')
+
+            # Iterate through all batches and graph them
+            for index, row in temp_df.iterrows():
+                print('episodes\n', episodes)
+                print('row\n', row, row.shape)
+                plt.plot(episodes, row[:-2], label="%s" % (index,))
+            plt.legend(loc='best', fancybox=True)
+            plt.title("%s" % (batch,))
+
+            # This creates a nice file name for the graph
+            file_name = str(a_t)# + '_' +  str(c_p)
+            #print(file_name)
+            file_name = file_name.replace('.', '')
+            if individual_mdp_dir is None:
+                individual_mdp_dir = 'corrupted'
+            file_name = individual_mdp_dir + '/{}{}'.format(file_name, '.png')
+            #print(file_name)
+            plt.savefig(os.path.join(outdirpath, file_name))
+            plt.clf()
 
     # -----------------
     # Getters & setters
