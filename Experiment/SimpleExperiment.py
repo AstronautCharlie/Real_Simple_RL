@@ -84,9 +84,9 @@ class SimpleExperiment:
             corr_ensemble = []
             for i in range(self.num_agents):
                 # This makes an AbstractionAgent from the state abstraction corresponding to the abstract MDP
-                temp_mdp = SimpleMDP()
-                corr_mdp = self.corrupt_mdp_dict[key].copy()
-                s_a = corr_mdp.state_abstr
+                temp_mdp = copy.deepcopy(SimpleMDP())
+                corr_mdp = copy.deepcopy(self.corrupt_mdp_dict[key].copy())
+                s_a = copy.deepcopy(corr_mdp.state_abstr)
                 agent = AbstractionAgent(temp_mdp,
                                          s_a,
                                          epsilon=agent_exploration_epsilon,
@@ -101,16 +101,15 @@ class SimpleExperiment:
             corr_ensemble = []
             for i in range(self.num_agents):
                 print('making detach agent', i)
-                temp_mdp = SimpleMDP()
-                corr_mdp = self.corrupt_mdp_dict[key].copy()
-                s_a = corr_mdp.state_abstr
+                temp_mdp = copy.deepcopy(SimpleMDP())
+                corr_mdp = copy.deepcopy(self.corrupt_mdp_dict[key].copy())
+                s_a = copy.deepcopy(corr_mdp.state_abstr)
                 agent = AbstractionAgent(temp_mdp,
                                          s_a,
                                          epsilon=agent_exploration_epsilon,
                                          alpha=agent_learning_rate,
                                          decay_exploration=False)
                 corr_ensemble.append(agent)
-            print(corr_ensemble)
             self.corr_detach_agents[key] = corr_ensemble
 
     # ----------------------------
@@ -164,13 +163,15 @@ class SimpleExperiment:
         For each agent, check the consistency of abstract states and detach inconsistent ground states
         """
         detached_states = {}
+        print('Number of agents to detach', len(ensemble))
         for i in range(len(ensemble)):
             agent = ensemble[i]
+            print('Detaching for agent number', i)
             error_states = agent.detach_inconsistent_states(prevent_cycles=self.prevent_cycles,
                                                             reset_q_value=self.reset_q_value)
             if error_states is not None:
                 detached_states[i] = error_states
-            return detached_states
+        return detached_states
 
     def run_all_ensembles(self, include_corruption=False):
         """
@@ -193,12 +194,12 @@ class SimpleExperiment:
             os.makedirs(true_dir)
         reward_file = open(os.path.join(true_dir, 'rewards.csv'), 'w', newline='')
         step_file = open(os.path.join(true_dir, 'step_counts.csv'), 'w', newline='')
-        #policy_file = open(os.path.join(true_dir, 'learned_policies.csv'), 'w', newline='')
-        #value_file = open(os.path.join(true_dir, 'state_values.csv'), 'w', newline='')
+        policy_file = open(os.path.join(true_dir, 'learned_policies.csv'), 'w', newline='')
+        value_file = open(os.path.join(true_dir, 'state_values.csv'), 'w', newline='')
         reward_writer = csv.writer(reward_file)
         step_writer = csv.writer(step_file)
-        #policy_writer = csv.writer(policy_file)
-        #value_writer = csv.writer(value_file)
+        policy_writer = csv.writer(policy_file)
+        value_writer = csv.writer(value_file)
 
         # Run the ensemble in the ground environment
         avg_reward_fractions = ['ground']
@@ -214,12 +215,21 @@ class SimpleExperiment:
                 avg_step_counts.append(avg_step_count + avg_step_counts[-1])
             else:
                 avg_step_counts.append(avg_step_count)
+            # Write q-values
+            for i in range(len(self.agents['ground'])):
+                value_string = '{'
+                q_table = self.agents['ground'][i].get_q_table()
+                for key, value in q_table.items():
+                    value_string += '(' + str(key[0]) + ',' + str(key[1]) + '): ' + str(value) + ', '
+                value_string += '}'
+                value_writer.writerow(('ground', i, episode, value_string))
+
         # Write results
         reward_writer.writerow(avg_reward_fractions)
         step_writer.writerow(avg_step_counts)
         # Policy and value data would go here if needed. Copy from Experiment
-        #for i in range(len(self.agents['ground'])):
-        #    policy_writer.writerow(())
+        for i in range(len(self.agents['ground'])):
+            policy_writer.writerow(('ground', i, self.agents['ground'][i].get_learned_policy_as_string()))
 
         #
         # This chunk runs the abstracted MDPs w/ no detachment
@@ -231,12 +241,12 @@ class SimpleExperiment:
                 os.makedirs(corrupt_dir)
             reward_file = open(os.path.join(corrupt_dir, 'rewards.csv'), 'w', newline='')
             step_file = open(os.path.join(corrupt_dir, 'step_counts.csv'), 'w', newline='')
-            #policy_file = open(os.path.join(corrupt_dir, 'learned_policies.csv'), 'w', newline='')
-            #value_file = open(os.path.join(corrupt_dir, 'learned_values.csv'), 'w', newline='')
+            policy_file = open(os.path.join(corrupt_dir, 'learned_policies.csv'), 'w', newline='')
+            value_file = open(os.path.join(corrupt_dir, 'q_values.csv'), 'w', newline='')
             reward_writer = csv.writer(reward_file)
             step_writer = csv.writer(step_file)
-            #policy_writer = csv.writer(policy_file)
-            #value_writer = csv.writer(value_file)
+            policy_writer = csv.writer(policy_file)
+            value_writer = csv.writer(value_file)
 
             # Run ensembles on abstracted MDP
             for ensemble_key in self.corr_agents.keys():
@@ -254,9 +264,18 @@ class SimpleExperiment:
                         avg_step_counts.append(avg_step_count + avg_step_counts[-1])
                     else:
                         avg_step_counts.append(avg_step_count)
-                    # Write results
+                    for i in range(len(self.corr_agents[ensemble_key])):
+                        value_string = '{'
+                        q_table = self.corr_agents[ensemble_key][i].get_q_table()
+                        for key, value in q_table.items():
+                            value_string += '(' + str(key[0]) + ',' + str(key[1]) + '): ' + str(value) + ', '
+                        value_string += '}'
+                        value_writer.writerow((ensemble_key, i, episode, value_string))
+                # Write results
                 reward_writer.writerow(avg_reward_fractions)
                 step_writer.writerow(avg_step_counts)
+                for i in range(len(self.corr_agents[ensemble_key])):
+                    policy_writer.writerow((ensemble_key, i, self.corr_agents[ensemble_key][i].get_learned_policy_as_string()))
         #
         # This chunk runs abstract MDPs w/ detachment
         #
@@ -267,14 +286,18 @@ class SimpleExperiment:
                 os.makedirs(detach_dir)
             reward_file = open(os.path.join(detach_dir, 'rewards.csv'), 'w', newline='')
             step_file = open(os.path.join(detach_dir, 'step_counts.csv'), 'w', newline='')
-            #policy_file = open(os.path.join(detach_dir, 'learned_policies.csv'), 'w', newline='')
+            policy_file = open(os.path.join(detach_dir, 'learned_policies.csv'), 'w', newline='')
             #value_file = open(os.path.join(detach_dir, 'learned_values.csv'), 'w', newline='')
             detach_file = open(os.path.join(detach_dir, 'detached_states.csv'), 'w', newline='')
+            finalSAfile = open(os.path.join(detach_dir, 'final_s_a.csv'), 'w', newline='')
+            q_value_file = open(os.path.join(detach_dir, 'q_values.csv'), 'w', newline='')
             reward_writer = csv.writer(reward_file)
             step_writer = csv.writer(step_file)
-            #policy_writer = csv.writer(policy_file)
+            policy_writer = csv.writer(policy_file)
             #value_writer = csv.writer(value_file)
             detach_writer = csv.writer(detach_file)
+            finalSA_writer = csv.writer(finalSAfile)
+            q_value_writer = csv.writer(q_value_file)
             # Run ensemble w/ detachment
             for ensemble_key in self.corr_detach_agents.keys():
                 print(ensemble_key, 'detaching states')
@@ -300,7 +323,7 @@ class SimpleExperiment:
                         for key, value in detach_dict.items():
                             detached_states = []
                             for state in value:
-                                detached_states.append(state.data)
+                                detached_states.append((state.data, episode))
                             detached_state_record[key] += detached_states
                         print('Detach state record is', detached_state_record)
                         # If on last episode, write all detached states to a file
@@ -308,9 +331,24 @@ class SimpleExperiment:
                         print('Writing detached states to file')
                         for i in range(len(self.corr_detach_agents[ensemble_key])):
                             detach_writer.writerow((ensemble_key, i, detached_state_record[i]))
+                    # Write q-values
+                    for i in range(len(self.corr_detach_agents[ensemble_key])):
+                        value_string = '{'
+                        q_table = self.corr_detach_agents[ensemble_key][i].get_q_table()
+                        for key, value in q_table.items():
+                            value_string += '(' + str(key[0]) + ',' + str(key[1]) + '): ' + str(value) + ', '
+                        value_string += '}'
+                        q_value_writer.writerow((ensemble_key, i, episode, value_string))
                 # Write the results
                 reward_writer.writerow(avg_reward_fractions)
                 step_writer.writerow(avg_step_counts)
+                # Write final state abstractions
+                for i in range(len(self.corr_detach_agents[ensemble_key])):
+                    finalSA_writer.writerow((ensemble_key, i, self.corr_detach_agents[ensemble_key][i].get_abstraction_as_string()))
+                # Write the final learned policy
+                for i in range(len(self.corr_detach_agents[ensemble_key])):
+                    policy_writer.writerow((ensemble_key, i, self.corr_detach_agents[ensemble_key][i].get_learned_policy_as_string()))
+
         if self.detach_interval is not None:
             return os.path.join(self.results_dir, 'true/rewards.csv'), \
                    os.path.join(self.results_dir, 'true/step_counts.csv'), \
@@ -351,7 +389,8 @@ class SimpleExperiment:
             plt.plot(episodes, [float(i) for i in mdp[1:]], label='%s' % (mdp[0],))
 
         plt.xlabel('Episode Number')
-        plt.ylabel('Proportion of Optimal Policy')
+        plt.ylabel('Proportion of Value of Optimal Policy Captured')
+        plt.ylim(-0.5,1)
         plt.suptitle('Average Proportion of Optimal Policy Captured by Ensemble')
         leg = plt.legend(loc='best', ncol=2, mode='expand', shadow=True, fancybox=True)
         leg.get_frame().set_alpha(0.5)
@@ -366,7 +405,8 @@ class SimpleExperiment:
                                   outdirpath=None,
                                   outfilename=False,
                                   individual_mdp_dir=None,
-                                  graph_between=False):
+                                  graph_between=False,
+                                  title=None):
         """
         Graph the results of the corrupted MDPs
         """
@@ -375,6 +415,7 @@ class SimpleExperiment:
         if not os.path.exists(outdirpath):
             os.makedirs(outdirpath)
         plt.style.use('seaborn-whitegrid')
+        plt.ylim(-0.5, 1)
 
         # Read in data as dataframe, get 'key' which consists of the abstraction type, the abstraction epsilon,
         #  the corruption value, and the number within that batch
@@ -394,7 +435,7 @@ class SimpleExperiment:
         # batch is the combination of abstract MDP and corruption data; will match to as many rows as we have
         #  exp.num_corr_mdps
         df['batch'] = df.apply(remove_batch_num, axis=1)
-        print(df)
+        #print(df)
         #df[['abstr_type', 'abstr_epsilon', 'corr_type', 'corr_prop', 'batch_num']] = pd.DataFrame(df.key.tolist(),
         #                                                                                          index=df.index)
         df[['key', 'mdp', 'batch_num']] = pd.DataFrame(df.key.tolist(), index=df.index)
@@ -408,11 +449,14 @@ class SimpleExperiment:
         for i in range(avg_df.shape[0]):
             upper = avg_df.iloc[i] + std_df.iloc[i]
             lower = avg_df.iloc[i] - std_df.iloc[i]
-            print(avg_df)
+            #print(avg_df)
             plt.plot(episodes, list(avg_df.iloc[i]), label="%s" % ([avg_df.index[i][0]]))#, avg_df.index[i][3]]))
             if graph_between:
                 plt.fill_between(episodes, upper, lower, alpha=0.2)
-        leg = plt.legend(loc='upper left', fancybox=True)
+        #leg = plt.legend(loc='upper left', fancybox=True)
+        plt.suptitle(title)
+        plt.xlabel('Episode Number')
+        plt.ylabel('Proportion of Value of Optimal Policy Captured (mean)')
         if outfilename is None:
             outfilename = 'corrupt_results.png'
         plt.savefig(os.path.join(outdirpath, outfilename))
@@ -437,14 +481,14 @@ class SimpleExperiment:
             #c_p = temp_df['corr_prop'].values[0]
 
             # Strip away everything except the data itself
-            print(temp_df.to_string())
+            #print(temp_df.to_string())
             temp_df = temp_df.drop(columns=['key'])#, 'batch', 'abstr_type', 'abstr_epsilon', 'corr_type', 'corr_prop'])
             temp_df = temp_df.set_index('batch_num')
 
             # Iterate through all batches and graph them
             for index, row in temp_df.iterrows():
-                print('episodes\n', episodes)
-                print('row\n', row, row.shape)
+                #print('episodes\n', episodes)
+                #print('row\n', row, row.shape)
                 plt.plot(episodes, row[:-2], label="%s" % (index,))
             plt.legend(loc='best', fancybox=True)
             plt.title("%s" % (batch,))

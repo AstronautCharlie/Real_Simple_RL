@@ -1,0 +1,19 @@
+Corrupted Abstract States: Constituent States
+Starting group
+4: (10, 9) (6, 3) 
+Final group
+4: (10, 9) 
+91: (6, 3) 
+Starting group
+55: (9, 10) (9, 3) 
+Final group
+55: (9, 10) (9, 3) 
+
+Size of Abstract State: Number of Abstract States
+Starting abstraction
+1: 75
+2: 10
+3: 3
+Final abstraction
+1: 92
+2: 6

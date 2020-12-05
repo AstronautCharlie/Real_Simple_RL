@@ -6,13 +6,13 @@ from resources.CorruptionTypes import *
 
 keys = [#(Abstr_type.PI_STAR, 0.0, "'explicit errors'", 0, 0),
         #(Abstr_type.A_STAR, 0.0, "'explicit errors'", 0, 0),
-        (Abstr_type.Q_STAR, 0.0, "'explicit errors'", 0, 0),
+        (Abstr_type.A_STAR, 0.0, "'explicit errors'", 0, 0),
         #(Abstr_type.PI_STAR, 0.0, "'explicit errors'", 1, 0),
         #(Abstr_type.A_STAR, 0.0, "'explicit errors'", 1, 0),
-        (Abstr_type.Q_STAR, 0.0, "'explicit errors'", 1, 0),
+        (Abstr_type.A_STAR, 0.0, "'explicit errors'", 1, 0)]#,
         #(Abstr_type.PI_STAR, 0.0, "'explicit errors'", 2, 0),
         #(Abstr_type.A_STAR, 0.0, "'explicit errors'", 2, 0),
-        (Abstr_type.Q_STAR, 0.0, "'explicit errors'", 2, 0)]#,
+        #(Abstr_type.A_STAR, 0.0, "'explicit errors'", 2, 0)]#,
         #(Abstr_type.PI_STAR, 0.0, "'explicit errors'", 3, 0),
         #(Abstr_type.A_STAR, 0.0, "'explicit errors'", 3, 0),
         #(Abstr_type.Q_STAR, 0.0, "'explicit errors'", 3, 0)]

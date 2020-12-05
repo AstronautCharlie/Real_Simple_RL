@@ -138,6 +138,8 @@ if __name__ == '__main__':
     error_file = os.path.join(data_dir, 'corrupted/error_states.csv')
     corr_abstraction_file = os.path.join(data_dir, 'corrupted/corrupted_abstractions.csv')
     corr_policy_file = os.path.join(data_dir, 'corrupted_w_detach/learned_policies.csv')
+    detached_file = os.path.join(data_dir, 'corrupted_w_detach/detached_states.csv')
+    final_s_a_file = os.path.join(data_dir, 'corrupted_w_detach/final_s_a.csv')
 
     # Get list of all keys and agent nums in the corrupted files
     names = ['key', 'agent_num', 'dict']
@@ -174,8 +176,6 @@ if __name__ == '__main__':
         for agent_num in agent_nums:
             # Create generic file string
             abstr_string = viz.get_abstr_name(key[0])
-            #folder_path = 'corrupted_w_detach/corr' + str(key[3]) + '/mdp' + str(key[4])
-            #file_name = abstr_string + str(agent_num) + '.png'
             folder_path = 'corrupted_w_detach'
             file_name = 'corr' + str(key[3])+'mdp'+str(key[4]) + abstr_string + str(agent_num) + '.png'
 
@@ -227,6 +227,22 @@ if __name__ == '__main__':
             heatmap_file_name = os.path.join(heatmap_folder_path, file_name)
             plt.savefig(heatmap_file_name)
             plt.close()
+
+            # Create folders for detached states
+            detach_folder = os.path.join('detach_map', folder_path)
+            if OUTPUT_DIR:
+                detach_folder = os.path.join(OUTPUT_DIR, detach_folder)
+            if not os.path.exists(detach_folder):
+                os.makedirs(detach_folder)
+            # Create detachment visualization
+            grid = viz.draw_detached_abstraction(key,
+                                                 agent_num,
+                                                 corr_abstraction_file,
+                                                 final_s_a_file,
+                                                 error_file,
+                                                 detached_file)
+            detach_file_name = os.path.join(detach_folder, file_name)
+            pygame.image.save(grid, detach_file_name)
 
     # ----------------------
     # True Visualizations
@@ -311,4 +327,6 @@ if __name__ == '__main__':
             heatmap_file_name = os.path.join(heatmap_folder_path, file_name)
             plt.savefig(heatmap_file_name)
             plt.close()
+
+
 

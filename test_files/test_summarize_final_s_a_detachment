@@ -1,0 +1,24 @@
+"""
+Test summarze_final_s_a_detachment function in GridWorldVisualizer
+"""
+from Visualizer.GridWorldVisualizer import GridWorldVisualizer
+from GridWorld.GridWorldMDPClass import *
+from resources.AbstractionTypes import *
+from GridWorld.ActionEnums import *
+
+if __name__ == '__main__':
+    viz = GridWorldVisualizer()
+    key = (Abstr_type.Q_STAR, 0.0, 'explicit errors', 0, 0)
+    agent_num = 0
+    starting_s_a_file = '../exp_output/final_output/q_errors/detach=abstr_reassign=group/corrupted/corrupted_abstractions.csv'
+    final_s_a_file = '../exp_output/final_output/q_errors/detach=abstr_reassign=group/corrupted_w_detach/final_s_a.csv'
+    error_file = '../exp_output/final_output/q_errors/detach=abstr_reassign=group/corrupted/error_states.csv'
+    detach_file = '../exp_output/final_output/q_errors/detach=abstr_reassign=group/corrupted_w_detach/detached_states.csv'
+    summary_file = 'summary_test.txt'
+    viz.summarize_final_s_a_detachment(key,
+                                       agent_num,
+                                       starting_s_a_file,
+                                       final_s_a_file,
+                                       error_file,
+                                       detach_file,
+                                       outfile=summary_file)

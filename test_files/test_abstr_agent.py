@@ -11,6 +11,7 @@ from resources.AbstractionCorrupters import Corr_type
 from MDP.StateAbstractionClass import StateAbstraction
 from Visualizer.GridWorldVisualizer import GridWorldVisualizer
 from resources.util import *
+from GridWorld.TwoRoomsMDP import TwoRoomsMDP
 
 import pandas as pd
 import pygame
@@ -52,6 +53,13 @@ def test_detach_state(agent):
     print('Full Q-table:')
     for key, value in agent.get_q_table().items():
         print(key[0], key[1], value)
+
+    # Check that the ground -> abstr and abstr -> ground mappings correspond
+    for key in agent.group_dict.keys():
+        for state in agent.all_possible_states:
+            if agent.s_a.abstr_dict[state] == key and state not in agent.group_dict[key]:
+                print('FUCK', key, state)
+    print('Success!')
 
 # Test that generating a rollout works as expected
 def test_generate_rollout(agent):
@@ -282,13 +290,31 @@ def test_detach_inconsistent_states(abstr_type):
         agent.explore()
     error_states = agent.detach_inconsistent_states(verbose=True)
 
+def test_update(agent):
+    print('Abstr dict is', end = ' ')
+    for key, value in agent.s_a.abstr_dict.items():
+        print(key, value, end = ' ')
+    print()
+    print('Group dict is', end = ' ')
+    for key, value in agent.group_dict.items():
+        print(key, end = ' ')
+        for val in value:
+            print(val, end = ' ')
+        print()
+    for i in range(20):
+        agent.explore()
+
+
 if __name__ == '__main__':
-    mdp = GridWorldMDP()
-    abstr_mdp = mdp.make_abstr_mdp(Abstr_type.PI_STAR)
+    #mdp = GridWorldMDP()
+    #abstr_mdp = mdp.make_abstr_mdp(Abstr_type.PI_STAR)
+    mdp = TwoRoomsMDP(lower_height=2, lower_width=2, upper_width=2, upper_height=2, hallway_states=[2])
+    abstr_mdp = mdp.make_abstr_mdp(mdp)
     agent = AbstractionAgent(mdp, s_a=abstr_mdp.state_abstr)
+    test_update(agent)
 
     # Basic functions
-    test_detach_state(agent)
+    #test_detach_state(agent)
     #test_generate_rollout(agent)
     #test_get_abstraction_as_string(agent)
     #test_get_ground_states_from_abstact_state()

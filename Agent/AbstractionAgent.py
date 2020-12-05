@@ -18,7 +18,9 @@ class AbstractionAgent(Agent):
                  s_a=None,
                  alpha=0.1,
                  epsilon=0.1,
-                 decay_exploration=True):
+                 decay_exploration=True,
+                 consistency_check='abstr',
+                 detach_reassignment='individual'):
         """
         Create an agent with a state abstraction mapping
         :param mdp: an MDP environment
@@ -29,11 +31,18 @@ class AbstractionAgent(Agent):
         """
         Agent.__init__(self, mdp, alpha, epsilon, decay_exploration=decay_exploration)
         self.s_a = s_a
-
+        self.all_possible_states = mdp.get_all_possible_states()
+        if consistency_check not in ('abstr', 'vote'):
+            raise ValueError('Consistency Check type must be \'abstr\' or \'vote\'')
+        if detach_reassignment not in ('individual', 'group'):
+            raise ValueError('Detach Reassignment must be \'individual\' or \'group\'')
+        self.consistency_check = consistency_check
+        self.detach_reassignment = detach_reassignment
         # Create a dictionary mapping each ground state to all other ground states with the same abstract state
         #  This is done so that we don't have to iterate through all states to check abstract state mapping when
         #  performing an update
         # NO LONGER USED
+        '''
         self.group_dict = {}
         if self.s_a is not None:
             for state in s_a.abstr_dict.keys():
@@ -44,6 +53,26 @@ class AbstractionAgent(Agent):
                             s_a.get_abstr_from_ground(other_state) == abstr_state and \
                             not state.is_terminal() and not other_state.is_terminal():
                         self.group_dict[state].append(other_state)
+        '''
+        if self.s_a is not None:
+            self.group_dict = self.reverse_abstr_dict(self.s_a.abstr_dict)
+        else:
+            self.group_dict = None
+        print('Reassignment type is', self.detach_reassignment)
+
+    def reverse_abstr_dict(self, dict):
+        """
+        Given a dictionary mapping ground states to abstract states, create a dictionary mapping abstract states to
+        lists of ground states
+        """
+        abstr_to_ground = {}
+        for state in self.all_possible_states:
+            abstr_state = self.s_a.abstr_dict[state]
+            if abstr_state not in abstr_to_ground.keys():
+                abstr_to_ground[abstr_state] = [state]
+            else:
+                abstr_to_ground[abstr_state].append(state)
+        return abstr_to_ground
 
     def update(self, state, action, next_state, reward):
         """
@@ -55,16 +84,41 @@ class AbstractionAgent(Agent):
         :param reward: float
         """
         # Get all states mapped to the same abstract state as the current state
-        states_to_update = [state]
+        #states_to_update = [state]
         '''
         if self.s_a is not None and state in self.group_dict.keys():
             for equiv_state in self.group_dict[state]:
                 states_to_update.append(equiv_state)
         '''
+        #if self.s_a is not None:
+        #    for other_state in self.all_possible_states:
+        #        if self.s_a.abstr_dict[state] == self.s_a.abstr_dict[other_state]:
+        #            states_to_update.append(other_state)
+        #print('updating state', state)
         if self.s_a is not None:
-            for other_state in self.mdp.get_all_possible_states():
-                if self.s_a.abstr_dict[state] == self.s_a.abstr_dict[other_state]:
-                    states_to_update.append(other_state)
+            try:
+                states_to_update = self.group_dict[self.s_a.abstr_dict[state]]
+            except:
+                for key, value in self.group_dict.items():
+                    print(key, end = ' ')
+                    for val in value:
+                        print(val, end = ' ')
+                    print()
+                for key, value in self.s_a.abstr_dict.items():
+                    print(key, value)
+                quit()
+        else:
+            states_to_update = [state]
+        #print('other states to update', end = ' ')
+        #for s in states_to_update:
+        #    print(s, end = ' ')
+        #print()
+        #try:
+        #    for s in states_to_update:
+        #            print(s, end = ' ')
+        #except:
+        #    print(states_to_update, type(states_to_update))
+        #print()
 
         # Update all states in the same abstract state
         old_q_value = self.get_q_value(state, action)
@@ -91,12 +145,12 @@ class AbstractionAgent(Agent):
         :return: 0 if a state was detached, 1 if state was already in a singleton abstract state, 2 if state is terminal
                 (in which case nothing is done)
         """
-        if self.s_a is None or state not in self.group_dict.keys():
+        if self.s_a is None or state not in self.s_a.abstr_dict.keys():
             raise ValueError(
                 'Attempting to detach state that is not mapped to an abstract state. State is ' + str(state.data))
 
         # Check if state is already in a singleton abstract state. If so, do nothing
-        if not self.group_dict[state]:
+        if not self.s_a.abstr_dict[state]:
             return 1
 
         # If state is terminal, its abstract state doesn't matter so we remove it
@@ -105,9 +159,11 @@ class AbstractionAgent(Agent):
 
         # This is a hack. For some reason the above statement wasn't catching the TwoRoomMDP terminal states, so I
         #  did this instead
-        if (state.x, state.y) in self.mdp.goal_location:
-            return 2
-
+        try:
+            if (state.x, state.y) in self.mdp.goal_location:
+                return 2
+        except:
+            pass
         # First check that this state is not a singleton. If it is, do not detach
         temp = []
         for temp_state, temp_value in self.s_a.abstr_dict.items():
@@ -120,14 +176,19 @@ class AbstractionAgent(Agent):
 
         # Set state to its own abstract state
         old_abstr_state = self.s_a.abstr_dict.pop(state, None)
-
         max_abstr_state = max(self.s_a.abstr_dict.values())
         self.s_a.abstr_dict[state] = max_abstr_state + 1
+
+        # Update abstr -> list of ground state mapping
+        self.group_dict[old_abstr_state].remove(state)
+        self.group_dict[max_abstr_state + 1] = [state]
+
+        '''
         temp = []
         for temp_state, temp_value in self.s_a.abstr_dict.items():
             if temp_value == old_abstr_state:
                 temp.append(temp_state)
-
+        '''
         # Reset Q-value for each action in this state by taking the action, finding the max Q-value of the next
         #  state, and assigning the Q-value for the state-action pair to that max Q-value
         if reset_q_value:
@@ -160,6 +221,84 @@ class AbstractionAgent(Agent):
             #print()
 
         return 0
+
+    def detach_group(self, state_group, reset_q_value=False):
+        """
+        Detach the states in the given state group from their abstract state and reassign them all to one new abstract state
+        """
+        print(state_group)
+        #for state in state_group
+
+        # Check if any of these states are terminal, and if so put them in their own abstract state
+
+        # Check if state group is of length one. If it is and is already a singleton state, do not detach
+        if len(state_group) == 1:
+            state = state_group[0]
+            same_counter = 0
+            for temp_state, temp_value in self.s_a.abstr_dict.items():
+                if temp_value == self.s_a.abstr_dict[state] and temp_state != state:
+                    same_counter += 1
+            if same_counter == 0:
+                print('State', state, 'is singleton, not detaching')
+                return
+
+        # Check if state group makes up the entirety of an abstract state. If so, return without doing anything
+        old_abstr_state = self.s_a.abstr_dict[state_group[0]]
+        other_state_count = 0
+        for s in self.group_dict[old_abstr_state]:
+            if s not in state_group:
+                other_state_count += 1
+        if other_state_count == 0:
+            print('Error group makes up entirety of abstract state. Not detaching')
+            return
+
+        # Set group to its own abstract state in ground -> abstr mapping
+        max_abstr_state = max(self.s_a.abstr_dict.values())
+        for state in state_group:
+            self.s_a.abstr_dict[state] = max_abstr_state + 1
+
+        # Update abstr -> ground mapping
+        for state in state_group:
+            self.group_dict[old_abstr_state].remove(state)
+        self.group_dict[max_abstr_state + 1] = state_group
+
+        # In this case, take a 1-step roll-out for each constituent state-action pair and average the results together
+        #  to get new q-values
+        if reset_q_value:
+            # This maps actions to list of values (one per state-value pair); will be averaged at the end to get new q-value
+            new_action_dict = {}
+            for action in self.mdp.actions:
+                new_action_dict[action] = []
+            for state in state_group:
+                cycle_actions = []
+                non_cycle_values = []
+                for action in self.mdp.actions:
+                    self.mdp.set_current_state(state)
+                    next_state = self.mdp.transition(state, action)
+                    reward = self.mdp.reward(state, action, next_state)
+                    next_state_q_value = self.get_best_action_value(next_state)
+                    next_val = reward + self.mdp.gamma * next_state_q_value
+                    if next_state == state:
+                        cycle_actions.append(action)
+                    else:
+                        non_cycle_values.append(next_val)
+                        new_action_dict[action].append(next_val)
+                if len(non_cycle_values) == 0:
+                    print('Somehow entered trapped state', state)
+                    quit()
+                for action in cycle_actions:
+                    try:
+                        new_action_dict[action].append(self.mdp.gamma * max(non_cycle_values))
+                    except:
+                        print('failed with state, action, non_cycle_values', state, (state.x, state.y) in self.mdp.goal_location, action, non_cycle_values)
+                        quit()
+            # Now set the q-values of all the states in state group to the average of the 1-step roll-out results
+            new_q_values = {}
+            for key, value in new_action_dict.items():
+                new_q_values[key] = sum(value) / len(value)
+            for state in state_group:
+                for key, value in new_q_values.items():
+                    self._set_q_value(state, key, value)
 
     def generate_rollout(self, start_from_init=True):
         """
@@ -254,29 +393,81 @@ class AbstractionAgent(Agent):
         constituent_states = self.get_ground_states_from_abstract_state(abstr_state)
         if len(constituent_states) == 1:
             return None
-        # Get best action learned. Since all ground states in one abstract state will have the same
-        #  learned best action, we just grab the best action from the first constituent state
-        best_abstr_action, best_action_value, _ = self.check_for_optimal_action_value_next_state(constituent_states[0])
-        print('Best action, value for abstr state', abstr_state, 'is', best_abstr_action, round(best_action_value, 3))
-        # If the states haven't been visited/updated yet, return nothing
-        if best_action_value == 0:
-            return None
 
-        # Check the optimal action of each constituent state. If it differs from the best abstract action (or keeps
-        #   agent in current state if prevent_cycles == True), then add it to error states
-        for state in constituent_states:
-            best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state)
-            print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
-            constituent_state_dict[state] = (best_action, best_action_value, next_state)
-            if best_action != best_abstr_action:
-                print('Mismatch!')
-                error_states.append(state)
-            elif prevent_cycles and next_state == state:
-                print('Causes cycle!')
-                error_states.append(state)
-            else:
-                best_action_values.append(best_action_value)
-        print()
+        # If 'abstr', detach states if their optimal action disagrees with action learned for state
+        if self.consistency_check == 'abstr':
+            # Get best action learned. Since all ground states in one abstract state will have the same
+            #  learned best action, we just grab the best action from the first constituent state
+            best_abstr_action, best_action_value, _ = self.check_for_optimal_action_value_next_state(constituent_states[0])
+            print('Best action, value for abstr state', abstr_state, 'is', best_abstr_action, round(best_action_value, 3))
+            # If the states haven't been visited/updated yet, return nothing
+            if best_action_value == 0:
+                return None
+
+            # Check the optimal action of each constituent state. If it differs from the best abstract action (or keeps
+            #   agent in current state if prevent_cycles == True), then add it to error states
+            for state in constituent_states:
+                best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state)
+                print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
+                constituent_state_dict[state] = (best_action, best_action_value, next_state)
+                if best_action != best_abstr_action:
+                    print('Mismatch!')
+                    error_states.append(state)
+                elif prevent_cycles and next_state == state:
+                    print('Causes cycle!')
+                    error_states.append(state)
+                else:
+                    best_action_values.append(best_action_value)
+            print()
+        # In this case, vote; any state whose abstract action differs from majority is detached, ties broken
+        #  randomly
+        else:
+            # Count number of constituent states for which each action is optimal
+            best_action_counter = {}
+            for action in self.mdp.actions:
+                best_action_counter[action] = 0
+            for state in constituent_states:
+                best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state)
+                constituent_state_dict[state] = (best_action, best_action_value, next_state)
+                print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
+                best_action_counter[best_action] += 1
+            # 'True' optimal action is the majority (ties broken randomly)
+            max_val = 0
+            elected_action = None
+            actions = self.mdp.actions
+            random.shuffle(actions)
+            # 'elect' the winner
+            for action in actions:
+                print('Number of states for which', action, 'is optimal is', best_action_counter[action])
+                if best_action_counter[action] > max_val:
+                    elected_action = action
+                    max_val = best_action_counter[action]
+            # Tag each dissenting state as error
+            for state in constituent_states:
+                if constituent_state_dict[state][0] != elected_action:
+                    error_states.append(state)
+
+        # If detach_reassignment is individual, we just return the list of individual error states
+
+        # If it is group, return a list of lists, where each constituent list is a group of ground states with the
+        #  same 1-step optimal roll-out, and therefore will be mapped to the same new abstract state
+        if self.detach_reassignment == 'group':
+            temp = []
+            for action in self.mdp.actions:
+                new_abstr_states = []
+                for state in error_states:
+                    if constituent_state_dict[state][0] == action:
+                        new_abstr_states.append(state)
+                if len(new_abstr_states) > 0:
+                    temp.append(new_abstr_states)
+            print('New abstract state groupings from error states are')
+            for i in range(len(temp)):
+                print('Group number', i, end = '   ')
+                for j in temp[i]:
+                    print(j, end = ' ')
+            print()
+            error_states = temp
+        '''
         #if verbose:
             #print(abstr_state, 'best action is', best_abstr_action)
             #for key, value in constituent_state_dict.items():
@@ -292,10 +483,8 @@ class AbstractionAgent(Agent):
             for state in constituent_states:
                 if abs(constituent_state_dict[state][1] - action_value_mean) > threshold_diff:
                     error_states.append(state)
-        #print('error states are', end = ' ')
-        #for state in error_states:
-        #    print(state, end = ' ')
-        #print()
+        '''
+
         return error_states
 
     def detach_inconsistent_states(self,
@@ -320,16 +509,30 @@ class AbstractionAgent(Agent):
                                                                  variance_threshold=variance_threshold,
                                                                  prevent_cycles=prevent_cycles,
                                                                  verbose=verbose)
-            if error_states is not None:
-                detached_states += error_states
+            if self.detach_reassignment == 'individual':
+                if error_states is not None:
+                    detached_states += error_states
+                    for state in error_states:
+                        result_check = self.detach_state(state, reset_q_value=reset_q_value)
+            else:
+                if error_states is not None:
+                    print('About to detach group')
+                    print('Error states are', error_states)
+                    for error_group in error_states:
+                        detached_states += error_group
+                        print('About to detach group')
+                        for state in error_group:
+                            print(state, end = ' ')
+                        self.detach_group(error_group, reset_q_value=reset_q_value)
 
-                for state in error_states:
-                    #print('Detaching state', state)
-                    result_check = self.detach_state(state, reset_q_value=reset_q_value)
-                    #if result_check == 1:
-                        #print('State is already singleton')
-                    #elif result_check == 2:
-                        #print('State is terminal')
+        print('Finished detaching states, new abstraction dicts are:')
+        for key, value in self.group_dict.items():
+            print(key, end=' ')
+            for val in value:
+                print(val, end=' ')
+            print()
+        for key, value in self.s_a.abstr_dict.items():
+            print(key, value, end = '     ')
 
         if verbose:
             print('Number of detached states', len(detached_states))

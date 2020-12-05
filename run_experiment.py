@@ -20,13 +20,13 @@ MDP = GridWorldMDP()
 #MDP = TwoRoomsMDP()
 
 # Experiment parameters
-NUM_EPISODES = 100
+NUM_EPISODES = 500
 NUM_CORR_MDPS = 1
 NUM_AGENTS = 5
 EPS = 0.0
 #MDP_STR = 'rooms'
 EXPLORATION_EPSILON = 0.1
-DETACH_INTERVAL = 200
+DETACH_INTERVAL = 100
 #DETACH_INTERVAL = None
 PREVENT_CYCLES = True
 RESET_Q_VALUE = True
@@ -35,6 +35,8 @@ EXPLORING_STARTS = True
 DECAY_EXPLORATION = False
 STEP_LIMIT = 10000
 NOTES = 'Q* errors'
+AGENT_DETACH_METHOD = 'abstr'
+DETACH_REASSIGNMENT = 'individual'
 
 # No errors
 '''
@@ -45,30 +47,34 @@ CORRUPTION_LIST = None
 
 # Q* specific
 
+# Only need first and third 
 ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS)]
 ERROR_DICTS = [{GridWorldState(6,3): GridWorldState(10,9),
                 GridWorldState(9,10): GridWorldState(9,3)},
-               {GridWorldState(1,5): GridWorldState(1,2),
-                GridWorldState(3,6): GridWorldState(3,9)},
+               #{GridWorldState(1,5): GridWorldState(1,2),
+               # GridWorldState(3,6): GridWorldState(3,9)},
                {GridWorldState(9,8): GridWorldState(2,1),
                 GridWorldState(9,11): GridWorldState(2,4)}]
 CORRUPTION_LIST = None
 NUM_CORR_MDPS = 1
 
 
+
+
 # A* specific
+# Only need first and fourth
 '''
 ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS)]
 ERROR_DICTS = [{GridWorldState(4,2): GridWorldState(9,9),
                 GridWorldState(7,4): GridWorldState(7,3),
-                GridWorldState(7,11): GridWorldState(7,10)},
-               {GridWorldState(2,4): GridWorldState(8,10),
-                GridWorldState(2,9): GridWorldState(9,10)},
-               {GridWorldState(4,9): GridWorldState(9,10),
-                GridWorldState(10,11): GridWorldState(2,4)},
-               {GridWorldState(2,11): GridWorldState(7,10)},
-               {GridWorldState(5,1): GridWorldState(7,9),
-                GridWorldState(7,8): GridWorldState(11,10)}]
+                GridWorldState(7,11): GridWorldState(7,10)}]#,
+               #{GridWorldState(2,4): GridWorldState(8,10),
+               # GridWorldState(2,9): GridWorldState(9,10)},
+               #{GridWorldState(4,9): GridWorldState(9,10),
+               # GridWorldState(10,11): GridWorldState(2,4)},
+               #{GridWorldState(2,11): GridWorldState(7,10)}]#,
+               #{GridWorldState(5,1): GridWorldState(7,9),
+               # GridWorldState(7,8): GridWorldState(11,10)}]
 CORRUPTION_LIST = None
 '''
 
@@ -101,7 +107,7 @@ CORRUPTION_LIST = None
 # Uncomment this if applying random corruption of a given proportion
 
 #CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.05)]#, (Corr_type.UNI_RAND, 0.1)]
-#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 1), (Corr_type.UNI_RAND, 2)]
+#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 2), (Corr_type.UNI_RAND, 4)]
 #ERROR_DICTS = None
 
 #ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
@@ -128,7 +134,9 @@ def run_experiment():
                      step_limit=STEP_LIMIT,
                      detach_interval=DETACH_INTERVAL,
                      prevent_cycles=PREVENT_CYCLES,
-                     reset_q_value=RESET_Q_VALUE)
+                     reset_q_value=RESET_Q_VALUE,
+                     agent_detach=AGENT_DETACH_METHOD,
+                     detach_reassignment=DETACH_REASSIGNMENT)
 
     # Run experiment. This will write results to files
     # Commented out for testing visualization
@@ -175,11 +183,14 @@ def run_experiment():
                  + 'Variance threshold:'.ljust(30) + str(exp.variance_threshold) + '\n'
     step_limit = 'Step limit:'.ljust(30) + str(exp.step_limit) + '\n'
     runtime = 'Runtime:'.ljust(30) + str(round(time.time() - start_time)) + '\n'
+    detach_sum = 'Detachment method:'.ljust(30) + AGENT_DETACH_METHOD + '\n'\
+                 + 'Reassignment method:'.ljust(30) + DETACH_REASSIGNMENT + '\n'
 
     param_file.write(abs_sum
                      + corr_sum
                      + mdp_num_sum
                      + error_sum
+                     + detach_sum
                      + ep_num_sum
                      + exp_num_sum
                      + decay_sum

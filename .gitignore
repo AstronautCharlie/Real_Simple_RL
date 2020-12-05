@@ -1,0 +1,15 @@
+
+exp_output/cold/archive15-small-rectangle/corrupted/q_values.csv
+exp_output/cold/archive15-small-rectangle/corrupted_w_detach/q_values.csv
+exp_output/cold/archive15-small-rectangle/true/q_values.csv
+exp_output/cold/archive15-small-rectangle/corrupted/q_values.csv
+exp_output/cold/archive15-small-rectangle/corrupted/q_values.csv
+/exp_output/cold/archive18-good-a-errors/corrupted_w_detach/q_values.csv
+/exp_output/cold/archive18-good-a-errors/corrupted/q_values.csv
+/exp_output/cold/archive16-upper3x3-lower3x3/corrupted/q_values.csv
+/exp_output/cold/archive16-upper3x3-lower3x3/corrupted_w_detach/q_values.csv
+/exp_output/cold/archive16-upper3x3-lower3x3/true/q_values.csv
+/exp_output/cold/archive18-good-a-errors/true/q_values.csv
+/exp_output/
+/exp_output/
+/test_files/exp_results/

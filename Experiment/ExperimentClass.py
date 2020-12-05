@@ -44,6 +44,8 @@ class Experiment():
                  prevent_cycles=False,
                  variance_threshold=None,
                  reset_q_value=False,
+                 agent_detach='abstr',
+                 detach_reassignment='group',
                  verbose=False):
         """
         Create an experiment, which will hold the ground MDP, the abstract MDPs (parameters dictated by abstr_epsilon_list),
@@ -90,6 +92,8 @@ class Experiment():
         self.prevent_cycle = prevent_cycles
         self.variance_threshold = variance_threshold
         self.reset_q_value = reset_q_value
+        self.agent_detach = agent_detach
+        self.detach_reassignment = detach_reassignment
 
         # Agent ensembles will be stored in a dict where key is the (abstr_type, epsilon) tuple ('ground' in the case
         # of the ground MDP) and values are lists of agents. In the case of corrupted MDPs, the key will be
@@ -142,7 +146,7 @@ class Experiment():
                 for i in range(self.num_corrupted_mdps):
                     states_to_corrupt = np.random.choice(self.ground_mdp.get_all_possible_states(),
                                                          #size=int(np.floor(len(self.ground_mdp.get_all_possible_states()) * prop)),
-                                                         size=prop,
+                                                         size=int(prop),
                                                          replace=False)
                     for state in states_to_corrupt:
                         while (state.x, state.y) in mdp.goal_location or len(np.unique(states_to_corrupt)) < prop:
@@ -299,7 +303,9 @@ class Experiment():
                                              s_a,
                                              epsilon=agent_exploration_epsilon,
                                              alpha=self.agent_learning_rate,
-                                             decay_exploration=decay_exploration)
+                                             decay_exploration=decay_exploration,
+                                             consistency_check=self.agent_detach,
+                                             detach_reassignment=self.detach_reassignment)
                     corr_ensemble.append(agent)
 
             self.corr_detach_agents[corr_key] = corr_ensemble
@@ -494,7 +500,9 @@ class Experiment():
                 for episode in range(self.num_episodes):
                     if episode % 10 == 0:
                         print("On episode", episode)
-                    reward_fractions, step_counts = self.run_ensemble(self.corr_agents[ensemble_key])
+                        reward_fractions, step_counts = self.run_ensemble(self.corr_agents[ensemble_key], verbose=True)
+                    else:
+                        reward_fractions, step_counts = self.run_ensemble(self.corr_agents[ensemble_key])
                     avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
                     avg_reward_fractions.append(avg_reward_fraction)
                     avg_step_count = sum(step_counts) / len(step_counts)
@@ -532,6 +540,7 @@ class Experiment():
             detachfile = open(os.path.join(self.results_dir, 'corrupted_w_detach/detached_states.csv'), 'w', newline='')
             finalSAfile = open(os.path.join(self.results_dir, 'corrupted_w_detach/final_s_a.csv'), 'w', newline='')
             q_value_file = open(os.path.join(self.results_dir, 'corrupted_w_detach/q_values.csv'), 'w', newline='')
+            final_s_a_summary_file = open(os.path.join(self.results_dir, 'corrupted_w_detach/final_s_a_summary.txt'), 'w')
             reward_writer = csv.writer(csvfile)
             step_writer = csv.writer(stepfile)
             policy_writer = csv.writer(policyfile)
@@ -549,7 +558,9 @@ class Experiment():
                 for episode in range(self.num_episodes):
                     if episode % 10 == 0:
                         print("On episode", episode)
-                    reward_fractions, step_counts = self.run_ensemble(self.corr_detach_agents[ensemble_key])
+                        reward_fractions, step_counts = self.run_ensemble(self.corr_detach_agents[ensemble_key], verbose=True)
+                    else:
+                        reward_fractions, step_counts = self.run_ensemble(self.corr_detach_agents[ensemble_key])
                     avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
                     avg_reward_fractions.append(avg_reward_fraction)
                     avg_step_count = sum(step_counts) / len(step_counts)
@@ -562,7 +573,7 @@ class Experiment():
                         for key, value in detach_dict.items():
                             detached_states = []
                             for state in value:
-                                detached_states.append((state.x, state.y))
+                                detached_states.append(((state.x, state.y), episode))
                             detached_state_record[key] += detached_states
                     # If on the last episode, write all the detached states to a file
                     if episode == self.num_episodes - 1:
@@ -593,6 +604,8 @@ class Experiment():
                     finalSA_writer.writerow(
                         (ensemble_key, i, self.corr_detach_agents[ensemble_key][i].get_abstraction_as_string())
                     )
+                # Write summary of original abstraction and summary of each agent abstraction
+                #  Get number of abstract states and constituent counts
 
         # Return files
         if include_corruption:

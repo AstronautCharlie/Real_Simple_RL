@@ -4,6 +4,7 @@ This file tests the SimpleExperiment class
 from MDP.SimpleMDP import SimpleMDP, simple_states
 from Experiment.SimpleExperiment import SimpleExperiment
 from MDP.StateClass import State
+import os
 
 # Define state abstraction
 [s1, s2, s3, e] = simple_states
@@ -17,7 +18,7 @@ state_abstrs = [{s1: 1,
                  e: 3}]
 
 # Parameters
-NUM_AGENTS = 5
+NUM_AGENTS = 10
 NUM_CORR_MDPS = 1
 NUM_EPISODES = 50
 DETACH_INTERVAL = 10
@@ -72,9 +73,19 @@ if __name__ == '__main__':
     exp.visualize_results(data, outfilename='true_aggregated_results.png')
 
     # Plot performance for corrupt results
-    exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png')
+    exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png',
+                                  title='Average Performance of Agents in Corrupt MDP')
 
     # Plot performance for corrupt w/ detach results
     exp.visualize_corrupt_results(corr_detach_data,
                                   outfilename='corrupt_detach_aggregated_results.png',
-                                  individual_mdp_dir='corrupted_w_detach')
+                                  individual_mdp_dir='corrupted_w_detach',
+                                  title='Average Performance of Agents in Corrupt MDPs with Detachment Every ' + str(DETACH_INTERVAL) + ' Episodes')
+
+    # Write experiment parameters
+    param_file = open(os.path.join(exp.results_dir, 'param_summary.txt'), 'w')
+    param_file.write('Num episodes: ' + str(NUM_EPISODES) + '\n'
+                     + 'Detach interval: ' + str(DETACH_INTERVAL) + '\n'
+                     + 'Reset Q-value: ' + str(RESET_Q_VALUE) + '\n'
+                     + 'Exploration: ' + str(EXPLORATION_EPSILON) + '\n'
+                     + 'Learning rate: ' + str(LEARNING_RATE))

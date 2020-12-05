@@ -1,0 +1,5 @@
+Num episodes: 50
+Detach interval: 10
+Reset Q-value: True
+Exploration: 0.2
+Learning rate: 0.1
