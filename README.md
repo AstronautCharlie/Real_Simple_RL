@@ -9,6 +9,4 @@ To conduct an experiment, run run_experiment.py. Within this file, specify the e
 
 To run the visualizer, run either run_visualizer.py or run_two_rooms_visualizer.py (according to the MDP). 
 
-Results are in the Final Output file. These compare the performance of Q-learning agents on the corrupt MDPs with the performance in corrupt MDPs where the detachment algorithm is run. 
-
-I apologize if you somehow found this page as these instructions are quite incomplete. Please contact me at trevor.r.pearce@gmail.com if you have questions. 
+I apologize if you somehow found this page as these instructions are quite incomplete, and visualizations of results will be forthcoming in my thesis. Please contact me at trevor.r.pearce@gmail.com if you have questions. 
