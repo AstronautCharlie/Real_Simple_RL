@@ -439,7 +439,7 @@ class TwoRoomsVisualizer():
             elif action == Dir.LEFT:
                 margin = (-1*shrink_factor,0)
             else:
-                print('No action learned for', agent_num, rollout)
+                #print('No action learned for', agent_num, rollout)
                 margin = (0, 0)
             mid_loc = (self.cell_size * (final_cell[0] - 1) + (self.cell_size / 2) + int(3 * agent_num / 2),
                        self.cell_size * (mdp.get_height() - final_cell[1]) + (self.cell_size / 2) + int(3 * agent_num / 2))
@@ -512,12 +512,12 @@ class TwoRoomsVisualizer():
         """
         random_color = randomcolor.RandomColor()
         colors_used = []
-        print("True roll-out for key", key, num_agents, end='   ')
+        #print("True roll-out for key", key, num_agents, end='   ')
         #for i in range(num_agents):
         for agent_num in num_agents:
             #rollout = self.generate_true_abstract_rollout(mdp, key, policy_file, abstraction_file, i)
             rollout = self.generate_true_abstract_rollout(mdp, key, policy_file, abstraction_file, agent_num)
-            print(rollout)
+            #print(rollout)
             color = random_color.generate()
             while color in colors_used:
                 color = random_color.generate()
@@ -590,13 +590,13 @@ class TwoRoomsVisualizer():
         """
         random_color = randomcolor.RandomColor()
         colors_used = []
-        print("Corrupt roll-out, (corr, type, MDP, agent)", key[3], self.get_abstr_name(key[0]), key[4], end=' ')
+        #print("Corrupt roll-out, (corr, type, MDP, agent)", key[3], self.get_abstr_name(key[0]), key[4], end=' ')
         #for i in range(num_agents):
         for agent_num in num_agents:
-            print(agent_num, end=': ')
+            #print(agent_num, end=': ')
             #rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, i)
             rollout = self.generate_corrupt_abstract_rollout(mdp, key, policy_file, abstraction_file, agent_num)
-            print(rollout)
+            #print(rollout)
             color = random_color.generate()
             while color in colors_used:
                 color = random_color.generate()
@@ -783,3 +783,253 @@ class TwoRoomsVisualizer():
                     text = ax.text(i + 0.5, j + 0.5, round(value_arr[i][j], 3), ha='center', va='center', color='w')
 
         return fig
+
+
+    def draw_detached_abstraction(self,
+                                  mdp,
+                                  key,
+                                  agent_num,
+                                  starting_s_a_file,
+                                  final_s_a_file,
+                                  error_file,
+                                  detach_file):
+        """
+        Draw the final state abstraction (for detach agents) with the detached states tagged in
+        """
+        # Draw black-and-white grid of the environment
+
+        grid = self.create_grid(mdp)
+
+        # Read in starting abstraction, final abstraction, and error file
+        final_s_a = self.parse_file_for_dict(key, final_s_a_file, agent_num)
+        starting_s_a = self.parse_file_for_dict(key, starting_s_a_file)
+        error_list = self.parse_file_for_dict(key, error_file)
+        detach_list = self.parse_file_for_dict(key, detach_file, agent_num)
+
+        #print(final_s_a)
+        #print(starting_s_a)
+        #print(error_list)
+        #print(detach_list)
+
+        # Turn parsed 'dicts' into real dictionaries
+        final_s_a_dict = {}
+        starting_s_a_dict = {}
+        for el in final_s_a:
+            final_s_a_dict[tuple(el[0])] = el[1]
+        for el in starting_s_a:
+            starting_s_a_dict[tuple(el[0])] = el[1]
+
+        # Identify the corrupted states
+        corrupted_states = []
+        for err_tup in error_list:
+            err_state = err_tup[0]
+            true_abstr = err_tup[1]
+            corr_abstr = err_tup[2]
+            for key in starting_s_a_dict.keys():
+                if starting_s_a_dict[key] == corr_abstr and err_state != key:
+                    corrupted_states.append(key)
+
+        #print(corrupted_states)
+
+        # Create color mapping of abstract state to error
+        color_map_dict = {}
+        rc = randomcolor.RandomColor()
+        colors_used = []
+        for error_tup in error_list:
+            color = rc.generate()
+            while color in colors_used:
+                color = rc.generate()
+            colors_used.append(color)
+            color = pygame.Color(color[0])
+            color_map_dict[error_tup[2]] = color
+
+        # Draw the error states
+        for error_tup in error_list:
+            error_state = error_tup[0]
+            corr_abstr = error_tup[2]
+            color = color_map_dict[corr_abstr]
+            # Draw circle indicating error state
+            col = int((self.margin + self.cell_size) * (error_state[0] - 1) + self.margin
+                      + np.floor(self.cell_size / 2))
+            row = int((self.margin + self.cell_size) * (mdp.get_height() - error_state[1]) + self.margin
+                      + np.floor(self.cell_size / 2))
+            radius = int(np.floor(self.cell_size / 3))
+            pygame.draw.circle(grid, color, (col, row), radius)
+
+        # Draw corrupted states
+        for state in corrupted_states:
+            abstr_state = starting_s_a_dict[state]
+            color = color_map_dict[abstr_state]
+            left = int((self.margin + self.cell_size) * (state[0] - 1) + self.margin \
+                       + np.floor(self.cell_size / 3))
+            top = int((self.margin + self.cell_size) * (mdp.get_height() - state[1]) + self.margin
+                      + np.floor(self.cell_size / 3))
+            cell = pygame.Rect(left, top, int(np.floor(self.cell_size / 3)), int(np.floor(self.cell_size / 3)))
+            pygame.draw.rect(grid, color, cell)
+
+        # Draw the detached states (color corresponds to 'new' abstr state)
+        for state_tup in detach_list:
+            state = state_tup[0]
+            left = int((self.margin + self.cell_size) * (state[0] - 1) + self.margin
+                       + 3 * np.floor(self.cell_size / 8))
+            top = int((self.margin + self.cell_size) * (mdp.get_height() - state[1]) + self.margin
+                      + 3 * np.floor(self.cell_size / 8))
+            cell = pygame.Rect(left, top, int(np.floor(self.cell_size / 4)), int(np.floor(self.cell_size / 4)))
+            pygame.draw.rect(grid, BLACK, cell)
+
+        return grid
+
+
+    def summarize_final_s_a_detachment(self,
+                                       key,
+                                       agent_num,
+                                       starting_s_a_file,
+                                       final_s_a_file,
+                                       error_file,
+                                       detach_file,
+                                       outfile=None):
+        writer = open(outfile, 'w')
+
+        # Read in data
+        final_s_a = self.parse_file_for_dict(key,
+                                             final_s_a_file,
+                                             agent_num)
+        starting_s_a = self.parse_file_for_dict(key, starting_s_a_file)
+        error_list = self.parse_file_for_dict(key, error_file)
+        detach_list = self.parse_file_for_dict(key, detach_file, agent_num)
+
+        # Turn parsed 'dicts' into dictionaries
+        final_s_a_dict = {}
+        starting_s_a_dict = {}
+        for el in final_s_a:
+            final_s_a_dict[tuple(el[0])] = el[1]
+        for el in starting_s_a:
+            starting_s_a_dict[tuple(el[0])] = el[1]
+
+        # Get list of abstract states with errors in them
+        abstr_error_list = []
+        for error_tup in error_list:
+            abstr_error_list.append(error_tup[2])
+
+        # Get group dict, mapping abstract states to groups of ground states
+        final_abstr_to_ground_dict = {}
+        starting_abstr_to_ground_dict = {}
+        for value in final_s_a_dict.values():
+            final_abstr_to_ground_dict[value] = []
+        for value in starting_s_a_dict.values():
+            starting_abstr_to_ground_dict[value] = []
+        for ke, value in final_s_a_dict.items():
+            final_abstr_to_ground_dict[value].append(ke)
+        for ke, value in starting_s_a_dict.items():
+            starting_abstr_to_ground_dict[value].append(ke)
+
+        # Print out for debugging
+        #print("STARTING VALS\n#######")
+        #for ke, value in starting_abstr_to_ground_dict.items():
+            #print(ke, end=' ')
+            #for val in value:
+            #    print(val, end=' ')
+            #print()
+        #print('Total number of starting abstr states:', len(starting_abstr_to_ground_dict.keys()))
+        #print("\n\nENDING VALS\n#######")
+        #for ke, value in final_abstr_to_ground_dict.items():
+            #print(ke, end=' ')
+            #for val in value:
+            #    print(val, end=' ')
+            #print()
+        #print('Total number of final abstr states:', len(final_abstr_to_ground_dict.keys()))
+
+        #print('ABSTR ERROR VALS\n######')
+        writer.write('Corrupted Abstract States: Constituent States\n')
+        for abstr_error in abstr_error_list:
+            print('Starting groups')
+            writer.write('Starting group\n')
+            print(abstr_error, end=': ')
+            writer.write(str(abstr_error) + ': ')
+            group_list = starting_abstr_to_ground_dict[abstr_error]
+            for state in group_list:
+                #print(state, end=' ')
+                writer.write(str(state) + ' ')
+            #print()
+            writer.write('\n')
+            #print('Final groups')
+            writer.write('Final group\n')
+            final_abstrs = []
+            for ground in group_list:
+                final_abstr = final_s_a_dict[ground]
+                if final_abstr not in final_abstrs:
+                    final_abstrs.append(final_abstr)
+            for final_abstr in final_abstrs:
+                #print(final_abstr, end=': ')
+                writer.write(str(final_abstr) + ': ')
+                for final_ground in final_abstr_to_ground_dict[final_abstr]:
+                    #print(final_ground, end=' ')
+                    writer.write(str(final_ground) + ' ')
+                #print()
+                writer.write('\n')
+
+        # Calculate counts of sizes of abstract states for starting and ending abstractions
+        starting_count_dict = {}
+        final_count_dict = {}
+        for value in starting_abstr_to_ground_dict.values():
+            if len(value) not in starting_count_dict.keys():
+                starting_count_dict[len(value)] = 1
+            else:
+                starting_count_dict[len(value)] += 1
+        for value in final_abstr_to_ground_dict.values():
+            if len(value) not in final_count_dict.keys():
+                final_count_dict[len(value)] = 1
+            else:
+                final_count_dict[len(value)] += 1
+        writer.write('\nSize of Abstract State: Number of Abstract States\n')
+        #print('Starting counts')
+        writer.write('Starting abstraction\n')
+        keys = list(starting_count_dict.keys())
+        keys.sort()
+        for ke in keys:
+            value = starting_count_dict[ke]
+            writer.write(str(ke) + ': ' + str(value) + '\n')
+        #for ke, value in starting_count_dict.items():
+        #    print(ke, value)
+        #print('\nFinal counts')
+        writer.write('Final abstraction\n')
+        keys = list(final_count_dict.keys())
+        keys.sort()
+        for ke in keys:
+            value = final_count_dict[ke]
+            writer.write(str(ke) + ': ' + str(value) + '\n')
+        #for ke, value in final_count_dict.items():
+        #    print(ke, value)
+
+        # Categorize detached states as error, corrupted, or non-error
+        #  First get list of error states
+        error_states = []
+        for error_tup in error_list:
+            error_states.append(error_tup[0])
+
+        #  Next get all corrupted states
+        corrupted_states = []
+        for abstr_error in abstr_error_list:
+            error_group = starting_abstr_to_ground_dict[abstr_error]
+            for ground in error_group:
+                if ground not in error_states:
+                    corrupted_states.append(ground)
+
+        # This will hold counts of detached states categorized by error/corrupted/ground
+        detach_counter = {'error': 0, 'corrupted': 0, 'non-error': 0}
+        for detach_tup in detach_list:
+            detached_state = detach_tup[0]
+            if detached_state in error_states:
+                detach_counter['error'] += 1
+            elif detached_state in corrupted_states:
+                detach_counter['corrupted'] += 1
+            else:
+                detach_counter['non-error'] += 1
+
+        #print('Detach counter', detach_counter)
+        #print('Error states', error_states)
+        #print('Corrupted states', corrupted_states)
+        writer.write('\nDetach Counter ' + str(detach_counter) + '\n')
+        writer.write('Error states ' + str(error_states) + '\n')
+        writer.write('Corrupted states ' + str(corrupted_states) + '\n')
+

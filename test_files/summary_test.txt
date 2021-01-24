@@ -17,3 +17,7 @@ Starting abstraction
 Final abstraction
 1: 92
 2: 6
+
+Detach Counter {'error': 1, 'corrupted': 0, 'non-error': 10}
+Error states [(6, 3), (9, 10)]
+Corrupted states [(10, 9), (9, 3)]

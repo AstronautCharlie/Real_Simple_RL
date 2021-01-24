@@ -17,11 +17,13 @@ from Visualizer.GridWorldVisualizer import GridWorldVisualizer
 # Set these parameters before running
 # Directory containing the output of an experiment
 DATA_DIR = '../exp_output/hot'
+#DATA_DIR = '../exp_output/final_output/adversarial_cases/pi'
 # True or corrupted MDPs
 MDP_TYPE = 'corrupted'
 # Where to store the visualizations
 OUTPUT_DIR = '../exp_output/hot/visualizations'
-RANDOM_OR_EXPLICIT = 'explicit'
+#OUTPUT_DIR = '../exp_output/final_output/adversarial_cases/pi/visualizations'
+RANDOM_OR_EXPLICIT = 'random'
 
 if __name__ == '__main__':
     # This is the directory containing the output of an experiment
@@ -68,11 +70,16 @@ if __name__ == '__main__':
 
         key.append(ast.literal_eval(string_list[4][1:-1]))
         parsed_keys.append(tuple(key))
-    print(parsed_keys)
+    #print(parsed_keys)
 
     # Now go through all the keys and agent numbers present in the files and create roll-out/state-value gradient images
     viz = GridWorldVisualizer()
     for key in parsed_keys:
+        print(key)
+        # This surface will show all agent roll-outs on a single frame
+        rollout_surface = viz.create_corruption_visualization(key, corr_abstraction_file, error_file)
+        rollout_surface = viz.draw_errors(rollout_surface, key, error_file)
+
         for agent_num in agent_nums:
             # Create generic file names and paths
             abstr_string = viz.get_abstr_name(key[0])
@@ -86,7 +93,7 @@ if __name__ == '__main__':
             if not os.path.exists(ensemble_folder_path):
                 os.makedirs(ensemble_folder_path)
             # Draw ensemble roll-out
-            print('Generating roll-out for key', key)
+            #print('Generating roll-out for key', key)
             surface = viz.create_corruption_visualization(key,
                                                           corr_abstraction_file,
                                                           error_file)
@@ -98,6 +105,11 @@ if __name__ == '__main__':
                                                          corr_policy_file,
                                                          corr_abstraction_file,
                                                          [agent_num])
+            rollout_surface = viz.draw_corrupt_ensemble_rollouts(rollout_surface,
+                                                                 key,
+                                                                 corr_policy_file,
+                                                                 corr_abstraction_file,
+                                                                 [agent_num])
             ensemble_file_name = os.path.join(ensemble_folder_path, file_name)
             pygame.image.save(surface, ensemble_file_name)
 
@@ -129,6 +141,10 @@ if __name__ == '__main__':
             #    heatmap_file_name = os.path.join(OUTPUT_DIR, heatmap_file_name)
             plt.savefig(heatmap_file_name)
             plt.close()
+
+        # Save file with all rollouts
+        file_name = 'corr' + str(key[3]) + 'mdp' + str(key[4]) + abstr_string + '_all_rollouts.png'
+        pygame.image.save(rollout_surface, os.path.join(ensemble_folder_path, file_name))
 
     # ------------------------------------
     # Corrupt w/ detachment visualizations
@@ -173,10 +189,16 @@ if __name__ == '__main__':
     # Now go through all the keys and agent numbers present in the files and create roll-out/state-value gradient images
     viz = GridWorldVisualizer()
     for key in parsed_keys:
+        # This surface will show all agent roll-outs on a single frame
+        rollout_surface = viz.create_corruption_visualization(key, corr_abstraction_file, error_file)
+        rollout_surface = viz.draw_errors(rollout_surface, key, error_file)
         for agent_num in agent_nums:
+            print('key is', key)
             # Create generic file string
             abstr_string = viz.get_abstr_name(key[0])
             folder_path = 'corrupted_w_detach'
+            corr_num = str(key[3])
+            mdp_num = str(key[4])
             file_name = 'corr' + str(key[3])+'mdp'+str(key[4]) + abstr_string + str(agent_num) + '.png'
 
             # Create folder for ensemble roll-out
@@ -197,6 +219,11 @@ if __name__ == '__main__':
                                                          corr_policy_file,
                                                          corr_abstraction_file,
                                                          [agent_num])
+            rollout_surface = viz.draw_corrupt_ensemble_rollouts(rollout_surface,
+                                                                 key,
+                                                                 corr_policy_file,
+                                                                 corr_abstraction_file,
+                                                                 [agent_num])
             # Save file
             ensemble_file_name = os.path.join(ensemble_folder_path, file_name)
             pygame.image.save(surface, ensemble_file_name)
@@ -228,7 +255,7 @@ if __name__ == '__main__':
             plt.savefig(heatmap_file_name)
             plt.close()
 
-            # Create folders for detached states
+            # Create folders for detached state visualization
             detach_folder = os.path.join('detach_map', folder_path)
             if OUTPUT_DIR:
                 detach_folder = os.path.join(OUTPUT_DIR, detach_folder)
@@ -243,6 +270,21 @@ if __name__ == '__main__':
                                                  detached_file)
             detach_file_name = os.path.join(detach_folder, file_name)
             pygame.image.save(grid, detach_file_name)
+
+            print('Doing summary: mdp', str(key[3]), 'agent', str(agent_num))
+            # Do summary
+            summary_file = os.path.join(data_dir, 'corrupted_w_detach/summary_abstr' + abstr_string + '_corr'
+                                        + corr_num + '_mdp' + mdp_num  + '_agent' + str(agent_num) + '.txt')
+            viz.summarize_final_s_a_detachment(key,
+                                               agent_num,
+                                               corr_abstraction_file,
+                                               final_s_a_file,
+                                               error_file,
+                                               detached_file,
+                                               summary_file)
+        # Save file with all rollouts
+        file_name = 'corr' + str(key[3]) + 'mdp' + str(key[4]) + abstr_string + '_all_rollouts.png'
+        pygame.image.save(rollout_surface, os.path.join(ensemble_folder_path, file_name))
 
     # ----------------------
     # True Visualizations
@@ -274,7 +316,7 @@ if __name__ == '__main__':
             continue
         key.append(ast.literal_eval(string_list[1][1:-1]))
         parsed_keys.append(tuple(key))
-    print('parsed keys', parsed_keys)
+    #print('parsed keys', parsed_keys)
 
         # Now go through all the keys and agent numbers present in the files and create roll-out/state-value gradient images
     viz = GridWorldVisualizer()

@@ -58,7 +58,6 @@ class SimpleExperiment:
         if self.abstr_dicts is not None:
             if not os.path.exists(os.path.join(self.results_dir, 'corrupted')):
                 os.makedirs(os.path.join(self.results_dir, 'corrupted'))
-            #corr_abstr_file = open(os.path.join(self.results_dir, 'corrupted/'))
             for i in range(len(self.abstr_dicts)):
                 abstr_dict = self.abstr_dicts[i]
                 for j in range(self.num_corrupted_mdps):
@@ -391,9 +390,9 @@ class SimpleExperiment:
         plt.xlabel('Episode Number')
         plt.ylabel('Proportion of Value of Optimal Policy Captured')
         plt.ylim(-0.5,1)
-        plt.suptitle('Average Proportion of Optimal Policy Captured by Ensemble')
-        leg = plt.legend(loc='best', ncol=2, mode='expand', shadow=True, fancybox=True)
-        leg.get_frame().set_alpha(0.5)
+        plt.suptitle('Performance of Q-Learning in the Ground Environment')
+        #leg = plt.legend(loc='best', ncol=2, mode='expand', shadow=True, fancybox=True)
+        #leg.get_frame().set_alpha(0.5)
 
         if outfilename is None:
             outfilename = 'true_results.png'
@@ -435,9 +434,6 @@ class SimpleExperiment:
         # batch is the combination of abstract MDP and corruption data; will match to as many rows as we have
         #  exp.num_corr_mdps
         df['batch'] = df.apply(remove_batch_num, axis=1)
-        #print(df)
-        #df[['abstr_type', 'abstr_epsilon', 'corr_type', 'corr_prop', 'batch_num']] = pd.DataFrame(df.key.tolist(),
-        #                                                                                          index=df.index)
         df[['key', 'mdp', 'batch_num']] = pd.DataFrame(df.key.tolist(), index=df.index)
 
         # This section calculates the averages and standard deviations of fractions of optimal value captured
@@ -449,14 +445,12 @@ class SimpleExperiment:
         for i in range(avg_df.shape[0]):
             upper = avg_df.iloc[i] + std_df.iloc[i]
             lower = avg_df.iloc[i] - std_df.iloc[i]
-            #print(avg_df)
             plt.plot(episodes, list(avg_df.iloc[i]), label="%s" % ([avg_df.index[i][0]]))#, avg_df.index[i][3]]))
             if graph_between:
                 plt.fill_between(episodes, upper, lower, alpha=0.2)
-        #leg = plt.legend(loc='upper left', fancybox=True)
         plt.suptitle(title)
         plt.xlabel('Episode Number')
-        plt.ylabel('Proportion of Value of Optimal Policy Captured (mean)')
+        plt.ylabel('Proportion of Value of Optimal Policy Captured')
         if outfilename is None:
             outfilename = 'corrupt_results.png'
         plt.savefig(os.path.join(outdirpath, outfilename))
@@ -473,15 +467,12 @@ class SimpleExperiment:
             temp_df = df.loc[df['batch'] == batch]
 
             # This is used for the filename later
-            #a_t = str(temp_df['abstr_type'].values[0])
             a_t = str(temp_df['key'].values[0])
             start = a_t.find('.') + 1
             end = a_t.find(':')
             a_t = a_t[start:end].lower()
-            #c_p = temp_df['corr_prop'].values[0]
 
             # Strip away everything except the data itself
-            #print(temp_df.to_string())
             temp_df = temp_df.drop(columns=['key'])#, 'batch', 'abstr_type', 'abstr_epsilon', 'corr_type', 'corr_prop'])
             temp_df = temp_df.set_index('batch_num')
 
@@ -490,17 +481,15 @@ class SimpleExperiment:
                 #print('episodes\n', episodes)
                 #print('row\n', row, row.shape)
                 plt.plot(episodes, row[:-2], label="%s" % (index,))
-            plt.legend(loc='best', fancybox=True)
+            #plt.legend(loc='best', fancybox=True)
             plt.title("%s" % (batch,))
 
             # This creates a nice file name for the graph
             file_name = str(a_t)# + '_' +  str(c_p)
-            #print(file_name)
             file_name = file_name.replace('.', '')
             if individual_mdp_dir is None:
                 individual_mdp_dir = 'corrupted'
             file_name = individual_mdp_dir + '/{}{}'.format(file_name, '.png')
-            #print(file_name)
             plt.savefig(os.path.join(outdirpath, file_name))
             plt.clf()
 

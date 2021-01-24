@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
+#from resources.util import *
 from GridWorld.ActionEnums import Dir
 from GridWorld.GridWorldStateClass import  GridWorldState
 from GridWorld.GridWorldMDPClass import GridWorldMDP
@@ -200,8 +201,12 @@ class GridWorldVisualizer():
                 #if (col, row) not in mdp.mdp.compute_walls():
                 if mdp.mdp.is_inside_rooms(GridWorldState(col, row)):
                     ground_state = GridWorldState(col, row)
+                    #print(ground_state)
                     abstr_state_class = mdp.get_abstr_from_ground(ground_state)
+                    #print(abstr_state_class)
                     abstr_state = abstr_state_class.data
+                    if isinstance(abstr_state, list):
+                        print('List abstr_state', abstr_state)
                     if (abstr_state in abs_to_color):
                         new_color = abs_to_color[abstr_state]
                     else:
@@ -354,8 +359,8 @@ class GridWorldVisualizer():
                             agent within the given key
         :return: the value from the file matching the key and batch num
         """
-        print()
-        print('Parsing file', file)
+        #print()
+        #print('Parsing file', file)
         if agent_num is not None:
             names = ['key', 'agent_num', 'dict']
         else:
@@ -599,10 +604,10 @@ class GridWorldVisualizer():
         """
         random_color = randomcolor.RandomColor()
         colors_used = []
-        print("True roll-out for key", key, num_agents, end='   ')
+        #print("True roll-out for key", key, num_agents, end='   ')
         for i in range(num_agents):
             rollout = self.generate_true_abstract_rollout(key, policy_file, abstraction_file, i)
-            print(rollout)
+            #print(rollout)
             color = random_color.generate()
             while color in colors_used:
                 color = random_color.generate()
@@ -622,13 +627,10 @@ class GridWorldVisualizer():
         """
         random_color = randomcolor.RandomColor()
         colors_used = []
-        print("Corrupt roll-out, (corr, type, MDP, agent)", key[3], self.get_abstr_name(key[0]), key[4], end=' ')
+        #print("Corrupt roll-out, (corr, type, MDP, agent)", key[3], self.get_abstr_name(key[0]), key[4], end=' ')
         #for i in range(num_agents):
         for agent_num in num_agents:
-            print(agent_num, end=': ')
-            #rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, i)
             rollout = self.generate_corrupt_abstract_rollout(key, policy_file, abstraction_file, agent_num)
-            print(rollout)
             color = random_color.generate()
             while color in colors_used:
                 color = random_color.generate()
@@ -825,10 +827,10 @@ class GridWorldVisualizer():
         error_list = self.parse_file_for_dict(key, error_file)
         detach_list = self.parse_file_for_dict(key, detach_file, agent_num)
 
-        print(final_s_a)
-        print(starting_s_a)
-        print(error_list)
-        print(detach_list)
+        #print(final_s_a)
+        #print(starting_s_a)
+        #print(error_list)
+        #print(detach_list)
 
         # Turn parsed 'dicts' into real dictionaries
         final_s_a_dict = {}
@@ -848,7 +850,7 @@ class GridWorldVisualizer():
                 if starting_s_a_dict[key] == corr_abstr and err_state != key:
                     corrupted_states.append(key)
 
-        print(corrupted_states)
+        #print(corrupted_states)
 
         # Create color mapping of abstract state to error
         color_map_dict = {}
@@ -936,41 +938,42 @@ class GridWorldVisualizer():
             final_abstr_to_ground_dict[value] = []
         for value in starting_s_a_dict.values():
             starting_abstr_to_ground_dict[value] = []
-        for key, value in final_s_a_dict.items():
-            final_abstr_to_ground_dict[value].append(key)
-        for key, value in starting_s_a_dict.items():
-            starting_abstr_to_ground_dict[value].append(key)
+        for ke, value in final_s_a_dict.items():
+            final_abstr_to_ground_dict[value].append(ke)
+        for ke, value in starting_s_a_dict.items():
+            starting_abstr_to_ground_dict[value].append(ke)
 
         # Print out for debugging
+        '''
         print("STARTING VALS\n#######")
-        for key, value in starting_abstr_to_ground_dict.items():
-            print(key, end = ' ')
+        for ke, value in starting_abstr_to_ground_dict.items():
+            print(ke, end = ' ')
             for val in value:
                 print(val, end = ' ')
             print()
         print('Total number of starting abstr states:', len(starting_abstr_to_ground_dict.keys()))
         print("\n\nENDING VALS\n#######")
-        for key, value in final_abstr_to_ground_dict.items():
-            print(key, end=' ')
+        for ke, value in final_abstr_to_ground_dict.items():
+            print(ke, end=' ')
             for val in value:
                 print(val, end=' ')
             print()
         print('Total number of final abstr states:', len(final_abstr_to_ground_dict.keys()))
-
-        print('ABSTR ERROR VALS\n######')
+        '''
+        #print('ABSTR ERROR VALS\n######')
         writer.write('Corrupted Abstract States: Constituent States\n')
         for abstr_error in abstr_error_list:
-            print('Starting groups')
+            #print('Starting groups')
             writer.write('Starting group\n')
-            print(abstr_error, end = ': ')
+            #print(abstr_error, end = ': ')
             writer.write(str(abstr_error) + ': ')
             group_list = starting_abstr_to_ground_dict[abstr_error]
             for state in group_list:
-                print(state, end = ' ')
+                #print(state, end = ' ')
                 writer.write(str(state) + ' ')
-            print()
+            #print()
             writer.write('\n')
-            print('Final groups')
+            #print('Final groups')
             writer.write('Final group\n')
             final_abstrs = []
             for ground in group_list:
@@ -978,12 +981,12 @@ class GridWorldVisualizer():
                 if final_abstr not in final_abstrs:
                     final_abstrs.append(final_abstr)
             for final_abstr in final_abstrs:
-                print(final_abstr, end = ': ')
+                #print(final_abstr, end = ': ')
                 writer.write(str(final_abstr) + ': ')
                 for final_ground in final_abstr_to_ground_dict[final_abstr]:
-                    print(final_ground, end = ' ')
+                    #print(final_ground, end = ' ')
                     writer.write(str(final_ground) + ' ')
-                print()
+                #print()
                 writer.write('\n')
 
         # Calculate counts of sizes of abstract states for starting and ending abstractions
@@ -1000,26 +1003,56 @@ class GridWorldVisualizer():
             else:
                 final_count_dict[len(value)] += 1
         writer.write('\nSize of Abstract State: Number of Abstract States\n')
-        print('Starting counts')
+        #print('Starting counts')
         writer.write('Starting abstraction\n')
         keys = list(starting_count_dict.keys())
         keys.sort()
-        for key in keys:
-            value = starting_count_dict[key]
-            writer.write(str(key) + ': ' + str(value) + '\n')
-        for key, value in starting_count_dict.items():
-            print(key, value)
-            #writer.write(str(key) + ': ' + str(value) + '\n')
-        print('\nFinal counts')
+        for ke in keys:
+            value = starting_count_dict[ke]
+            writer.write(str(ke) + ': ' + str(value) + '\n')
+        #for ke, value in starting_count_dict.items():
+            #print(ke, value)
+        #print('\nFinal counts')
         writer.write('Final abstraction\n')
         keys = list(final_count_dict.keys())
         keys.sort()
-        for key in keys:
-            value = final_count_dict[key]
-            writer.write(str(key) + ': ' + str(value) + '\n')
-        for key, value in final_count_dict.items():
-            print(key, value)
-            #writer.write(str(key) + ': ' + str(value) + '\n')
+        for ke in keys:
+            value = final_count_dict[ke]
+            writer.write(str(ke) + ': ' + str(value) + '\n')
+        #for ke, value in final_count_dict.items():
+        #    print(ke, value)
+
+        # Categorize detached states as error, corrupted, or non-error
+        #  First get list of error states
+        error_states = []
+        for error_tup in error_list:
+            error_states.append(error_tup[0])
+
+        #  Next get all corrupted states
+        corrupted_states = []
+        for abstr_error in abstr_error_list:
+            error_group = starting_abstr_to_ground_dict[abstr_error]
+            for ground in error_group:
+                if ground not in error_states:
+                    corrupted_states.append(ground)
+
+        # This will hold counts of detached states categorized by error/corrupted/ground
+        detach_counter = {'error': 0, 'corrupted': 0, 'non-error': 0}
+        for detach_tup in detach_list:
+            detached_state = detach_tup[0]
+            if detached_state in error_states:
+                detach_counter['error'] += 1
+            elif detached_state in corrupted_states:
+                detach_counter['corrupted'] += 1
+            else:
+                detach_counter['non-error'] += 1
+
+        #print('Detach counter', detach_counter)
+        #print('Error states', error_states)
+        #print('Corrupted states', corrupted_states)
+        writer.write('\nDetach Counter ' + str(detach_counter) + '\n')
+        writer.write('Error states ' + str(error_states) + '\n')
+        writer.write('Corrupted states ' + str(corrupted_states) + '\n')
 
 
 

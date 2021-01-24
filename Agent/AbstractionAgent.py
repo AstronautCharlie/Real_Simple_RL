@@ -41,24 +41,11 @@ class AbstractionAgent(Agent):
         # Create a dictionary mapping each ground state to all other ground states with the same abstract state
         #  This is done so that we don't have to iterate through all states to check abstract state mapping when
         #  performing an update
-        # NO LONGER USED
-        '''
-        self.group_dict = {}
-        if self.s_a is not None:
-            for state in s_a.abstr_dict.keys():
-                abstr_state = s_a.get_abstr_from_ground(state)
-                self.group_dict[state] = []
-                for other_state in s_a.abstr_dict.keys():
-                    if state != other_state and \
-                            s_a.get_abstr_from_ground(other_state) == abstr_state and \
-                            not state.is_terminal() and not other_state.is_terminal():
-                        self.group_dict[state].append(other_state)
-        '''
         if self.s_a is not None:
             self.group_dict = self.reverse_abstr_dict(self.s_a.abstr_dict)
         else:
             self.group_dict = None
-        print('Reassignment type is', self.detach_reassignment)
+        #print('Reassignment type is', self.detach_reassignment)
 
     def reverse_abstr_dict(self, dict):
         """
@@ -84,17 +71,6 @@ class AbstractionAgent(Agent):
         :param reward: float
         """
         # Get all states mapped to the same abstract state as the current state
-        #states_to_update = [state]
-        '''
-        if self.s_a is not None and state in self.group_dict.keys():
-            for equiv_state in self.group_dict[state]:
-                states_to_update.append(equiv_state)
-        '''
-        #if self.s_a is not None:
-        #    for other_state in self.all_possible_states:
-        #        if self.s_a.abstr_dict[state] == self.s_a.abstr_dict[other_state]:
-        #            states_to_update.append(other_state)
-        #print('updating state', state)
         if self.s_a is not None:
             try:
                 states_to_update = self.group_dict[self.s_a.abstr_dict[state]]
@@ -109,16 +85,6 @@ class AbstractionAgent(Agent):
                 quit()
         else:
             states_to_update = [state]
-        #print('other states to update', end = ' ')
-        #for s in states_to_update:
-        #    print(s, end = ' ')
-        #print()
-        #try:
-        #    for s in states_to_update:
-        #            print(s, end = ' ')
-        #except:
-        #    print(states_to_update, type(states_to_update))
-        #print()
 
         # Update all states in the same abstract state
         old_q_value = self.get_q_value(state, action)
@@ -183,12 +149,6 @@ class AbstractionAgent(Agent):
         self.group_dict[old_abstr_state].remove(state)
         self.group_dict[max_abstr_state + 1] = [state]
 
-        '''
-        temp = []
-        for temp_state, temp_value in self.s_a.abstr_dict.items():
-            if temp_value == old_abstr_state:
-                temp.append(temp_state)
-        '''
         # Reset Q-value for each action in this state by taking the action, finding the max Q-value of the next
         #  state, and assigning the Q-value for the state-action pair to that max Q-value
         if reset_q_value:
@@ -210,15 +170,14 @@ class AbstractionAgent(Agent):
             # For any actions that kept the agent in the current state, set the Q-value to gamma * max Q-value of
             #  non-cycle actions
             if len(non_cycle_values) == 0:
-                print('Somehow entered trapped state', state)
-                quit()
+                for action in self.mdp.actions:
+                    self._set_q_value(state, action, 0)
             for action in cycle_actions:
                 try:
                     self._set_q_value(state, action, self.mdp.gamma * max(non_cycle_values))
                 except:
                     print('failed with state, action, non_cycle_values', state, (state.x, state.y) in self.mdp.goal_location, action, non_cycle_values)
                     quit()
-            #print()
 
         return 0
 
@@ -227,9 +186,6 @@ class AbstractionAgent(Agent):
         Detach the states in the given state group from their abstract state and reassign them all to one new abstract state
         """
         print(state_group)
-        #for state in state_group
-
-        # Check if any of these states are terminal, and if so put them in their own abstract state
 
         # Check if state group is of length one. If it is and is already a singleton state, do not detach
         if len(state_group) == 1:
@@ -284,21 +240,29 @@ class AbstractionAgent(Agent):
                         non_cycle_values.append(next_val)
                         new_action_dict[action].append(next_val)
                 if len(non_cycle_values) == 0:
-                    print('Somehow entered trapped state', state)
-                    quit()
-                for action in cycle_actions:
-                    try:
-                        new_action_dict[action].append(self.mdp.gamma * max(non_cycle_values))
-                    except:
-                        print('failed with state, action, non_cycle_values', state, (state.x, state.y) in self.mdp.goal_location, action, non_cycle_values)
-                        quit()
+                    for action in self.mdp.actions:
+                        self._set_q_value(state, action, 0)
+                    #print('Somehow entered trapped state', state)
+                    #quit()
+                else:
+                    for action in cycle_actions:
+                        try:
+                            new_action_dict[action].append(self.mdp.gamma * max(non_cycle_values))
+                        except:
+                            print('failed with state, action, non_cycle_values', state, (state.x, state.y) in self.mdp.goal_location, action, non_cycle_values)
+                            quit()
             # Now set the q-values of all the states in state group to the average of the 1-step roll-out results
             new_q_values = {}
             for key, value in new_action_dict.items():
-                new_q_values[key] = sum(value) / len(value)
+                if len(value) != 0:
+                    new_q_values[key] = sum(value) / len(value)
             for state in state_group:
-                for key, value in new_q_values.items():
-                    self._set_q_value(state, key, value)
+                if state not in self.mdp.goal_location:
+                    for key, value in new_q_values.items():
+                        self._set_q_value(state, key, value)
+                else:
+                    for action in self.mdp.actions:
+                        self._set_q_value(state, action, 0)
 
     def generate_rollout(self, start_from_init=True):
         """
@@ -467,23 +431,6 @@ class AbstractionAgent(Agent):
                     print(j, end = ' ')
             print()
             error_states = temp
-        '''
-        #if verbose:
-            #print(abstr_state, 'best action is', best_abstr_action)
-            #for key, value in constituent_state_dict.items():
-            #    print(key, value[0], round(value[1], 3), value[2], end='\t')
-            #print()
-
-        # If variance threshold is set, mark as errors all states where the value of the optimal action differs
-        #  from the mean by more than variance threshold standard deviations
-        if variance_threshold is not None:
-            action_value_mean = sum(best_action_values) / len(best_action_values)
-            action_value_std_dev = pstdev(best_action_values)
-            threshold_diff = variance_threshold * action_value_std_dev
-            for state in constituent_states:
-                if abs(constituent_state_dict[state][1] - action_value_mean) > threshold_diff:
-                    error_states.append(state)
-        '''
 
         return error_states
 

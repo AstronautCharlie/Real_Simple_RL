@@ -8,6 +8,7 @@ import os
 import pandas as pd
 import ast
 import pygame
+import shutil
 import matplotlib.pyplot as plt
 from GridWorld.ActionEnums import Dir
 from resources.AbstractionTypes import Abstr_type
@@ -32,7 +33,15 @@ if __name__ == '__main__':
     data_dir = DATA_DIR
 
     # Make files if does not exist
-    #if not os.path.exists(OUT)
+    if not os.path.exists(OUTPUT_DIR):
+        os.makedirs(OUTPUT_DIR)
+
+    for filename in os.listdir(OUTPUT_DIR):
+        full_file = os.path.join(OUTPUT_DIR, filename)
+        if os.path.isdir(full_file):
+            shutil.rmtree(full_file)
+        else:
+            os.remove(full_file)
 
     # ----------------------
     # Corrupt Visualizations
@@ -155,6 +164,8 @@ if __name__ == '__main__':
     error_file = os.path.join(data_dir, 'corrupted/error_states.csv')
     corr_abstraction_file = os.path.join(data_dir, 'corrupted/corrupted_abstractions.csv')
     corr_policy_file = os.path.join(data_dir, 'corrupted_w_detach/learned_policies.csv')
+    detached_file = os.path.join(data_dir, 'corrupted_w_detach/detached_states.csv')
+    final_s_a_file = os.path.join(data_dir, 'corrupted_w_detach/final_s_a.csv')
 
     # Get list of all keys and agent nums in the corrupted files
     names = ['key', 'agent_num', 'dict']
@@ -194,6 +205,8 @@ if __name__ == '__main__':
             #folder_path = 'corrupted_w_detach/corr' + str(key[3]) + '/mdp' + str(key[4])
             #file_name = abstr_string + str(agent_num) + '.png'
             folder_path = 'corrupted_w_detach'
+            corr_num = str(key[3])
+            mdp_num = str(key[4])
             file_name = 'corr' + str(key[3])+'mdp'+str(key[4]) + abstr_string + str(agent_num) + '.png'
 
             # Create folder for ensemble roll-out
@@ -258,6 +271,34 @@ if __name__ == '__main__':
             plt.savefig(heatmap_file_name)
             plt.close()
 
+            # Create folders for detached state visualization
+            detach_folder = os.path.join('detach_map', folder_path)
+            if OUTPUT_DIR:
+                detach_folder = os.path.join(OUTPUT_DIR, detach_folder)
+            if not os.path.exists(detach_folder):
+                os.makedirs(detach_folder)
+            # Create detachment visualization
+            grid = viz.draw_detached_abstraction(MDP,
+                                                 key,
+                                                 agent_num,
+                                                 corr_abstraction_file,
+                                                 final_s_a_file,
+                                                 error_file,
+                                                 detached_file)
+            detach_file_name = os.path.join(detach_folder, file_name)
+            pygame.image.save(grid, detach_file_name)
+
+            # Do summary
+            summary_file = os.path.join(data_dir, 'corrupted_w_detach/summary_'
+                                        + 'corr' + corr_num + '_mdp' + mdp_num + '_agent' + str(agent_num) + '.txt')
+            viz.summarize_final_s_a_detachment(key,
+                                               agent_num,
+                                               corr_abstraction_file,
+                                               final_s_a_file,
+                                               error_file,
+                                               detached_file,
+                                               summary_file)
+
     # ----------------------
     # True Visualizations
     # ----------------------
@@ -267,7 +308,7 @@ if __name__ == '__main__':
     true_abstraction_file = os.path.join(data_dir, 'true/abstractions.csv')
     true_policy_file = os.path.join(data_dir, 'true/learned_policies.csv')
 
-    # Get list of all keys and agent nums in the corrupted files
+    # Get list of all keys and agent nums in theklm  corrupted files
     names = ['key', 'agent_num', 'dict']
     policy_df = pd.read_csv(true_policy_file, names=names)
     unique_keys = policy_df['key'].unique()

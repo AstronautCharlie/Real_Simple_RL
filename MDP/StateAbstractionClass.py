@@ -38,7 +38,17 @@ class StateAbstraction():
             return abstr_state
 
         else:
+            print('No Abstract state corresponding to', state, 'Returning state.')
             return state
+
+    def get_all_abstr_states(self):
+        if self.abstr_dict is None:
+            print('You shouldn\'t be here')
+            return None
+        abstr_states = []
+        for state in self.abstr_dict.keys():
+            abstr_states.append(self.get_abstr_from_ground(state))
+        return abstr_states
 
     def __str__(self):
         abstr_states_temp = list(self.abstr_dict.values())

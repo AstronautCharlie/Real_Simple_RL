@@ -128,7 +128,7 @@ class GridWorldMDP(MDP):
     def is_inside_rooms(self, state):
         if state.x <= self.height and state.y <= self.height:
             if (state.x, state.y) in self.walls:
-                print('State', state, 'is inside wall')
+                #print('State', state, 'is inside wall')
                 return False
             else:
                 return True

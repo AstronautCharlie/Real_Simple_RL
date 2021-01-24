@@ -147,3 +147,5 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
         print()
     print()
     # Go through detached states and see if they are in the error file
+
+    return sum_error, sum_corrupted, sum_nonerror

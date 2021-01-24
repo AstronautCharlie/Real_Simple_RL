@@ -74,13 +74,13 @@ if __name__ == '__main__':
 
     # Plot performance for corrupt results
     exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png',
-                                  title='Average Performance of Agents in Corrupt MDP')
+                                  title='Performance of Q-learning in Corrupt Environment')
 
     # Plot performance for corrupt w/ detach results
     exp.visualize_corrupt_results(corr_detach_data,
                                   outfilename='corrupt_detach_aggregated_results.png',
                                   individual_mdp_dir='corrupted_w_detach',
-                                  title='Average Performance of Agents in Corrupt MDPs with Detachment Every ' + str(DETACH_INTERVAL) + ' Episodes')
+                                  title='Performance of Q-learning in Corrupt Environment, Detaching Every ' + str(DETACH_INTERVAL) + ' Episodes')
 
     # Write experiment parameters
     param_file = open(os.path.join(exp.results_dir, 'param_summary.txt'), 'w')
