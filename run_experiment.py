@@ -1,5 +1,9 @@
 """
 Run this to conduct an experiment
+# TODO Make detach actually happen!
+# TODO instead of having a static volatility record, recalculate it each time. Consider resetting the normalized
+# TODO   volatility for a state if it was just detached
+# TODO Verify one-step rollout from q-values being printed out already
 """
 import os
 import time
@@ -13,48 +17,72 @@ from GridWorld.TwoRoomsMDP import TwoRoomsMDP
 from Agent.AgentClass import Agent
 from resources.AbstractionTypes import Abstr_type
 from resources.AbstractionCorrupters import *
+import random
+#random.seed(1234)
 
 # MDP details
 MDP = GridWorldMDP()
 mdp_sum = 'FourRooms MDP'
-MDP = TwoRoomsMDP(hallway_states=[5], goal_location=[(1,8)])
+'''
+MDP = TwoRoomsMDP(upper_height=3,
+                  upper_width=3,
+                  lower_height=3,
+                  lower_width=3,
+                  hallway_states=[3], goal_location=[(1,5)])
 #MDP = TwoRoomsMDP()
 mdp_sum = 'TwoRooms MDP'
+'''
 
 # Experiment parameters
-NUM_EPISODES = 250
-NUM_CORR_MDPS = 5
-NUM_AGENTS = 10
+NUM_EPISODES = 10
+NUM_CORR_MDPS = 1
+NUM_AGENTS = 1
 EPS = 0.0
 #MDP_STR = 'rooms'
 EXPLORATION_EPSILON = 0.1
-DETACH_INTERVAL = 1000
-DETACH_POINTS = [1000]
-#DETACH_INTERVAL = None
-#DETACH_POINTS = None
+DETACH_INTERVAL = None #1000
+DETACH_POINTS = [9] #[99]
 PREVENT_CYCLES = True
 RESET_Q_VALUE = True
 VARIANCE_THRESHOLD = None
 EXPLORING_STARTS = False
 DECAY_EXPLORATION = False
-STEP_LIMIT = 10000
+STEP_LIMIT = float("inf")
 NOTES = 'heck'
 AGENT_DETACH_METHOD = 'abstr'
 DETACH_REASSIGNMENT = 'group'
+#STATES_TO_TRACK = MDP.get_all_possible_states()#[GridWorldState(2,2)]# MDP.get_all_possible_states()
+STATES_TO_TRACK = None
+DETACH_ONLY = False
+AGENT_TYPE = 'tracking'
+VERBOSE = True
+
+# Testing Tracking
+CORRUPTION_LIST = [(Corr_type.UNI_RAND, 5)]
+ERROR_DICTS = None
+
+# Fixing highest volatility states in the random A* abstraction
+CORRUPTION_LIST = None
+ERROR_DICTS = [{GridWorldState(1,5): GridWorldState(7,10), # abstr state 13
+                GridWorldState(4,4): GridWorldState(2,10), # abstr state 29
+                GridWorldState(8,9): GridWorldState(3,3), # abstr state 5
+                GridWorldState(10,11): GridWorldState(2,11),#, # abstr_state 25
+                GridWorldState(4,11): GridWorldState(11,2)}] # abstr state 12
+
+ABSTR_EPSILON_LIST =[(Abstr_type.A_STAR, EPS)]
 
 # Trying to find 'gadget' instances for divergent pair
-CORRUPTION_LIST = None
-ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS), (Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS)]
+#ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS), (Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS)]
+#ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS)]
 
-
-# This one fucks up pi*
-ERROR_DICTS = [{GridWorldState(1,2): GridWorldState(2,8)}, # State to the right of the starting state mapped with the
+# Trying out errors
+#ERROR_DICTS = [{GridWorldState(1,2): GridWorldState(2,6)}]#, # State to the right of the starting state mapped with the
                                                             # state to the right of the goal state
-               {GridWorldState(2,2): GridWorldState(1,9)},
-               {GridWorldState(3,3): GridWorldState(2,8)},
-               {GridWorldState(6,5): GridWorldState(1,9)}]
-
-
+               #{GridWorldState(2,2): GridWorldState(1,7)}]
+               # These were for a 5x5 top and bottom with hallway state 5
+               #{GridWorldState(2,2): GridWorldState(1,9)}]
+               #{GridWorldState(3,3): GridWorldState(2,8)},
+               #{GridWorldState(5,6): GridWorldState(1,9)}]
 
 # No errors
 '''
@@ -94,7 +122,6 @@ ERROR_DICTS = [#{GridWorldState(4,2): GridWorldState(9,9),
                # GridWorldState(7,8): GridWorldState(11,10)}]
 CORRUPTION_LIST = None
 '''
-
 
 # Pi* specific
 '''
@@ -137,7 +164,6 @@ ERROR_DICTS = [{GridWorldState(9,11): GridWorldState(2,3),
 CORRUPTION_LIST = None
 '''
 
-
 '''
 ERROR_DICTS = [{GridWorldState(4,2): GridWorldState(1,5),
                 GridWorldState(5,5): GridWorldState(1,5),
@@ -159,8 +185,6 @@ ERROR_DICTS = [{GridWorldState(4,2): GridWorldState(1,5),
 
 CORRUPTION_LIST = None
 '''
-
-
 
 # Uncomment this if applying random corruption of a given proportion
 '''
@@ -186,7 +210,7 @@ def run_experiment():
                      num_corrupted_mdps=NUM_CORR_MDPS,
                      num_episodes=NUM_EPISODES,
                      results_dir='exp_output/hot',
-                     agent_type='abstraction',
+                     agent_type=AGENT_TYPE,
                      agent_exploration_epsilon=EXPLORATION_EPSILON,
                      decay_exploration=DECAY_EXPLORATION,
                      exploring_starts=EXPLORING_STARTS,
@@ -196,15 +220,38 @@ def run_experiment():
                      reset_q_value=RESET_Q_VALUE,
                      agent_detach=AGENT_DETACH_METHOD,
                      detach_reassignment=DETACH_REASSIGNMENT,
-                     detach_points=DETACH_POINTS)
+                     detach_points=DETACH_POINTS,
+                     states_to_track=STATES_TO_TRACK,
+                     #seed=SEED,
+                     detach_only=DETACH_ONLY)
 
     # Run experiment. This will write results to files
     # Commented out for testing visualization
-    if DETACH_INTERVAL is not None:
-        data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=True)
+    include_corruption = not exp.detach_only
+    if (DETACH_INTERVAL is not None or DETACH_POINTS is not None) and include_corruption:
+        print('fail1')
+        data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=include_corruption,
+                                                                                                        skip_ground=True,
+                                                                                                        verbose=VERBOSE)
+    elif include_corruption:
+        print('fail2')
+        data, steps, corr_data, corr_steps = exp.run_all_ensembles(include_corruption=include_corruption,
+                                                                   skip_ground=True,
+                                                                   verbose=VERBOSE)
+    elif (DETACH_INTERVAL is not None or DETACH_POINTS is not None):
+        print('fail3')
+        data, steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=include_corruption,
+                                                                                 skip_ground=True,
+                                                                                 verbose=VERBOSE)
     else:
-        data, steps, corr_data, corr_steps = exp.run_all_ensembles(include_corruption=True)
+        print('fail4')
+        data, steps = exp.run_all_ensembles(include_corruption=include_corruption,
+                                            skip_ground=True,
+                                            verbose=VERBOSE)
 
+    # Record volatilities
+    if exp.agent_type == 'tracking':
+        exp.record_volatilities('volatilities.csv')
 
     # Visualize step counts
     exp_res = open(steps, "r")
@@ -241,7 +288,7 @@ def run_experiment():
     exp.visualize_results(data, outfilename='true_aggregated_results.png')
 
     # Plot performance for corrupt results
-    if CORRUPTION_LIST is not None or ERROR_DICTS is not None:
+    if (CORRUPTION_LIST is not None or ERROR_DICTS is not None) and not DETACH_ONLY:
         exp.visualize_corrupt_results(corr_data, outfilename='corrupt_aggregated_results.png',
                                       title='Q-Learning Performance in Corrupt MDPs')
 
@@ -277,7 +324,7 @@ def run_experiment():
         plt.clf()
 
     # Plot performance for corrupt w/ detach results
-    if (CORRUPTION_LIST is not None or ERROR_DICTS is not None) and DETACH_INTERVAL is not None:
+    if (CORRUPTION_LIST is not None or ERROR_DICTS is not None) and (DETACH_INTERVAL is not None or DETACH_POINTS is not None):
         exp.visualize_corrupt_results(corr_detach_data,
                                       outfilename='corrupt_detach_aggregated_results.png',
                                       individual_mdp_dir='corrupted_w_detach',

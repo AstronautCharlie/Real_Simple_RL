@@ -81,6 +81,15 @@ class AbstractMDP():
 	def get_all_possible_states(self):
 		return self.mdp.get_all_possible_states()
 
+	def get_all_abstr_states(self):
+		abstr_states = []
+		states = self.get_all_possible_states()
+		for state in states:
+			abstr_state = self.get_abstr_from_ground(state)
+			if abstr_state not in abstr_states:
+				abstr_states.append(abstr_state)
+		return abstr_states
+
 	# -----------------
 	# Getters & setters
 	# -----------------
@@ -95,6 +104,17 @@ class AbstractMDP():
 
 	def get_abstr_from_ground(self, ground_state):
 		return self.state_abstr.get_abstr_from_ground(ground_state)
+
+	def get_ground_from_abstr(self, abstr_state):
+		"""
+		Return a list of all ground states in the given abstr_state
+		"""
+		states = self.get_all_possible_states()
+		group = []
+		for state in states:
+			if self.get_abstr_from_ground(state) == abstr_state:
+				group.append(state)
+		return group
 
 	# -------
 	# Utility

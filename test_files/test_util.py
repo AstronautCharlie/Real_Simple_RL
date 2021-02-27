@@ -1,6 +1,5 @@
-from resources.util import *
+from util import *
 from resources.AbstractionTypes import *
-from resources.CorruptionTypes import *
 
 # Explicit errors
 

@@ -106,7 +106,10 @@ class MDP():
 		:return: a deep copy of self
 		"""
 
-	def make_abstr_mdp(self, abstr_type, abstr_epsilon=0.0):
+	def make_abstr_mdp(self,
+					   abstr_type,
+					   abstr_epsilon=0.0,
+					   seed=None):
 		"""
 		Create an abstract MDP with the given abstraction type
 		:param abstr_type: the type of abstraction
@@ -116,6 +119,6 @@ class MDP():
 		vi = ValueIteration(self)
 		vi.run_value_iteration()
 		q_table = vi.get_q_table()
-		s_a = make_abstr(q_table, abstr_type, abstr_epsilon)
+		s_a = make_abstr(q_table, abstr_type, abstr_epsilon, seed=seed)
 		abstr_mdp = AbstractMDP(self, s_a)
 		return abstr_mdp

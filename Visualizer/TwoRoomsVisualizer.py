@@ -942,9 +942,9 @@ class TwoRoomsVisualizer():
         #print('ABSTR ERROR VALS\n######')
         writer.write('Corrupted Abstract States: Constituent States\n')
         for abstr_error in abstr_error_list:
-            print('Starting groups')
+            #print('Starting groups')
             writer.write('Starting group\n')
-            print(abstr_error, end=': ')
+            #print(abstr_error, end=': ')
             writer.write(str(abstr_error) + ': ')
             group_list = starting_abstr_to_ground_dict[abstr_error]
             for state in group_list:

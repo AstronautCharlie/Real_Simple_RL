@@ -8,7 +8,7 @@ from resources.AbstractionTypes import Abstr_type
 import numpy as np 
 import random 
 
-def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshold=1e-6):
+def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshold=1e-6, seed=None):
 	"""
 	:param q_table: dictionary((state,action):float)
 	:param abstr_type:Enum(Abstr_type)
@@ -20,6 +20,9 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshol
 	StateAbstraction with error tolerance epsilon (If, for each action, the action-values between the
 	two states are within epsilon of each other, the states are abstracted together
 	"""
+	if seed:
+		random.seed(seed)
+
 	abstr_dict = {} 
 	abstr_counter = 1 
 

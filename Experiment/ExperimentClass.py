@@ -12,6 +12,7 @@ from MDP.ValueIterationClass import ValueIteration
 from MDP.AbstractMDPClass import AbstractMDP
 from Agent.AgentClass import Agent
 from Agent.AbstractionAgent import AbstractionAgent
+from Agent.TrackingAgent import TrackingAgent
 from resources.AbstractionMakers import make_abstr
 from resources.AbstractionTypes import Abstr_type
 from resources.AbstractionCorrupters import *
@@ -25,6 +26,14 @@ import pandas as pd
 import copy
 import ast
 import shutil
+from util import *
+
+"""
+self.agents <- dictionary, ensemble_key -> list of agents [ground and true abstractions]
+self.corr_agents <- dictionary, ensemble_key -> list of agents [corrupt abstractions no detach]
+self.corr_detach_agents <- dictionary, ensemble_key -> list of agents [corrupt abstractions w/ detach]
+"""
+
 
 class Experiment():
     def __init__(self,
@@ -49,7 +58,10 @@ class Experiment():
                  agent_detach='abstr',
                  detach_reassignment='group',
                  detach_points=None,
-                 verbose=False):
+                 states_to_track=None,
+                 record_trajectories=False,
+                 seed=None,
+                 detach_only=False):
         """
         Create an experiment, which will hold the ground MDP, the abstract MDPs (parameters dictated by abstr_epsilon_list),
         and an ensemble of (num_agents) q-learning agents on each MDP.
@@ -70,8 +82,8 @@ class Experiment():
         :param step_limit: cap on the number of steps in an episode. If limit is hit, reset agent
         """
         # Check that agent_type is valid
-        if agent_type not in ['standard', 'abstraction']:
-            raise ValueError('"agent_type" variable must be "standard" or "abstraction". Is currently '+str(agent_type))
+        if agent_type not in ['standard', 'abstraction', 'tracking']:
+            raise ValueError('"agent_type" variable must be "standard", "abstraction", or "tracking". Is currently '+str(agent_type))
 
         self.ground_mdp = mdp
         if abstr_epsilon_list is not None:
@@ -98,6 +110,11 @@ class Experiment():
         self.agent_detach = agent_detach
         self.detach_reassignment = detach_reassignment
         self.detach_points = detach_points
+        self.states_to_track = states_to_track
+        self.record_trajectories = record_trajectories
+        self.seed = seed
+        self.detach_only = detach_only
+        print('States to track is', self.states_to_track)
 
         # Create results dir if it doesn't exist
         if not os.path.exists(self.results_dir):
@@ -196,7 +213,6 @@ class Experiment():
                                                corr_type,
                                                prop,
                                                i)] = corrupt_abstr_mdp
-        #elif len(self.error_dict.keys()) > 0:
         elif self.error_dicts is not None:
             corr_abstr_file = open(os.path.join(self.results_dir, 'corrupted/corrupted_abstractions.csv'), 'w', newline='')
             err_state_file = open(os.path.join(self.results_dir, 'corrupted/error_states.csv'), 'w', newline='')
@@ -220,7 +236,6 @@ class Experiment():
                             true_state = abstr_mdp.get_abstr_from_ground(state)
                             corr_state = c_s_a.get_abstr_from_ground(state)
                             error_line.append(((state.x, state.y), true_state.data, corr_state.data))
-                        #temp_key = (abstr_mdp.abstr_type, abstr_mdp.abstr_epsilon, corr_type, prop, i)
                         temp_key = (abstr_mdp.abstr_type, abstr_mdp.abstr_epsilon, 'explicit errors', j, i)
                         # Record the error states
                         err_writer.writerow((temp_key, error_line))
@@ -237,18 +252,33 @@ class Experiment():
         # Create agents on ground mdp
         ground_agents = []
         for i in range(self.num_agents):
+            if self.seed:
+                temp_seed = self.seed + i
+            else:
+                temp_seed = None
             temp_mdp = self.ground_mdp.copy()
             # If agent_type == 'standard', use regular q-learning. If 'abstraction', use abstraction agent
             if self.agent_type == 'standard':
                 agent = Agent(temp_mdp,
                               epsilon=agent_exploration_epsilon,
                               alpha=self.agent_learning_rate,
-                              decay_exploration=decay_exploration)
-            else:
+                              decay_exploration=decay_exploration,
+                              seed=temp_seed)
+
+            # Because tracking agent doesn't support agent w/o abstraction, so make it abstraction agent
+            else:# self.agent_type == 'abstraction':
                 agent = AbstractionAgent(temp_mdp,
                                          epsilon=agent_exploration_epsilon,
                                          alpha=self.agent_learning_rate,
-                                         decay_exploration=decay_exploration)
+                                         decay_exploration=decay_exploration,
+                                         seed=temp_seed)
+            #elif self.agent_type == 'tracking':
+                #agent = TrackingAgent(temp_mdp,
+                #                      epsilon=agent_exploration_epsilon,
+                #                      alpha=self.agent_learning_rate,
+                #                      decay_exploration=decay_exploration)
+            #else:
+            #    raise ValueError("Agent type \'" + str(self.agent_type) + "\' is not supported")
             ground_agents.append(agent)
         self.agents['ground'] = ground_agents
 
@@ -256,22 +286,37 @@ class Experiment():
         for abstract_mdp in self.abstr_mdp_dict.values():
             abstract_mdp_ensemble = []
             for i in range(self.num_agents):
+                if self.seed:
+                    temp_seed = self.seed + i
+                else:
+                    temp_seed = None
                 # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = abstract_mdp.copy()
                     agent = Agent(temp_mdp,
                                   epsilon=agent_exploration_epsilon,
                                   alpha=self.agent_learning_rate,
-                                  decay_exploration=decay_exploration)
+                                  decay_exploration=decay_exploration,
+                                  seed=temp_seed)
                     abstract_mdp_ensemble.append(agent)
-                else:
+                elif self.agent_type == 'abstraction':
                     temp_mdp = self.ground_mdp.copy()
                     s_a = copy.deepcopy(abstract_mdp.state_abstr)
                     agent = AbstractionAgent(temp_mdp,
                                              s_a,
                                              epsilon=agent_exploration_epsilon,
                                              alpha=self.agent_learning_rate,
-                                             decay_exploration=decay_exploration)
+                                             decay_exploration=decay_exploration,
+                                             seed=temp_seed)
+                    abstract_mdp_ensemble.append(agent)
+                elif self.agent_type == 'tracking':
+                    temp_mdp = self.ground_mdp.copy()
+                    s_a = copy.deepcopy(abstract_mdp.state_abstr)
+                    agent = TrackingAgent(temp_mdp,
+                                          s_a,
+                                          epsilon=agent_exploration_epsilon,
+                                          alpha=self.agent_learning_rate,
+                                          decay_exploration=decay_exploration)
                     abstract_mdp_ensemble.append(agent)
             self.agents[(abstract_mdp.abstr_type, abstract_mdp.abstr_epsilon)] = abstract_mdp_ensemble
 
@@ -283,23 +328,38 @@ class Experiment():
         for corr_key in self.corrupt_mdp_dict.keys():
             corr_ensemble = []
             for i in range(self.num_agents):
-                # Create agents according to agent_type parameter
+                if self.seed:
+                    temp_seed = self.seed + i
+                else:
+                    temp_seed = None
+                    # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = self.corrupt_mdp_dict[corr_key].copy()
                     agent = Agent(temp_mdp,
                                   epsilon=agent_exploration_epsilon,
                                   alpha=self.agent_learning_rate,
-                                  decay_exploration=decay_exploration)
+                                  decay_exploration=decay_exploration,
+                                  seed=temp_seed)
                     corr_ensemble.append(agent)
                 else:
                     temp_mdp = copy.deepcopy(self.ground_mdp.copy())
                     corr_mdp = copy.deepcopy(self.corrupt_mdp_dict[corr_key])
                     s_a = copy.deepcopy(corr_mdp.state_abstr)
-                    agent = AbstractionAgent(temp_mdp,
-                                             s_a,
-                                             epsilon=agent_exploration_epsilon,
-                                             alpha=self.agent_learning_rate,
-                                             decay_exploration=decay_exploration)
+                    if self.agent_type == 'abstraction':
+                        agent = AbstractionAgent(temp_mdp,
+                                                 s_a,
+                                                 epsilon=agent_exploration_epsilon,
+                                                 alpha=self.agent_learning_rate,
+                                                 decay_exploration=decay_exploration,
+                                                 seed=temp_seed)
+                    elif self.agent_type == 'tracking':
+                        agent = TrackingAgent(temp_mdp,
+                                                 s_a,
+                                                 epsilon=agent_exploration_epsilon,
+                                                 alpha=self.agent_learning_rate,
+                                                 decay_exploration=decay_exploration)
+                    else:
+                        raise ValueError("Agent type \'" + str(self.agent_type) + "\' is not supported")
                     corr_ensemble.append(agent)
             self.corr_agents[corr_key] = corr_ensemble
 
@@ -309,27 +369,43 @@ class Experiment():
         for corr_key in self.corrupt_mdp_dict.keys():
             corr_ensemble = []
             for i in range(self.num_agents):
-                # Create agents according to agent_type parameter
+                if self.seed:
+                    temp_seed = self.seed + i
+                else:
+                    temp_seed = None
+                    # Create agents according to agent_type parameter
                 if self.agent_type == 'standard':
                     temp_mdp = self.corrupt_mdp_dict[corr_key].copy()
                     agent = Agent(temp_mdp,
                                   epsilon=agent_exploration_epsilon,
                                   alpha=self.agent_learning_rate,
-                                  decay_exploration=decay_exploration)
+                                  decay_exploration=decay_exploration,
+                                  seed=temp_seed)
                     corr_ensemble.append(agent)
                 else:
                     temp_mdp = copy.deepcopy(self.ground_mdp.copy())
                     corr_mdp = copy.deepcopy(self.corrupt_mdp_dict[corr_key].copy())
                     s_a = copy.deepcopy(corr_mdp.state_abstr)
-                    agent = AbstractionAgent(temp_mdp,
-                                             s_a,
-                                             epsilon=agent_exploration_epsilon,
-                                             alpha=self.agent_learning_rate,
-                                             decay_exploration=decay_exploration,
-                                             consistency_check=self.agent_detach,
-                                             detach_reassignment=self.detach_reassignment)
+                    if self.agent_type == 'abstraction':
+                        agent = AbstractionAgent(temp_mdp,
+                                                 s_a,
+                                                 epsilon=agent_exploration_epsilon,
+                                                 alpha=self.agent_learning_rate,
+                                                 decay_exploration=decay_exploration,
+                                                 consistency_check=self.agent_detach,
+                                                 detach_reassignment=self.detach_reassignment,
+                                                 seed=temp_seed)
+                    elif self.agent_type == 'tracking':
+                        agent = TrackingAgent(temp_mdp,
+                                                 s_a,
+                                                 epsilon=agent_exploration_epsilon,
+                                                 alpha=self.agent_learning_rate,
+                                                 decay_exploration=decay_exploration,
+                                                 consistency_check=self.agent_detach,
+                                                 detach_reassignment=self.detach_reassignment)
+                    else:
+                        raise ValueError("Agent type \'" + str(self.agent_type) + "\' is not supported")
                     corr_ensemble.append(agent)
-
             self.corr_detach_agents[corr_key] = corr_ensemble
 
     def __str__(self):
@@ -351,6 +427,7 @@ class Experiment():
         :return: sum_rewards: sum of discounted rewards gotten over the course of the trajectory
         :return: optimal_value: value of the starting state under the optimal policy
         :return: step_count: the number of steps taken in this trjaectory
+        :return: state_occupancy: {state -> {action -> number of times that state-action pair was taken}}
         """
         step_count = 0
         # Bypass abstraction function to get current ground state
@@ -362,11 +439,19 @@ class Experiment():
         sum_rewards = 0
         discount = 1
 
+        # This holds the counts of each state-action pair taken
+        occupancy_dict = {}
+        for state in agent.mdp.get_all_possible_states():
+            occupancy_dict[state] = {}
+            for action in agent.mdp.actions:
+                occupancy_dict[state][action] = 0
+
         # Explore until a terminal state is reached
-        while not current_state.is_terminal(): #and step_count < step_limit:
+        while not current_state.is_terminal():
             if step_limit is not None and step_count > step_limit:
                 break
             blah, action, next_state, reward = agent.explore()
+            occupancy_dict[blah][action] += 1
             sum_rewards += discount * reward
             current_state = next_state
             discount *= agent.mdp.gamma
@@ -385,7 +470,7 @@ class Experiment():
         else:
             agent.mdp.reset_to_init()
         # Return the sum of discounted rewards from the trajectory and value of optimal policy
-        return sum_rewards, optimal_value, step_count
+        return sum_rewards, optimal_value, step_count, occupancy_dict
 
     def run_ensemble(self, ensemble, verbose=False):
         """
@@ -396,22 +481,29 @@ class Experiment():
         """
         reward_fractions = []
         step_counts = []
+        occupancy_dict = {}
+        for state in ensemble[0].mdp.get_all_possible_states():
+            occupancy_dict[state] = {}
+            for action in ensemble[0].mdp.actions:
+                occupancy_dict[state][action] = 0
         for agent in ensemble:
-            actual_rewards, optimal_rewards, step_count = self.run_trajectory(agent, step_limit=self.step_limit, verbose=verbose)
+            actual_rewards, optimal_rewards, step_count, agent_occupancy_dict = self.run_trajectory(agent, step_limit=self.step_limit, verbose=verbose)
             try:
                 reward_fractions.append(actual_rewards / optimal_rewards)
             except:
                 reward_fractions.append(actual_rewards / (0.99**18))
             step_counts.append(step_count)
-        return reward_fractions, step_counts
+            for state, action_dict in occupancy_dict.items():
+                for action, count in action_dict.items():
+                    occupancy_dict[state][action] += agent_occupancy_dict[state][action]
+        return reward_fractions, step_counts, occupancy_dict
 
-    def detach_ensemble(self, ensemble):
+    def detach_ensemble(self, ensemble, verbose=False):
         """
         For each agent, check the consistency of abstract states and detach inconsistent ground states
         """
         print('Detaching ensemble', ensemble)
         detached_states = {}
-        #for agent in ensemble:
         for i in range(len(ensemble)):
             agent = ensemble[i]
             print('On agent', i)
@@ -421,8 +513,9 @@ class Experiment():
                 print(key, value, end='   ')
             error_states = agent.detach_inconsistent_states(variance_threshold=self.variance_threshold,
                                                             prevent_cycles=self.prevent_cycle,
-                                                            reset_q_value=self.reset_q_value)
-            print('Error states are', end = ' ')
+                                                            reset_q_value=self.reset_q_value,
+                                                            verbose=verbose)
+            print('Error states are', error_states, end = ' ')
             for state in error_states:
                 print(state, end = ' ')
             print()
@@ -430,7 +523,10 @@ class Experiment():
                 detached_states[i] = error_states
         return detached_states
 
-    def run_all_ensembles(self, include_corruption=False):
+    def run_all_ensembles(self,
+                          include_corruption=False,
+                          skip_ground=False,
+                          verbose=False):
         """
         This is the central method for running an experiment.
 
@@ -453,30 +549,37 @@ class Experiment():
         csv_file = open(os.path.join(self.results_dir, "true/exp_output.csv"), 'w', newline='')
         policy_file = open(os.path.join(self.results_dir, "true/learned_policies.csv"), 'w', newline='')
         value_file = open(os.path.join(self.results_dir, 'true/learned_state_values.csv'), 'w', newline='')
-        #q_value_file = open(os.path.join(self.results_dir, 'true/q_values.csv'), 'w', newline='')
         writer = csv.writer(csv_file)
         step_writer = csv.writer(step_file)
         policy_writer = csv.writer(policy_file)
         value_writer = csv.writer(value_file)
-        #q_value_writer = csv.writer(q_value_file)
+        if self.states_to_track:
+            q_value_file = open(os.path.join(self.results_dir, 'true/q_values.csv'), 'w', newline='')
+            #q_value_df = pd.DataFrame(columns=['ensemble_key', 'agent_num', 'episode', 'state', 'action', 'q_value'])
+            q_value_lists = [['ensemble_key', 'agent_num', 'episode', 'state', 'action', 'q_value']]
+
         # The for loop below iterates through all ensembles in self.agents. Each key in the self.agents dict
         #  represents a single ensemble of agents on a single MDP
         for ensemble_key in self.agents.keys():
             print(ensemble_key)
+            if skip_ground and ensemble_key[0] == "ground":
+                print('SKIPPING GROUND')
+                continue
             # The two lines below are done so that each list of data is preceded by the key for that
             #  ensemble.
             #  This is done so we know which data belongs to which ensemble
             avg_reward_fractions = [ensemble_key]
             avg_step_counts = [ensemble_key]
             for episode in range(self.num_episodes):
-                if episode % 10 == 0:
-                    print("On episode", episode)
-                    reward_fractions, step_counts = self.run_ensemble(self.agents[ensemble_key], verbose=True)
-                # Reward_fractions and step_counts are lists of the fraction of the optimal policy captured
+                #if episode % 1 == 0:
+                #    print("On episode", episode, end = ' ')
+                #    verbose = True
+                #else:
+                #    verbose = False
+                    # Reward_fractions and step_counts are lists of the fraction of the optimal policy captured
                 #  and the number of steps taken (respectively) in a single trajectory by each agent in the
                 #  ensemble
-                else:
-                    reward_fractions, step_counts = self.run_ensemble(self.agents[ensemble_key])
+                reward_fractions, step_counts, occupancy_dict = self.run_ensemble(self.agents[ensemble_key], verbose=verbose)
                 # We average these across the whole ensemble
                 avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
                 avg_reward_fractions.append(avg_reward_fraction)
@@ -487,13 +590,16 @@ class Experiment():
                 else:
                     avg_step_counts.append(avg_step_count)
                 # Write q-values
-                for i in range(len(self.agents[ensemble_key])):
-                    value_string = '{'
-                    q_table = self.agents[ensemble_key][i].get_q_table()
-                    for key, value in q_table.items():
-                        value_string += '(' + str(key[0]) + ',' + str(key[1]) + '): ' + str(value) + ', '
-                    value_string += '}'
-                    #q_value_writer.writerow((ensemble_key, i, episode, value_string))
+                if self.states_to_track:
+                    for i in range(len(self.agents[ensemble_key])):
+                        q_table = self.agents[ensemble_key][i].get_q_table()
+                        for key, value in q_table.items():
+                            if key[0] in self.states_to_track:
+                                q_value_lists.append([ensemble_key, i, episode, key[0], key[1], value])
+                                #temp_dict = {'ensemble_key': [ensemble_key], 'agent_num': [i], 'episode': [episode],
+                                #             'state': [key[0]], 'action': [key[1]], 'q_value': [value]}
+                                #temp_df = pd.DataFrame.from_dict(temp_dict)
+                                #q_value_df = pd.concat([q_value_df, temp_df], ignore_index=True)
             # Write average rewards per episode
             writer.writerow(avg_reward_fractions)
             # Write average step count per episode
@@ -503,9 +609,16 @@ class Experiment():
                 policy_writer.writerow((ensemble_key, i, self.agents[ensemble_key][i].get_learned_policy_as_string()))
             for i in range(len(self.agents[ensemble_key])):
                 value_writer.writerow((ensemble_key, i, self.agents[ensemble_key][i].get_learned_state_values()))
+        # Track Q-values if that option is set
+        if self.states_to_track:
+            q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
+            print(q_value_lists)
+            print(q_value_df)
+            q_value_df.to_csv(q_value_file)
 
         # This chunk runs the ensembles on all the corrupted MDPs
         if include_corruption:
+            # Create files
             print('including corruption')
             if not os.path.exists(os.path.join(self.results_dir, 'corrupted')):
                 os.makedirs(os.path.join(self.results_dir, 'corrupted'))
@@ -513,22 +626,25 @@ class Experiment():
             csvfile = open(os.path.join(self.results_dir, "corrupted/exp_output.csv"), 'w', newline='')
             policyfile = open(os.path.join(self.results_dir, "corrupted/learned_policies.csv"), 'w', newline='')
             valuefile = open(os.path.join(self.results_dir, 'corrupted/learned_state_values.csv'), 'w', newline='')
-            #q_value_file = open(os.path.join(self.results_dir, 'corrupted/q_values.csv'), 'w', newline='')
             reward_writer = csv.writer(csvfile)
             step_writer = csv.writer(stepfile)
             policy_writer = csv.writer(policyfile)
             value_writer = csv.writer(valuefile)
-            #q_value_writer = csv.writer(q_value_file)
+            if self.states_to_track:
+                q_value_file = open(os.path.join(self.results_dir, 'corrupted/q_values.csv'), 'w', newline='')
+                #q_value_df = pd.DataFrame(columns=['ensemble_key', 'agent_num', 'episode', 'state', 'action', 'q_value'])
+                q_value_lists = [['ensemble_key', 'agent_num', 'episode', 'state', 'action', 'q_value']]
+
             for ensemble_key in self.corr_agents.keys():
                 print(ensemble_key)
                 avg_reward_fractions = [ensemble_key]
                 avg_step_counts = [ensemble_key]
                 for episode in range(self.num_episodes):
-                    if episode % 10 == 0:
-                        print("On episode", episode)
-                        reward_fractions, step_counts = self.run_ensemble(self.corr_agents[ensemble_key], verbose=True)
+                    if episode % 1 == 0:
+                        print("On episode", episode, end = ' ')
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.corr_agents[ensemble_key], verbose=True)
                     else:
-                        reward_fractions, step_counts = self.run_ensemble(self.corr_agents[ensemble_key])
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.corr_agents[ensemble_key])
                     avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
                     avg_reward_fractions.append(avg_reward_fraction)
                     avg_step_count = sum(step_counts) / len(step_counts)
@@ -537,15 +653,17 @@ class Experiment():
                     else:
                         avg_step_counts.append(avg_step_count)
                     # Write q-values
-                    for i in range(len(self.corr_agents[ensemble_key])):
-                        value_string = '{'
-                        q_table = self.corr_agents[ensemble_key][i].get_q_table()
-                        for key, value in q_table.items():
-                            value_string += '(' + str(key[0]) + ',' + str(key[1]) + '): ' + str(value) + ', '
-                        value_string += '}'
-                        #q_value_writer.writerow((ensemble_key, i, episode, value_string))
+                    if self.states_to_track:
+                        for i in range(len(self.corr_agents[ensemble_key])):
+                            q_table = self.corr_agents[ensemble_key][i].get_q_table()
+                            for key, value in q_table.items():
+                                if key[0] in self.states_to_track:
+                                    q_value_lists.append([ensemble_key, i, episode, key[0], key[1], value])
+                                    #temp_dict = {'ensemble_key': [ensemble_key], 'agent_num': [i], 'episode': [episode],
+                                    #             'state': [key[0]], 'action': [key[1]], 'q_value': [value]}
+                                    #temp_df = pd.DataFrame.from_dict(temp_dict)
+                                    #q_value_df = pd.concat([q_value_df, temp_df], ignore_index=True)
                 # This is the fraction of the optimal policy captured, on average, per agent per episode
-                #print('writing rewards', avg_reward_fractions)
                 reward_writer.writerow(avg_reward_fractions)
                 # This is the average number of step counts per agent per episode
                 step_writer.writerow(avg_step_counts)
@@ -555,6 +673,10 @@ class Experiment():
                 # Write learned state values
                 for i in range(len(self.corr_agents[ensemble_key])):
                     value_writer.writerow((ensemble_key, i, self.corr_agents[ensemble_key][i].get_learned_state_values()))
+            if self.states_to_track:
+                q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
+                print(q_value_df)
+                q_value_df.to_csv(q_value_file)
 
         # This chunk runs the detach agents, if that parameter is set
         if self.detach_interval is not None or self.detach_points is not None:
@@ -566,15 +688,16 @@ class Experiment():
             valuefile = open(os.path.join(self.results_dir, 'corrupted_w_detach/learned_state_values.csv'), 'w', newline='')
             detachfile = open(os.path.join(self.results_dir, 'corrupted_w_detach/detached_states.csv'), 'w', newline='')
             finalSAfile = open(os.path.join(self.results_dir, 'corrupted_w_detach/final_s_a.csv'), 'w', newline='')
-            #q_value_file = open(os.path.join(self.results_dir, 'corrupted_w_detach/q_values.csv'), 'w', newline='')
-            final_s_a_summary_file = open(os.path.join(self.results_dir, 'corrupted_w_detach/final_s_a_summary.txt'), 'w')
             reward_writer = csv.writer(csvfile)
             step_writer = csv.writer(stepfile)
             policy_writer = csv.writer(policyfile)
             value_writer = csv.writer(valuefile)
             detach_writer = csv.writer(detachfile)
             finalSA_writer = csv.writer(finalSAfile)
-            #q_value_writer = csv.writer(q_value_file)
+            if self.states_to_track:
+                q_value_file = open(os.path.join(self.results_dir, 'corrupted/q_values.csv'), 'w', newline='')
+                q_value_lists = [['ensemble_key', 'agent_num', 'episode', 'state', 'action', 'q_value']]
+
             for ensemble_key in self.corr_detach_agents.keys():
                 print(ensemble_key, 'detaching states')
                 avg_reward_fractions = [ensemble_key]
@@ -583,11 +706,11 @@ class Experiment():
                 for agent_num in range(self.num_agents):
                     detached_state_record[agent_num] = []
                 for episode in range(self.num_episodes):
-                    if episode % 10 == 0:
-                        print("On episode", episode)
-                        reward_fractions, step_counts = self.run_ensemble(self.corr_detach_agents[ensemble_key], verbose=True)
+                    if episode % 1 == 0:
+                        print("On episode", episode, end = ' ')
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.corr_detach_agents[ensemble_key], verbose=True)
                     else:
-                        reward_fractions, step_counts = self.run_ensemble(self.corr_detach_agents[ensemble_key])
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.corr_detach_agents[ensemble_key])
                     avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
                     avg_reward_fractions.append(avg_reward_fraction)
                     avg_step_count = sum(step_counts) / len(step_counts)
@@ -595,25 +718,40 @@ class Experiment():
                         avg_step_counts.append(avg_step_count + avg_step_counts[-1])
                     else:
                         avg_step_counts.append(avg_step_count)
-                    if episode > 0 and (episode % self.detach_interval == 0 or episode in self.detach_points):
-                        detach_dict = self.detach_ensemble(self.corr_detach_agents[ensemble_key])
+
+                    # See if episode number is one meriting a detach
+                    do_detach = False
+                    if self.detach_interval and episode % self.detach_interval == 0:
+                        do_detach = True
+                    elif self.detach_points and episode in self.detach_points:
+                        do_detach = True
+                    if episode > 0 and do_detach:
+                        print('about to detach')
+                        detach_dict = self.detach_ensemble(self.corr_detach_agents[ensemble_key], verbose=True)
                         for key, value in detach_dict.items():
                             detached_states = []
+                            print('detached states are')
                             for state in value:
-                                detached_states.append(((state.x, state.y), episode))
+                                print(state)
+                                if isinstance(detached_states, list):
+                                    for state in detached_states:
+                                        detached_states.append(((state.x, state.y), episode))
+                                else:
+                                #try:
+                                    detached_states.append(((state.x, state.y), episode))
+                                #except:
                             detached_state_record[key] += detached_states
                     # If on the last episode, write all the detached states to a file
                     if episode == self.num_episodes - 1:
                         for i in range(len(self.corr_detach_agents[ensemble_key])):
                             detach_writer.writerow((ensemble_key, i, detached_state_record[i]))
                     # Write q-values
-                    for i in range(len(self.corr_detach_agents[ensemble_key])):
-                        value_string = '{'
-                        q_table = self.corr_detach_agents[ensemble_key][i].get_q_table()
-                        for key, value in q_table.items():
-                            value_string += '(' + str(key[0]) + ',' + str(key[1]) + '): ' + str(value) + ', '
-                        value_string += '}'
-                        #q_value_writer.writerow((ensemble_key, i, episode, value_string))
+                    if self.states_to_track:
+                        for i in range(len(self.corr_agents[ensemble_key])):
+                            q_table = self.corr_agents[ensemble_key][i].get_q_table()
+                            for key, value in q_table.items():
+                                if key[0] in self.states_to_track:
+                                    q_value_lists.append([ensemble_key, i, episode, key[0], key[1], value])
                 # This is the fraction of the optimal policy captured, on average, per agent per episode
                 reward_writer.writerow(avg_reward_fractions)
                 # This is the average number of step counts per agent per episode
@@ -633,23 +771,129 @@ class Experiment():
                     )
                 # Write summary of original abstraction and summary of each agent abstraction
                 #  Get number of abstract states and constituent counts
+            if self.states_to_track:
+                q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
+                #print(q_value_df)
+                q_value_df.to_csv(q_value_file)
 
         # Return files
-        if include_corruption:
-            if self.detach_interval is None:
-                return os.path.join(self.results_dir, "true/exp_output.csv"), \
-                        os.path.join(self.results_dir, "true/step_counts.csv"), \
-                        os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
-                        os.path.join(self.results_dir, "corrupted/step_counts.csv")
-            else:
-                return os.path.join(self.results_dir, "true/exp_output.csv"), \
-                        os.path.join(self.results_dir, "true/step_counts.csv"), \
-                        os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
-                        os.path.join(self.results_dir, "corrupted/step_counts.csv"), \
-                        os.path.join(self.results_dir, 'corrupted_w_detach/exp_output.csv'), \
-                        os.path.join(self.results_dir, 'corrupted_w_detach/step_counts.csv')
+        if include_corruption and (self.detach_points or self.detach_interval):
+            #if self.detach_interval is None:
+            #    return os.path.join(self.results_dir, "true/exp_output.csv"), \
+            #            os.path.join(self.results_dir, "true/step_counts.csv"), \
+            #            os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
+            #            os.path.join(self.results_dir, "corrupted/step_counts.csv")
+            #else:
+            print('returning1')
+            return os.path.join(self.results_dir, "true/exp_output.csv"), \
+                    os.path.join(self.results_dir, "true/step_counts.csv"), \
+                    os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
+                    os.path.join(self.results_dir, "corrupted/step_counts.csv"), \
+                    os.path.join(self.results_dir, 'corrupted_w_detach/exp_output.csv'), \
+                    os.path.join(self.results_dir, 'corrupted_w_detach/step_counts.csv')
+        elif include_corruption:
+            print('returning2')
+            return os.path.join(self.results_dir, "true/exp_output.csv"), \
+                    os.path.join(self.results_dir, "true/step_counts.csv"), \
+                    os.path.join(self.results_dir, "corrupted/exp_output.csv"), \
+                    os.path.join(self.results_dir, "corrupted/step_counts.csv")
+        elif self.detach_interval or self.detach_reassignment:
+            print('returning3')
+            return os.path.join(self.results_dir, "true/exp_output.csv"), \
+                    os.path.join(self.results_dir, "true/step_counts.csv"), \
+                    os.path.join(self.results_dir, 'corrupted_w_detach/exp_output.csv'), \
+                    os.path.join(self.results_dir, 'corrupted_w_detach/step_counts.csv')
         else:
+            print('returning4')
             return os.path.join(self.results_dir, "exp_output.csv"), os.path.join(self.results_dir, "step_counts.csv")
+
+    def record_volatilities(self, outfile_name=None):
+        """
+        Calculate volatilities based on the current q-value update records. Only works when running tracking agent.
+        Outfile is an optional argument naming the file
+        """
+        if self.agent_type != 'tracking':
+            raise ValueError("Cannot run record_volatilities when agent_type is not 'tracking'")
+
+        if outfile_name is None:
+            outfile = 'volatilities.csv'
+        outfile = os.path.join(self.results_dir, outfile_name)
+
+        # Calculate volatilities and write to df for...
+        # ...true abstract agents
+        vol_df = pd.DataFrame()
+        for agent_key in self.agents.keys():
+            if agent_key != "ground":
+                for agent in self.agents[agent_key]:
+                    i = 0
+                    vol_table = agent.calculate_normalized_volatility()
+                    # vol_table: {abstr_state -> {action -> normalized std dev scaled by sqrt population}}
+                    temp_dict = {'ensemble_key': [],
+                                 'agent_num': [],
+                                 'abstr_state': [],
+                                 'action': [],
+                                 'normalized_vol': []}
+                    for abstr_state, action_to_vol in vol_table.items():
+                        for action, vol in action_to_vol.items():
+                            temp_dict['ensemble_key'].append(agent_key)
+                            temp_dict['agent_num'].append(i)
+                            temp_dict['abstr_state'].append(abstr_state)
+                            temp_dict['action'].append(action)
+                            temp_dict['normalized_vol'].append(vol)
+                    i += 1
+                    temp_df = pd.DataFrame.from_dict(temp_dict)
+                    vol_df = vol_df.append(temp_df)
+                    #vol_df.append(pd.DataFrame.from_dict(temp_dict))
+
+        # ...corrupt agents (no detach)
+        if (self.corruption_list or self.error_dicts) and not self.detach_only:
+            for agent_key in self.corr_agents.keys():
+                for agent in self.corr_agents[agent_key]:
+                    i = 0
+                    vol_table = agent.calculate_normalized_volatility()
+                    # vol_table: {abstr_state -> {action -> normalized std dev scaled by sqrt population}}
+                    temp_dict = {'ensemble_key': [],
+                                 'agent_num': [],
+                                 'abstr_state': [],
+                                 'action': [],
+                                 'normalized_vol': []}
+                    for abstr_state, action_to_vol in vol_table.items():
+                        for action, vol in action_to_vol.items():
+                            temp_dict['ensemble_key'].append(agent_key)
+                            temp_dict['agent_num'].append(i)
+                            temp_dict['abstr_state'].append(abstr_state)
+                            temp_dict['action'].append(action)
+                            temp_dict['normalized_vol'].append(vol)
+                    i += 1
+                    temp_df = pd.DataFrame.from_dict(temp_dict)
+                    vol_df = vol_df.append(temp_df)
+
+        # ...corrupt agents w/ detach
+        if self.detach_interval or self.detach_points:
+            for agent_key in self.corr_detach_agents.keys():
+                for agent in self.corr_detach_agents[agent_key]:
+                    i = 0
+                    vol_table = agent.calculate_normalized_volatility()
+                    # vol_table: {abstr_state -> {action -> normalized std dev scaled by sqrt population}}
+                    temp_dict = {'ensemble_key': [],
+                                 'agent_num': [],
+                                 'abstr_state': [],
+                                 'action': [],
+                                 'normalized_vol': []}
+                    for abstr_state, action_to_vol in vol_table.items():
+                        for action, vol in action_to_vol.items():
+                            temp_dict['ensemble_key'].append(agent_key)
+                            temp_dict['agent_num'].append(i)
+                            temp_dict['abstr_state'].append(abstr_state)
+                            temp_dict['action'].append(action)
+                            temp_dict['normalized_vol'].append(vol)
+                    i += 1
+                    temp_df = pd.DataFrame.from_dict(temp_dict)
+                    vol_df = vol_df.append(temp_df)
+
+        # Write to file
+        vol_df.to_csv(outfile, index=None)
+
 
     # -----------------------
     # Visualization functions
@@ -664,7 +908,6 @@ class Experiment():
             outdirpath = self.results_dir
 
         exp_res = open(infilepath, "r")
-        #plt.style.use('seaborn-whitegrid')
         ax = plt.subplot(111)
 
         for mdp in exp_res:
@@ -710,7 +953,6 @@ class Experiment():
         """
         if outdirpath is None:
             outdirpath = self.results_dir
-       # plt.style.use('seaborn-whitegrid')
         ax = plt.subplot(111)
 
         # Read in data as dataframe, get 'key' which consists of the abstraction type, the abstraction epsilon,
@@ -719,7 +961,6 @@ class Experiment():
         names = ['key'] + [i for i in range(self.num_episodes)]
         df = pd.read_csv(infilepath, names=names)
         print(infilepath)
-        print(df.to_string())
         # Turn string representing key into a list of values
         df['key'] = df['key'].str.replace('(', '').str.replace(')','').str.replace(', ',',').str.split(',')
 
@@ -729,7 +970,7 @@ class Experiment():
         def convert_key_to_tuple(row):
             return tuple(row['key'])
         # key is the unique identifier for a single ensemble on one corrupt MDP
-        print(df.to_string())
+        #print(df.to_string())
         df['key'] = df.apply(convert_key_to_tuple, axis=1)
         # batch is the combination of abstract MDP and corruption data; will match to as many rows as we have
         #  exp.num_corr_mdps

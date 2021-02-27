@@ -63,8 +63,12 @@ def make_corruption(abstr_mdp, states_to_corrupt=None, corr_type=Corr_type.UNI_R
     # In this case, map keys in reassignment dict to the same abstract state as the value
     if reassignment_dict is not None:
         for error_state, corrupt_state in reassignment_dict.items():
+            #try:
             new_abstr_state = orig_dict[corrupt_state]
             corrupt_dict[error_state] = new_abstr_state
+            #except:
+            #    print('Failed with', corrupt_state, error_state)
+            #    quit()
     # In this case, randomly reassign the given states
     elif corr_type == Corr_type.UNI_RAND:
         for state in states_to_corrupt:

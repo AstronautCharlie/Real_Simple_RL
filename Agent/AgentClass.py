@@ -20,7 +20,8 @@ class Agent():
 				 mdp,
 				 alpha=0.1,
 				 epsilon=0.1,
-				 decay_exploration=True):
+				 decay_exploration=True,
+				 seed=None):
 		'''
 		Parameters:
 			mdp: MDP
@@ -42,6 +43,8 @@ class Agent():
 		self._step_counter = 0
 		self._episode_counter = 0
 		self.decay_exploration = decay_exploration
+		if seed:
+			np.random.seed(seed)
 
 	# ---------------------
 	# Exploration functions
@@ -60,8 +63,8 @@ class Agent():
 
 		# Flip a 'coin'. If it comes up less than epsilon, take
 		# random action. Otherwise pick best action 
-		if random.random() < self._epsilon:
-			action = np.random.choice(self.mdp.actions)
+		if np.random.uniform() < self._epsilon:
+			action = random.choice(self.mdp.actions)
 		else:
 
 			action = self.get_best_action(state)
@@ -99,7 +102,7 @@ class Agent():
 			reward:float, the reward received  
 		'''
 		# Get current state, apply action, and query MDP for result 
-		# of applying action on state 
+		# of applying action on state
 		current_state = self.get_current_state()
 		action = self.epsilon_greedy(current_state)
 		next_state, reward = self.mdp.act(action)
@@ -112,8 +115,7 @@ class Agent():
 		self._step_counter += 1
 		if next_state.is_terminal():
 			self._episode_counter += 1
-
-		return current_state, action, next_state, reward 
+		return current_state, action, next_state, reward
 
 	def apply_best_action(self):
 		'''
@@ -296,7 +298,7 @@ class Agent():
 		# in q-table. Shuffle actions so that if best actions have 
 		# the same value, a random one is chosen
 		shuffled_actions = list(copy.copy(self.mdp.actions))
-		random.shuffle(shuffled_actions)
+		np.random.shuffle(shuffled_actions)
 		for action in shuffled_actions:
 			q_value = self.get_q_value(state, action)
 			if q_value > max_val:

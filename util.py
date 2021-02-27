@@ -2,8 +2,11 @@
 Utility functions that are generally useful to have
 """
 import ast
+import string
 import pandas as pd
-
+from resources.AbstractionTypes import Abstr_type
+import numpy as np
+from scipy import stats
 def parse_file_for_dict(key, file, agent_num=None):
     """
     Parse the given file and return the value associated with the key and batch num. Will work on any file where
@@ -149,3 +152,99 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
     # Go through detached states and see if they are in the error file
 
     return sum_error, sum_corrupted, sum_nonerror
+
+def parse_ensemble_key(ensemble_key):
+    """
+    Parse ensemble_key string, either of the form
+    "ground",
+    "(Abstr_type, abstr_epsilon)",
+    "(Abstr_type, Abstr_Epsilon, Corr_Type, proportion, MDP_number)",
+    "(Abstr_type, Abstr_Epsilon, 'explicit errors', error_dict_number, MDP_number)"
+    Returns tuple, each element containing one of these items
+    """
+    if ensemble_key == "ground":
+        return "ground", None, None, None, None
+    else:
+        split_string = ensemble_key.split(",")
+
+        # Parse abstraction type
+        abstr_type = None
+        if 'PI_STAR' in split_string[0]:
+            abstr_type = Abstr_type.PI_STAR
+        elif 'Q_STAR' in split_string[0]:
+            abstr_type = Abstr_type.Q_STAR
+        elif 'A_STAR' in split_string[0]:
+            abstr_type = Abstr_type.A_STAR
+        else:
+            raise ValueError('Abstraction type of ensemble key being parsed is not supported')
+
+        # Parse epsilon
+        abstr_epsilon = float(split_string[1].translate(str.maketrans('', '', string.punctuation)))
+
+        # Return parsed key if that's all the elements in the list
+        if len(split_string) == 2:
+            return abstr_type, abstr_epsilon, None, None, None
+
+        # Parse corruption type, number of states/error dict number, and MDP num
+        corr_type = split_string[2]
+        prop_or_dict_num = int(split_string[3])
+        mdp_num = int(split_string[4].translate(str.maketrans('', '', string.punctuation)))
+
+        return abstr_type, abstr_epsilon, corr_type, prop_or_dict_num, mdp_num
+
+def get_abstr_type_from_ensemble_key(ensemble_key):
+    abstr_type, _, _, _, _ = parse_ensemble_key(ensemble_key)
+    return abstr_type
+
+def get_abstr_eps_from_ensemble_key(ensemble_key):
+    _, abstr_eps, _, _, _ = parse_ensemble_key(ensemble_key)
+    return abstr_eps
+
+def get_corr_type_from_ensemble_key(ensemble_key):
+    _, _, corr_type, _, _ = parse_ensemble_key(ensemble_key)
+    return corr_type
+
+def get_corr_prop_from_ensemble_key(ensemble_key):
+    _, _, _, corr_prop, _ = parse_ensemble_key(ensemble_key)
+    return corr_prop
+
+def get_mdp_num_from_ensemble_key(ensemble_key):
+    _, _, _, _, mdp_num = parse_ensemble_key(ensemble_key)
+    return mdp_num
+
+def abstr_to_string(abstraction_type):
+    if abstraction_type == "ground":
+        return "ground"
+    elif abstraction_type == Abstr_type.Q_STAR:
+        return 'q'
+    elif abstraction_type == Abstr_type.A_STAR:
+        return 'a'
+    else:
+        return 'pi'
+
+def calculate_confidence_interval(value_list, alpha):
+    """
+    Calculate the upper and lower bounds of the confidence interval, where
+    confidence degree is dictated by alpha
+    """
+    # Edge cases of length 0 or 1
+    if len(value_list) == 0:
+        #raise ValueError('Called calculate_confidence_interval on empty list' + str(value_list))
+        return None, None
+    if len(value_list) == 1:
+        return value_list[0], value_list[0]
+
+    mean = np.mean(value_list)
+    n = len(value_list)
+    numer = n * np.sum(np.square(value_list)) - np.square(np.sum(value_list))
+    denom = n * (n-1)
+    stdev = np.sqrt(numer/denom)
+
+    # Student's T function
+    t = stats.t.ppf(1 - alpha / 2, n - 1)
+
+    # Calculate confidence interval bounds
+    lower_bound = mean - t * stdev / np.sqrt(n)
+    upper_bound = mean + t * stdev / np.sqrt(n)
+
+    return lower_bound, upper_bound

@@ -20,7 +20,8 @@ class AbstractionAgent(Agent):
                  epsilon=0.1,
                  decay_exploration=True,
                  consistency_check='abstr',
-                 detach_reassignment='individual'):
+                 detach_reassignment='individual',
+                 seed=None):
         """
         Create an agent with a state abstraction mapping
         :param mdp: an MDP environment
@@ -29,7 +30,7 @@ class AbstractionAgent(Agent):
         :param alpha: learning rate
         :param epsilon: exploration rate
         """
-        Agent.__init__(self, mdp, alpha, epsilon, decay_exploration=decay_exploration)
+        Agent.__init__(self, mdp, alpha, epsilon, decay_exploration=decay_exploration, seed=seed)
         self.s_a = s_a
         self.all_possible_states = mdp.get_all_possible_states()
         if consistency_check not in ('abstr', 'vote'):
@@ -45,6 +46,8 @@ class AbstractionAgent(Agent):
             self.group_dict = self.reverse_abstr_dict(self.s_a.abstr_dict)
         else:
             self.group_dict = None
+        #if seed:
+        #    random.seed(1234)
         #print('Reassignment type is', self.detach_reassignment)
 
     def reverse_abstr_dict(self, dict):
@@ -82,9 +85,12 @@ class AbstractionAgent(Agent):
                     print()
                 for key, value in self.s_a.abstr_dict.items():
                     print(key, value)
+                print('AbstractionAgent updating non-existsant state', str(state))
                 quit()
+
         else:
             states_to_update = [state]
+
 
         # Update all states in the same abstract state
         old_q_value = self.get_q_value(state, action)
@@ -311,7 +317,7 @@ class AbstractionAgent(Agent):
             next_state_q_value = self.get_best_action_value(next_state)
             next_val = reward + self.mdp.gamma * next_state_q_value
             if verbose:
-                print(action, next_state, reward, next_state_q_value, next_val)
+                print('Q-value for ', action, next_state, reward, round(next_state_q_value, 7), round(next_val, 7))
             if next_val > optimal_action_value:
                 optimal_action = action
                 optimal_action_value = next_val
@@ -335,15 +341,14 @@ class AbstractionAgent(Agent):
 
     def check_abstract_state_consistency(self,
                                          abstr_state,
-                                         variance_threshold=None,
                                          prevent_cycles=False,
                                          verbose=False):
         """
         Check if all constituent ground states in the given abstract state share the same optimal action. Return a
-        list of ground states whose optimal actions differ from action learned by abstract state
+        list of ground states whose optimal actions differ from action learned by abstract state.
+
+        NOTE if self.detach_reassignment = "group", then this returns a list of LISTS
         :param abstr_state: abstract state whose constituent states we are checking
-        :param variance_threshold: If set, states whose optimal action value is more than variance_threshold standard
-                                    deviations away from the mean
         :param prevent_cycles: If true, states where the optimal action keeps the agent in the state it is in are
                                 treated as errors
         :return: a list of states whose actions differ from action learned by abstract state. Return None if
@@ -356,14 +361,31 @@ class AbstractionAgent(Agent):
         #  do nothing and return
         constituent_states = self.get_ground_states_from_abstract_state(abstr_state)
         if len(constituent_states) == 1:
-            return None
+            print('FUCK length of constituent states is 1')
+            return []
 
         # If 'abstr', detach states if their optimal action disagrees with action learned for state
         if self.consistency_check == 'abstr':
-            # Get best action learned. Since all ground states in one abstract state will have the same
+            # Print q_table
+            #print('In check_abstr_state_for_consistency')
+            #for key, value in self.get_q_table().items():
+            #    print(key[0], key[1], value)
+
+
+            # Get best action learned in abstr state. Since all ground states in one abstract state will have the same
             #  learned best action, we just grab the best action from the first constituent state
-            best_abstr_action, best_action_value, _ = self.check_for_optimal_action_value_next_state(constituent_states[0])
-            print('Best action, value for abstr state', abstr_state, 'is', best_abstr_action, round(best_action_value, 3))
+            print('Constituent states are', end=' ')
+            for c_state in constituent_states:
+                print(c_state, end=' ')
+            print()
+            # TODO Make this a q-table lookup and not self.check_for_optimal... since that just does a 1-step rollout!!
+            #best_abstr_action, best_action_value, _ = self.check_for_optimal_action_value_next_state(constituent_states[0])
+            best_abstr_action, best_action_value = self.get_best_action_value_pair(constituent_states[0])
+            if verbose:
+                for act in self.mdp.actions:
+                    print('Q-value for', abstr_state, act, 'is', round(self.get_q_value(constituent_states[0], act)), 7)
+                print('Best action, value for abstr state', abstr_state, 'is', best_abstr_action, round(best_action_value, 7))
+
             # If the states haven't been visited/updated yet, return nothing
             if best_action_value == 0:
                 return None
@@ -371,7 +393,9 @@ class AbstractionAgent(Agent):
             # Check the optimal action of each constituent state. If it differs from the best abstract action (or keeps
             #   agent in current state if prevent_cycles == True), then add it to error states
             for state in constituent_states:
-                best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state)
+                print('Getting best value for', state)
+                best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state,
+                                                                                                            verbose=verbose)
                 print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
                 constituent_state_dict[state] = (best_action, best_action_value, next_state)
                 if best_action != best_abstr_action:
@@ -415,6 +439,7 @@ class AbstractionAgent(Agent):
 
         # If it is group, return a list of lists, where each constituent list is a group of ground states with the
         #  same 1-step optimal roll-out, and therefore will be mapped to the same new abstract state
+        #  NOTE if you do this, return type becomes list of lists
         if self.detach_reassignment == 'group':
             temp = []
             for action in self.mdp.actions:
@@ -434,6 +459,7 @@ class AbstractionAgent(Agent):
 
         return error_states
 
+    # THIS IS THE MAIN DETACHMENT METHOD
     def detach_inconsistent_states(self,
                                    variance_threshold=None,
                                    prevent_cycles=False,
@@ -461,7 +487,7 @@ class AbstractionAgent(Agent):
                     detached_states += error_states
                     for state in error_states:
                         result_check = self.detach_state(state, reset_q_value=reset_q_value)
-            else:
+            elif self.detach_reassignment == 'group':
                 if error_states is not None:
                     print('About to detach group')
                     print('Error states are', error_states)
@@ -471,6 +497,8 @@ class AbstractionAgent(Agent):
                         for state in error_group:
                             print(state, end = ' ')
                         self.detach_group(error_group, reset_q_value=reset_q_value)
+            else:
+                raise ValueError("detach_reassignment method '" + str(self.detach_reassignment) + " is not supported.")
 
         print('Finished detaching states, new abstraction dicts are:')
         for key, value in self.group_dict.items():
@@ -512,12 +540,24 @@ class AbstractionAgent(Agent):
         """
         ground_states = []
         for ground, abstr in self.s_a.abstr_dict.items():
-            if abstr == abstr_state:
-                ground_states.append(ground)
+            try:
+                if abstr == abstr_state:
+                    ground_states.append(ground)
+
+            except:
+                if abstr == abstr_state.data:
+                    ground_states.append(ground)
+        print('in get ground states from abstract state: ground_states=', ground_states)
         return ground_states
 
-    def get_abstract_states(self):
+    def get_all_abstract_states(self):
         """
         :return: list of abstract states
         """
-        return list(set(list(self.s_a.abstr_dict.values())))
+        return self.s_a.get_all_abstr_states()
+
+    def get_all_possible_ground_states(self):
+        return self.mdp.get_all_possible_states()
+
+    def get_abstr_from_ground(self, ground_state):
+        return self.s_a.get_abstr_from_ground(ground_state)

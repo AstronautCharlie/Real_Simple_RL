@@ -24,6 +24,9 @@ class State():
 	def __ge__(self, other):
 		return self.data >= other.data
 
+	def __lt__(self, other):
+		return self.data < other.data
+
 	# -----------------
 	# Getters & Setters 
 	# -----------------
