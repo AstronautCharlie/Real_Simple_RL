@@ -50,11 +50,20 @@ def parse_file_for_dict(key, file, agent_num=None):
         df['abstr_type'] = df['abstr_type'].map(lambda x: x.strip('(<: 1234>'))
         df['corr_type'] = df['corr_type'].map(lambda x: x.strip('<>: 1234'))
         df['batch_num'] = df['batch_num'].map(lambda x: x.strip(')'))
-        df = df.loc[(df['abstr_type'] == str(key[0]))
-                    & (df['abstr_eps'].astype(float) == key[1])
-                    & (df['corr_type'] == str(key[2]))
-                    & (df['corr_prop'].astype(float) == key[3])
-                    & (df['batch_num'].astype(int) == key[4])]
+        #print('df pre filter is', df.to_string())
+        df = df.loc[(df['abstr_type'] == str(key[0]))]
+        #print('df post filter1 is', df.to_string())
+        df = df.loc[(df['abstr_eps'].astype(float) == key[1])]
+        #print('df post filter2 is', df.to_string())
+        #print(df['corr_type'])
+        #print(key[2])
+        df = df.loc[(df['corr_type'] == str(key[2]))
+                    | (df['corr_type'].str.strip('\'') == str(key[2]))]
+        #print('df post filter3 is', df.to_string())
+        df = df.loc[(df['corr_prop'].astype(float) == key[3])]
+        #print('df post filter4 is', df.to_string())
+        df = df.loc[(df['batch_num'].astype(int) == key[4])]
+        #print('df post filter5 is', df.to_string())
         if agent_num is not None:
             df = df.loc[df['agent_num'] == agent_num]
         value = ast.literal_eval(df['dict'].values[0])
@@ -73,7 +82,9 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
     # Read in data and create lists of error states, corrupted states, and non-error states
     abstraction = parse_file_for_dict(key, corrupted_abstr_file)
     error_tuples = parse_file_for_dict(key, error_file)
-    detached_states = parse_file_for_dict(key, detached_state_file, agent_num=agent_num)
+    detached_state_tuples = parse_file_for_dict(key, detached_state_file, agent_num=agent_num)
+    detached_states = [tup[0] for tup in detached_state_tuples]
+    print('detached states are', detached_states)
     #print(abstraction)
     #print(error_tuples)
     #print(detached_states)
@@ -87,12 +98,14 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
     # Label all error states
     error_states = [tup[0] for tup in error_tuples]
 
+    detach_counter = {}
+
     # Go through all corrupted abstract states and get the corrupted ground states
     corrupted_states = []
     for tup in error_tuples:
         corrupted_abstr_state = tup[2]
         for key, value in abstr_dict.items():
-            if value == corrupted_abstr_state:
+            if value == corrupted_abstr_state and key not in error_states:
                 corrupted_states.append(key)
 
     # Label all non-error states
@@ -101,37 +114,42 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
         if key not in error_states and key not in corrupted_states:
             non_error_states.append(key)
 
-    # Get error states
-
     # Remove duplicates
     non_error_states = list(dict.fromkeys(non_error_states))
     error_states = list(dict.fromkeys(error_states))
     corrupted_states = list(dict.fromkeys(corrupted_states))
 
 
-    #print('Error states', error_states)
-    #print('Corrupted states', corrupted_states)
-    #print('Non-error states', non_error_states)
 
     # Categorize states
     counter_dict = {'error': 0, 'corrupted': 0, 'non-error': 0}
+    remaining_dict = {'error': len(error_states),
+                      'corrupted': len(corrupted_states),
+                      'non-error': len(non_error_states)}
     sum_error = []
     sum_corrupted = []
     sum_nonerror = []
     for state in detached_states:
-        if state in error_states:
-            counter_dict['error'] += 1
-            sum_error.append(state)
-        elif state in corrupted_states:
-            counter_dict['corrupted'] += 1
-            sum_corrupted.append(state)
-        elif state in non_error_states:
-            counter_dict['non-error'] += 1
-            sum_nonerror.append(state)
-
+        if state not in detach_counter.keys():
+            if state in error_states:
+                counter_dict['error'] += 1
+                remaining_dict['error'] -= 1
+                sum_error.append(state)
+            elif state in corrupted_states:
+                counter_dict['corrupted'] += 1
+                remaining_dict['corrupted'] -= 1
+                sum_corrupted.append(state)
+            elif state in non_error_states:
+                counter_dict['non-error'] += 1
+                remaining_dict['non-error'] -= 1
+                sum_nonerror.append(state)
+            detach_counter[state] = 1
+        else:
+            detach_counter[state] += 1
     # Print results
     print('Error states:', error_states)
     print('Corrupted states:', corrupted_states)
+    print('Non-error states:', non_error_states)
     print(counter_dict)
     if len(sum_error) > 0:
         print('Error states detached:', end=' ')
@@ -148,6 +166,11 @@ def categorize_detached_states(key, agent_num, corrupted_abstr_file, error_file,
         for state in sum_nonerror:
             print(state, end=' ')
         print()
+    print('Non-detached states', remaining_dict)
+    print('States detached more than once:')
+    for key, value in detach_counter.items():
+        if value >= 2:
+            print(key, value)
     print()
     # Go through detached states and see if they are in the error file
 
@@ -179,6 +202,10 @@ def parse_ensemble_key(ensemble_key):
             raise ValueError('Abstraction type of ensemble key being parsed is not supported')
 
         # Parse epsilon
+        # If online abstraction, return
+        if 'online' in split_string[1]:
+            return abstr_type, 'online', None, None, None
+
         abstr_epsilon = float(split_string[1].translate(str.maketrans('', '', string.punctuation)))
 
         # Return parsed key if that's all the elements in the list

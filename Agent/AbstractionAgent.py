@@ -248,8 +248,6 @@ class AbstractionAgent(Agent):
                 if len(non_cycle_values) == 0:
                     for action in self.mdp.actions:
                         self._set_q_value(state, action, 0)
-                    #print('Somehow entered trapped state', state)
-                    #quit()
                 else:
                     for action in cycle_actions:
                         try:
@@ -366,25 +364,22 @@ class AbstractionAgent(Agent):
 
         # If 'abstr', detach states if their optimal action disagrees with action learned for state
         if self.consistency_check == 'abstr':
-            # Print q_table
-            #print('In check_abstr_state_for_consistency')
-            #for key, value in self.get_q_table().items():
-            #    print(key[0], key[1], value)
-
-
             # Get best action learned in abstr state. Since all ground states in one abstract state will have the same
             #  learned best action, we just grab the best action from the first constituent state
-            print('Constituent states are', end=' ')
-            for c_state in constituent_states:
-                print(c_state, end=' ')
-            print()
-            # TODO Make this a q-table lookup and not self.check_for_optimal... since that just does a 1-step rollout!!
-            #best_abstr_action, best_action_value, _ = self.check_for_optimal_action_value_next_state(constituent_states[0])
+            if verbose:
+                print('Constituent states are', end=' ')
+                for c_state in constituent_states:
+                    print(c_state, end=' ')
+                print()
+
             best_abstr_action, best_action_value = self.get_best_action_value_pair(constituent_states[0])
+            '''
             if verbose:
                 for act in self.mdp.actions:
-                    print('Q-value for', abstr_state, act, 'is', round(self.get_q_value(constituent_states[0], act)), 7)
+                    print('Q-value for', abstr_state, act, 'is', round(self.get_q_value(constituent_states[0], act), 7))
+                    print('Should be same', abstr_state, act, 'is', round(self.get_q_value(constituent_states[1], act), 7))
                 print('Best action, value for abstr state', abstr_state, 'is', best_abstr_action, round(best_action_value, 7))
+            '''
 
             # If the states haven't been visited/updated yet, return nothing
             if best_action_value == 0:
@@ -393,16 +388,16 @@ class AbstractionAgent(Agent):
             # Check the optimal action of each constituent state. If it differs from the best abstract action (or keeps
             #   agent in current state if prevent_cycles == True), then add it to error states
             for state in constituent_states:
-                print('Getting best value for', state)
+                #print('\nGetting best value for', state)
                 best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state,
                                                                                                             verbose=verbose)
-                print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
+                #print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
                 constituent_state_dict[state] = (best_action, best_action_value, next_state)
                 if best_action != best_abstr_action:
-                    print('Mismatch!')
+                    #print('Mismatch!')
                     error_states.append(state)
                 elif prevent_cycles and next_state == state:
-                    print('Causes cycle!')
+                    #print('Causes cycle!')
                     error_states.append(state)
                 else:
                     best_action_values.append(best_action_value)
@@ -489,8 +484,18 @@ class AbstractionAgent(Agent):
                         result_check = self.detach_state(state, reset_q_value=reset_q_value)
             elif self.detach_reassignment == 'group':
                 if error_states is not None:
-                    print('About to detach group')
-                    print('Error states are', error_states)
+                    if verbose:
+                        print('About to detach group')
+                        print('Error states are', end=' ')
+                        if isinstance(error_states[0], list):
+                            for group in error_states:
+                                print('[', end='')
+                                for state in group:
+                                    print(state, end=' ')
+                                print(']')
+                        else:
+                            for state in error_states:
+                                print(state, end=' ')
                     for error_group in error_states:
                         detached_states += error_group
                         print('About to detach group')
@@ -547,7 +552,6 @@ class AbstractionAgent(Agent):
             except:
                 if abstr == abstr_state.data:
                     ground_states.append(ground)
-        print('in get ground states from abstract state: ground_states=', ground_states)
         return ground_states
 
     def get_all_abstract_states(self):

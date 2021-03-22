@@ -5,10 +5,11 @@ have a value assigned for all actions
 '''
 from MDP.StateAbstractionClass import StateAbstraction 
 from resources.AbstractionTypes import Abstr_type 
-import numpy as np 
+import numpy as np
+from MDP.StateClass import State
 import random 
 
-def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshold=1e-6, seed=None):
+def make_abstr(q_table, abstr_type, epsilon=1e-10, combine_zeroes=False, threshold=1e-10, seed=None):
 	"""
 	:param q_table: dictionary((state,action):float)
 	:param abstr_type:Enum(Abstr_type)
@@ -21,7 +22,7 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshol
 	two states are within epsilon of each other, the states are abstracted together
 	"""
 	if seed:
-		random.seed(seed)
+		np.random.seed(seed)
 
 	abstr_dict = {} 
 	abstr_counter = 1 
@@ -44,17 +45,17 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshol
 		if action not in actions:
 			actions.append(action)
 
+	# Separate out states with 0 value
 	zero_states = []
-	# If ignore_zeroes flag is set to true, remove all states that have
-	#  state-action value = 0
-	if ignore_zeroes:
-		for state in states:
-			is_zero = True
-			for action in actions:
-				if abs(q_table[(state, action)]) > threshold:
-					is_zero = False
-			if is_zero:
-				zero_states.append(state)
+	for state in states:
+		is_zero = True
+		for action in actions:
+			if abs(q_table[(state, action)]) > threshold:
+				is_zero = False
+		if is_zero:
+			print('Found zero state', state)
+			zero_states.append(state)
+
 	for state in zero_states:
 		states.remove(state)
 
@@ -62,9 +63,9 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshol
 	# Point of this is that if we're using an approximate grouping, we don't want to always
 	# get the same cluster
 	#if epsilon > 1e-12:
-	random.shuffle(states)
+	np.random.shuffle(states)
 
-	# Iterate through all states 
+	# Iterate through all non-zero states
 	for state in states:
 
 		# If this state has already been mapped to an abstract
@@ -119,25 +120,32 @@ def make_abstr(q_table, abstr_type, epsilon=1e-12, ignore_zeroes=False, threshol
 				if state_action != other_action:
 					is_match = False 
 			else:
-				print("Abstraction type not supported:", abstr_type)
-				return 
+				raise ValueError("Abstraction type not supported: " + str(abstr_type))
 
 
 			# If they are a match, map them both to the same 
-			# unique abstract stated, identified by a
-			# number 
+			#  unique abstract stated, identified by a
+			#  number
 			if is_match:
-				#abstr_dict[state] = abstr_counter
-				abstr_dict[other_state] = abstr_counter 
-				#incr_counter = True
+				print('Match!', state, other_state)
+				abstr_dict[other_state] = abstr_counter
 		
 		# If at least two states got mapped together, 
 		# increment the abstract state counter 
-		#if incr_counter:
-		abstr_dict[state] = abstr_counter
+		abstr_dict[state] = abstr_counter#State(abstr_counter)
 		abstr_counter += 1
 
+	# Handle zero states
+	for state in zero_states:
+		print('fixing zero state', state)
+		abstr_dict[state] = abstr_counter #State(abstr_counter)
+		if not combine_zeroes:
+			abstr_counter += 1
+
 	abstr = StateAbstraction(abstr_dict, abstr_type, epsilon)
+	print('State abstraction is', str(abstr))
+	for key, value in q_table.items():
+		print(key[0], key[1], value)
 	return abstr
 
 def get_best_action_value_pair(q_table, state, actions):

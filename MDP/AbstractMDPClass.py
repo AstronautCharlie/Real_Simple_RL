@@ -9,16 +9,24 @@ type of the MDP
 
 #from SimpleMDP import SimpleMDP
 import copy
+from MDP.StateAbstractionClass import StateAbstraction
 
 class AbstractMDP():
 	def __init__(self, mdp, state_abstr):
 		self.mdp = mdp
 		self.actions = mdp.actions
 		self.init_state = self.mdp.init_state
-		self.state_abstr = state_abstr
+		if state_abstr is None:
+			print('Making trivial abstraction')
+			s_a = StateAbstraction()
+			s_a.make_trivial_abstraction(mdp)
+			self.state_abstr = s_a
+		else:
+			self.state_abstr = state_abstr
 		self.gamma = mdp.gamma
-		self.abstr_type = state_abstr.abstr_type
-		self.abstr_epsilon = state_abstr.epsilon
+
+		self.abstr_type = self.state_abstr.abstr_type
+		self.abstr_epsilon = self.state_abstr.epsilon
 		# Need to maintain the current state at this level for ExperimentClass to work
 		self.current_state = mdp.current_state
 

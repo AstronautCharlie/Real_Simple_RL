@@ -1,9 +1,12 @@
 """
 Run this to conduct an experiment
-# TODO Make detach actually happen!
-# TODO instead of having a static volatility record, recalculate it each time. Consider resetting the normalized
-# TODO   volatility for a state if it was just detached
-# TODO Verify one-step rollout from q-values being printed out already
+# TODO Get online abstraction agents working
+
+
+# TODO If action from optimal one-step rollout results in cycle, make sure that state is separated from
+# TODO   other states where action from optimal one-step rollout is same. E.g. if right results in a cycle for s, we
+# TODO   want to map s to its own state, not with other states where right is optimal and non-cycle
+
 """
 import os
 import time
@@ -17,7 +20,9 @@ from GridWorld.TwoRoomsMDP import TwoRoomsMDP
 from Agent.AgentClass import Agent
 from resources.AbstractionTypes import Abstr_type
 from resources.AbstractionCorrupters import *
-import random
+from util import *
+from Visualizer.QValueVisualizer import QValueVisualizer
+import scipy.stats
 #random.seed(1234)
 
 # MDP details
@@ -34,168 +39,53 @@ mdp_sum = 'TwoRooms MDP'
 '''
 
 # Experiment parameters
-NUM_EPISODES = 10
+NUM_EPISODES = 11
 NUM_CORR_MDPS = 1
-NUM_AGENTS = 1
+NUM_AGENTS = 3
 EPS = 0.0
-#MDP_STR = 'rooms'
 EXPLORATION_EPSILON = 0.1
+AGENT_TYPE = 'tracking'
+STEP_LIMIT = float("inf")
+DECAY_EXPLORATION = False
+EXPLORING_STARTS = False
+NOTES = 'heck'
+DETACH_ONLY = False
+VERBOSE = True
+
+
+# Detach-related
 DETACH_INTERVAL = None #1000
-DETACH_POINTS = [9] #[99]
+DETACH_POINTS = [i for i in range(20,30)] #[99]
 PREVENT_CYCLES = True
 RESET_Q_VALUE = True
 VARIANCE_THRESHOLD = None
-EXPLORING_STARTS = False
-DECAY_EXPLORATION = False
-STEP_LIMIT = float("inf")
-NOTES = 'heck'
 AGENT_DETACH_METHOD = 'abstr'
 DETACH_REASSIGNMENT = 'group'
-#STATES_TO_TRACK = MDP.get_all_possible_states()#[GridWorldState(2,2)]# MDP.get_all_possible_states()
+
+# State-tracking
 STATES_TO_TRACK = None
-DETACH_ONLY = False
-AGENT_TYPE = 'tracking'
-VERBOSE = True
 
-# Testing Tracking
-CORRUPTION_LIST = [(Corr_type.UNI_RAND, 5)]
+# Online abstraction
+INCLUDE_ONLINE_ABSTR = False
+ONLINE_TRAINING_EPS = 10
+ONLINE_EPSILON = 0.5
+
+# Noisy error distributions
+ABSTR_ERROR_DIST = stats.norm
+ABST_ERROR_PARAM = {'loc': 0, 'scale': 0.05}
+ABSTR_ERROR_DISTRIBUTION = stats.norm
+ABSTR_ERROR_PARAMS = {'loc': 0, 'scale': 0.05}
+PER_STATE_ERROR_DISTRIBUTIONS = None
+PER_STATE_ERROR_PARAMS = None
+NOISY_ABSTR_TYPES = [Abstr_type.Q_STAR]
+NOISY_ABSTR_EPSILON = 0.01
+
+# Per-run
+ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, 0.0)]
+CORRUPTION_LIST = None
 ERROR_DICTS = None
 
-# Fixing highest volatility states in the random A* abstraction
-CORRUPTION_LIST = None
-ERROR_DICTS = [{GridWorldState(1,5): GridWorldState(7,10), # abstr state 13
-                GridWorldState(4,4): GridWorldState(2,10), # abstr state 29
-                GridWorldState(8,9): GridWorldState(3,3), # abstr state 5
-                GridWorldState(10,11): GridWorldState(2,11),#, # abstr_state 25
-                GridWorldState(4,11): GridWorldState(11,2)}] # abstr state 12
 
-ABSTR_EPSILON_LIST =[(Abstr_type.A_STAR, EPS)]
-
-# Trying to find 'gadget' instances for divergent pair
-#ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS), (Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS)]
-#ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS)]
-
-# Trying out errors
-#ERROR_DICTS = [{GridWorldState(1,2): GridWorldState(2,6)}]#, # State to the right of the starting state mapped with the
-                                                            # state to the right of the goal state
-               #{GridWorldState(2,2): GridWorldState(1,7)}]
-               # These were for a 5x5 top and bottom with hallway state 5
-               #{GridWorldState(2,2): GridWorldState(1,9)}]
-               #{GridWorldState(3,3): GridWorldState(2,8)},
-               #{GridWorldState(5,6): GridWorldState(1,9)}]
-
-# No errors
-'''
-ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
-ERROR_DICTS = None
-CORRUPTION_LIST = None
-'''
-
-# Q* specific
-'''
-# Only need first and third 
-ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, EPS)]
-ERROR_DICTS = [{GridWorldState(6,3): GridWorldState(10,9),
-                GridWorldState(9,10): GridWorldState(9,3)},
-               #{GridWorldState(1,5): GridWorldState(1,2),
-               # GridWorldState(3,6): GridWorldState(3,9)},
-               {GridWorldState(9,8): GridWorldState(2,1),
-                GridWorldState(9,11): GridWorldState(2,4)}]
-CORRUPTION_LIST = None
-NUM_CORR_MDPS = 1
-'''
-
-# A* specific
-# Only need first and fourth
-# OR third and fourth
-'''
-ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS)]
-ERROR_DICTS = [#{GridWorldState(4,2): GridWorldState(9,9),
-               # GridWorldState(7,4): GridWorldState(7,3),
-               # GridWorldState(7,11): GridWorldState(7,10)},
-               #{GridWorldState(2,4): GridWorldState(8,10),
-               # GridWorldState(2,9): GridWorldState(9,10)},
-               {GridWorldState(4,9): GridWorldState(9,10),
-                GridWorldState(10,11): GridWorldState(2,4)},
-               {GridWorldState(2,11): GridWorldState(7,10)}]#,
-               #{GridWorldState(5,1): GridWorldState(7,9),
-               # GridWorldState(7,8): GridWorldState(11,10)}]
-CORRUPTION_LIST = None
-'''
-
-# Pi* specific
-'''
-ABSTR_EPSILON_LIST = [(Abstr_type.PI_STAR, EPS)]
-# From Random
-ERROR_DICTS = [{GridWorldState(10,11): GridWorldState(1,2),
-                GridWorldState(3,4): GridWorldState(1,8),
-                GridWorldState(5,10): GridWorldState(1,2),
-                GridWorldState(1,11): GridWorldState(1,2),
-                GridWorldState(3,6): GridWorldState(4,11),
-                GridWorldState(11,6): GridWorldState(4,11),
-                GridWorldState(7,4): GridWorldState(1,2),
-                GridWorldState(9,9): GridWorldState(1,8),
-                GridWorldState(3,3): GridWorldState(4,11),
-                GridWorldState(5,5): GridWorldState(1,2)},
-               {GridWorldState(3,5): GridWorldState(1,5),
-                GridWorldState(1,3): GridWorldState(4,5),
-                GridWorldState(4,9): GridWorldState(4,5),
-                GridWorldState(11,3): GridWorldState(1,5),
-                GridWorldState(9,3): GridWorldState(1,5),
-                GridWorldState(4,8): GridWorldState(4,4),
-                GridWorldState(1,1): GridWorldState(1,5),
-                GridWorldState(7,1): GridWorldState(4,11),
-                GridWorldState(3,8): GridWorldState(4,4),
-                GridWorldState(1,9): GridWorldState(4,4)}]
-# Guesses
-ERROR_DICTS = [{GridWorldState(10,11): GridWorldState(1,2),
-                GridWorldState(1,5): GridWorldState(4,5),
-                GridWorldState(3,6): GridWorldState(3,11)},
-               {GridWorldState(10,11): GridWorldState(1,2),
-                GridWorldState(1,5): GridWorldState(4,5)}]
-
-ERROR_DICTS = [{GridWorldState(9,11): GridWorldState(2,3),
-                GridWorldState(7,8): GridWorldState(1,8),
-                GridWorldState(6,3): GridWorldState(5,2)},
-               {GridWorldState(2,11): GridWorldState(5,3),
-                GridWorldState(3,8): GridWorldState(2,3),
-                GridWorldState(11,7): GridWorldState(4,8),
-                GridWorldState(4,7): GridWorldState(1,10)}]
-CORRUPTION_LIST = None
-'''
-
-'''
-ERROR_DICTS = [{GridWorldState(4,2): GridWorldState(1,5),
-                GridWorldState(5,5): GridWorldState(1,5),
-                GridWorldState(4,3): GridWorldState(1,2),
-                GridWorldState(6,3): GridWorldState(1,2),
-                GridWorldState(7,4): GridWorldState(1,2),
-                GridWorldState(7,11): GridWorldState(1,2),
-                GridWorldState(1,11): GridWorldState(4,5),
-                GridWorldState(9,10): GridWorldState(11,9)}]#,
-               #{GridWorldState(3,5): GridWorldState(1,11),
-               # GridWorldState(8,2): GridWorldState(1,11),
-               # GridWorldState(2,4): GridWorldState(1,5),
-               # GridWorldState(3,2): GridWorldState(1,5),
-               # GridWorldState(2,9): GridWorldState(1,2)},
-               #{GridWorldState(9,11): GridWorldState(1,2),
-               # GridWorldState(9,8): GridWorldState(1,5),
-               # GridWorldState(1,11): GridWorldState(1,2),
-               # GridWorldState(4,9): GridWorldState(2,1)}]
-
-CORRUPTION_LIST = None
-'''
-
-# Uncomment this if applying random corruption of a given proportion
-'''
-#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 2), (Corr_type.UNI_RAND, 3), (Corr_type.UNI_RAND, 4), (Corr_type.UNI_RAND, 5)]
-CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0)]
-ERROR_DICTS = None
-
-ABSTR_EPSILON_LIST = [(Abstr_type.A_STAR, EPS), (Abstr_type.PI_STAR, EPS), (Abstr_type.Q_STAR, EPS)]
-#ABSTR_EPSILON_LIST = [(Abstr_type.PI_STAR, EPS)]
-#CORRUPTION_LIST = [(Corr_type.UNI_RAND, 0.01)]
-'''
 
 def run_experiment():
     start_time = time.time()
@@ -221,9 +111,18 @@ def run_experiment():
                      agent_detach=AGENT_DETACH_METHOD,
                      detach_reassignment=DETACH_REASSIGNMENT,
                      detach_points=DETACH_POINTS,
-                     states_to_track=STATES_TO_TRACK,
                      #seed=SEED,
-                     detach_only=DETACH_ONLY)
+                     detach_only=DETACH_ONLY,
+                     track_error_states=True,
+                     include_online_abstraction=INCLUDE_ONLINE_ABSTR,
+                     online_abstraction_training_episodes=ONLINE_TRAINING_EPS,
+                     online_abstraction_epsilon=ONLINE_EPSILON,
+                     abstr_error_distribution=ABSTR_ERROR_DISTRIBUTION,
+                     abstr_error_parameters=ABSTR_ERROR_PARAMS,
+                     noisy_abstr_types=NOISY_ABSTR_TYPES,
+                     per_state_abstr_error_distribution=PER_STATE_ERROR_DISTRIBUTIONS,
+                     per_state_abstr_error_parameters=PER_STATE_ERROR_PARAMS,
+                     noisy_abstr_epsilon=NOISY_ABSTR_EPSILON)
 
     # Run experiment. This will write results to files
     # Commented out for testing visualization
@@ -374,6 +273,21 @@ def run_experiment():
                      + NOTES + '\n')
     if isinstance(MDP, TwoRoomsMDP):
         param_file.write(MDP.get_params())
+
+    # Write a categorization of detached states
+    if VERBOSE and (DETACH_POINTS or DETACH_INTERVAL):
+        for key in exp.corr_detach_agents.keys():
+            for num in range(exp.num_agents):
+                print('Categorizing detach for key', key)
+                corrupted_abstr_file = os.path.join(exp.results_dir, 'corrupted/corrupted_abstractions.csv')
+                error_file = os.path.join(exp.results_dir, 'corrupted/error_states.csv')
+                detached_state_file = os.path.join(exp.results_dir, 'corrupted_w_detach/detached_states.csv')
+                categorize_detached_states(key, num, corrupted_abstr_file, error_file, detached_state_file)
+
+    # run Q-value visualizer
+    v = QValueVisualizer(exp, exp.states_to_track)
+    v.graph_q_values(aggregate=False)
+
 
 if __name__ == '__main__':
     run_experiment()

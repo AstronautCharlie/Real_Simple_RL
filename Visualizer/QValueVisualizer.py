@@ -37,6 +37,8 @@ class QValueVisualizer():
         # Convert state to tuple
         def convert_to_tuple(state_string):
             return literal_eval(state_string)
+        # Hack-fix
+        self.q_value_df = self.q_value_df[self.q_value_df['agent_num'] != 'agent_num']
         self.q_value_df['state'] = self.q_value_df['state'].apply(convert_to_tuple)
 
         # Parse ensemble_key
@@ -177,14 +179,7 @@ class QValueVisualizer():
 
 # Testing purposes only
 if __name__ == '__main__':
-    v = QValueVisualizer(results_dir='../exp_output/hot',
-                         states_to_track=[(1,1), (2,1), (3,1),
-                                          (1,2), (2,2), (3,2),
-                                          (1,3), (2,3), (3,3),
-                                          (3,4),
-                                          (1,5), (2,5), (3,5),
-                                          (1,6), (2,6), (3,6),
-                                          (1,7), (2,7), (3,7)])
+    v = QValueVisualizer(results_dir='../exp_output/hot')
     df = v.get_q_value_df()
     #print(df.to_string())
 

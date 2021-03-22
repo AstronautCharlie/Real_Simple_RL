@@ -1,10 +1,12 @@
-#TODO: Right now we're not recalculating value of optimal policy at the start of each episode
 """
 This class creates and runs a test of q-learning on the given MDP for the given abstraction
 types and epsilon values, and compares the value of each trajectory to the value of the
 optimal ground-state trajectory from that point
 
 NOTE: this class currently stores true agents and corrupted agents in different dictionaries.
+
+#TODO: consider ignoring zeroes when making online abstraction
+#TODO: see what the effects of different thresholds are
 """
 from MDP.MDPClass import MDP
 from MDP.StateAbstractionClass import StateAbstraction
@@ -18,6 +20,9 @@ from resources.AbstractionTypes import Abstr_type
 from resources.AbstractionCorrupters import *
 from Visualizer.AbstractGridWorldVisualizer import AbstractGridWorldVisualizer as vis
 from collections import defaultdict
+from util import *
+from scipy.stats import norm
+
 import csv
 import os
 import matplotlib.pyplot as plt
@@ -26,7 +31,6 @@ import pandas as pd
 import copy
 import ast
 import shutil
-from util import *
 
 """
 self.agents <- dictionary, ensemble_key -> list of agents [ground and true abstractions]
@@ -58,10 +62,20 @@ class Experiment():
                  agent_detach='abstr',
                  detach_reassignment='group',
                  detach_points=None,
-                 states_to_track=None,
+                 states_to_track=[],
                  record_trajectories=False,
                  seed=None,
-                 detach_only=False):
+                 detach_only=False,
+                 track_error_states=False,
+                 include_online_abstraction=False,
+                 online_abstraction_training_episodes=10,
+                 online_abstraction_epsilon=0.05,
+                 noisy_abstr_types=[],
+                 abstr_error_distribution=None,
+                 abstr_error_parameters=None,
+                 per_state_abstr_error_distribution=None,
+                 per_state_abstr_error_parameters=None,
+                 noisy_abstr_epsilon=0.0):
         """
         Create an experiment, which will hold the ground MDP, the abstract MDPs (parameters dictated by abstr_epsilon_list),
         and an ensemble of (num_agents) q-learning agents on each MDP.
@@ -80,6 +94,8 @@ class Experiment():
         :param decay_exploration: if true, decay exploration rate
         :param exploring_starts: if true, restart episode at random state instead of initial state
         :param step_limit: cap on the number of steps in an episode. If limit is hit, reset agent
+        :param include_online_abstraction: boolean indicating whether to include a set of agents that make online
+                abstractions
         """
         # Check that agent_type is valid
         if agent_type not in ['standard', 'abstraction', 'tracking']:
@@ -114,7 +130,16 @@ class Experiment():
         self.record_trajectories = record_trajectories
         self.seed = seed
         self.detach_only = detach_only
-        print('States to track is', self.states_to_track)
+        self.include_online_abstraction = include_online_abstraction
+        self.online_abstraction_training_episodes = online_abstraction_training_episodes
+        self.online_abstraction_epsilon = online_abstraction_epsilon
+        self.abstr_error_distribution = abstr_error_distribution
+        self.abstr_error_parameters = abstr_error_parameters
+        self.noisy_abstr_types = noisy_abstr_types
+        self.per_state_abstr_error_distribution = per_state_abstr_error_distribution
+        self.per_state_abstr_error_parameters = per_state_abstr_error_parameters
+        self.noisy_abstr_epsilon = noisy_abstr_epsilon
+        self.include_noisy_abstractions = abstr_error_distribution or per_state_abstr_error_distribution
 
         # Create results dir if it doesn't exist
         if not os.path.exists(self.results_dir):
@@ -190,6 +215,9 @@ class Experiment():
                     for state in states_to_corrupt:
                         while (state.x, state.y) in mdp.goal_location or len(np.unique(states_to_corrupt)) < prop:
                             state = np.random.choice(self.ground_mdp.get_all_possible_states())
+                        # Record in states_to_track if track_error_states is true
+                        if track_error_states:
+                            self.states_to_track.append(state)
                     for key in self.abstr_mdp_dict.keys():
                         # Create a corrupt state abstraction for this batch number and list of states
                         abstr_mdp = self.abstr_mdp_dict[key]
@@ -214,6 +242,10 @@ class Experiment():
                                                prop,
                                                i)] = corrupt_abstr_mdp
         elif self.error_dicts is not None:
+            # Record in states_to_track if applicable
+            for error_state in self.error_dicts.keys():
+                self.states_to_track.append(error_state)
+
             corr_abstr_file = open(os.path.join(self.results_dir, 'corrupted/corrupted_abstractions.csv'), 'w', newline='')
             err_state_file = open(os.path.join(self.results_dir, 'corrupted/error_states.csv'), 'w', newline='')
             abstr_writer = csv.writer(corr_abstr_file)
@@ -249,6 +281,29 @@ class Experiment():
                                                j,
                                                i)] = corrupt_abstr_mdp
 
+        # Create random noise abstractions if that parameter is set
+        if self.abstr_error_distribution or self.per_state_abstr_error_distribution:
+            self.noisy_abstr_dict = {}
+            if not os.path.isdir(os.path.join(self.results_dir, 'noisy')):
+                os.mkdir(os.path.join(self.results_dir, 'noisy'))
+            file_string = 'noisy/abstractions.csv'
+            noisy_abstr_file = open(os.path.join(self.results_dir, file_string), 'w', newline='')
+            noisy_abstr_writer = csv.writer(noisy_abstr_file)
+            for abstr_type in self.noisy_abstr_types:
+                for i in range(self.num_corrupted_mdps):
+                    #TODO Check that this is returning what you think it is. This is where the problem is
+                    noisy_mdp = apply_noise_from_distribution(self.ground_mdp,
+                                                              abstr_type,
+                                                              approximation_epsilon=self.noisy_abstr_epsilon,
+                                                               distribution=self.abstr_error_distribution,
+                                                               distribution_parameters=self.abstr_error_parameters,
+                                                               per_state_distribution=self.per_state_abstr_error_distribution,
+                                                               per_state_parameters=self.per_state_abstr_error_parameters
+                                                               )
+                    print(type(mdp), type(noisy_mdp))
+                    self.noisy_abstr_dict[(abstr_type, i)] = noisy_mdp
+                    noisy_abstr_writer.writerow((abstr_type, i, noisy_mdp.abstr_to_string()))
+
         # Create agents on ground mdp
         ground_agents = []
         for i in range(self.num_agents):
@@ -272,15 +327,41 @@ class Experiment():
                                          alpha=self.agent_learning_rate,
                                          decay_exploration=decay_exploration,
                                          seed=temp_seed)
-            #elif self.agent_type == 'tracking':
-                #agent = TrackingAgent(temp_mdp,
-                #                      epsilon=agent_exploration_epsilon,
-                #                      alpha=self.agent_learning_rate,
-                #                      decay_exploration=decay_exploration)
-            #else:
-            #    raise ValueError("Agent type \'" + str(self.agent_type) + "\' is not supported")
             ground_agents.append(agent)
         self.agents['ground'] = ground_agents
+
+        # Create MDPs for online abstraction construction if applicable
+        self.online_abstr_agents = []
+        if self.include_online_abstraction:
+            self.online_abstr_agents = {}
+            file_string = 'online/abstractions.csv'
+            if not os.path.exists(os.path.join(self.results_dir, 'online')):
+                os.makedirs(os.path.join(self.results_dir, 'online'))
+            online_abstr_file = open(os.path.join(self.results_dir, file_string), 'w', newline='')
+            online_abstr_writer = csv.writer(online_abstr_file)
+            for abstr_type, eps in self.abstr_epsilon_list:
+                ensemble = []
+                for i in range(self.num_agents):
+                    mdp = copy.deepcopy(self.ground_mdp)
+                    if self.agent_type == 'standard':
+                        agent = Agent(mdp,
+                                      epsilon=agent_exploration_epsilon,
+                                      alpha=self.agent_learning_rate,
+                                      decay_exploration=decay_exploration)
+                    elif self.agent_type == 'abstraction':
+                        agent = AbstractionAgent(mdp, None,
+                                                 epsilon=agent_exploration_epsilon,
+                                                 alpha=self.agent_learning_rate,
+                                                 decay_exploration=decay_exploration)
+                    elif self.agent_type == 'tracking':
+                        agent = TrackingAgent(mdp, s_a=None, epsilon=agent_exploration_epsilon,
+                                              alpha=self.agent_learning_rate,
+                                              decay_exploration=decay_exploration)
+                    else:
+                        raise ValueError("Agent Type '" + str(self.agent_type) + "' is not supported")
+                    ensemble.append(agent)
+                self.online_abstr_agents[(abstr_type, 'online')] = ensemble
+
 
         # Create agents on abstract MDPs
         for abstract_mdp in self.abstr_mdp_dict.values():
@@ -319,6 +400,24 @@ class Experiment():
                                           decay_exploration=decay_exploration)
                     abstract_mdp_ensemble.append(agent)
             self.agents[(abstract_mdp.abstr_type, abstract_mdp.abstr_epsilon)] = abstract_mdp_ensemble
+
+        # Create agents on noisily-abstracted MDPs if that parameter is set
+        if self.abstr_error_distribution:
+            self.noisy_abstr_agents = {}
+            for (abstr_type, num) in self.noisy_abstr_dict.keys():
+                ensemble = []
+                for i in range(self.num_agents):
+                    mdp = copy.deepcopy(self.noisy_abstr_dict[(abstr_type, num)])
+                    if self.agent_type == 'tracking':
+                        agent = TrackingAgent(mdp,
+                                              s_a=mdp.state_abstr,
+                                              epsilon=agent_exploration_epsilon,
+                                              alpha=self.agent_learning_rate,
+                                              decay_exploration=decay_exploration)
+                    else:
+                        raise ValueError("Agent type " + str(self.agent_type) + " not supported with noisy abstraction")
+                    ensemble.append(agent)
+                self.noisy_abstr_agents[(abstr_type, num)] = ensemble
 
         # Create agents on corrupted abstract MDPs. Remember that we have self.num_corrupted_mdps ensembles for each
         #  combination of abstractMDP type and entry in self.corruption_list.
@@ -502,7 +601,6 @@ class Experiment():
         """
         For each agent, check the consistency of abstract states and detach inconsistent ground states
         """
-        print('Detaching ensemble', ensemble)
         detached_states = {}
         for i in range(len(ensemble)):
             agent = ensemble[i]
@@ -515,7 +613,7 @@ class Experiment():
                                                             prevent_cycles=self.prevent_cycle,
                                                             reset_q_value=self.reset_q_value,
                                                             verbose=verbose)
-            print('Error states are', error_states, end = ' ')
+            print('Error states are', end = ' ')
             for state in error_states:
                 print(state, end = ' ')
             print()
@@ -571,14 +669,6 @@ class Experiment():
             avg_reward_fractions = [ensemble_key]
             avg_step_counts = [ensemble_key]
             for episode in range(self.num_episodes):
-                #if episode % 1 == 0:
-                #    print("On episode", episode, end = ' ')
-                #    verbose = True
-                #else:
-                #    verbose = False
-                    # Reward_fractions and step_counts are lists of the fraction of the optimal policy captured
-                #  and the number of steps taken (respectively) in a single trajectory by each agent in the
-                #  ensemble
                 reward_fractions, step_counts, occupancy_dict = self.run_ensemble(self.agents[ensemble_key], verbose=verbose)
                 # We average these across the whole ensemble
                 avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
@@ -609,11 +699,12 @@ class Experiment():
                 policy_writer.writerow((ensemble_key, i, self.agents[ensemble_key][i].get_learned_policy_as_string()))
             for i in range(len(self.agents[ensemble_key])):
                 value_writer.writerow((ensemble_key, i, self.agents[ensemble_key][i].get_learned_state_values()))
+
         # Track Q-values if that option is set
         if self.states_to_track:
             q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
-            print(q_value_lists)
-            print(q_value_df)
+            #print(q_value_lists)
+            #print(q_value_df)
             q_value_df.to_csv(q_value_file)
 
         # This chunk runs the ensembles on all the corrupted MDPs
@@ -641,7 +732,7 @@ class Experiment():
                 avg_step_counts = [ensemble_key]
                 for episode in range(self.num_episodes):
                     if episode % 1 == 0:
-                        print("On episode", episode, end = ' ')
+                        print("On episode", episode)
                         reward_fractions, step_counts, _ = self.run_ensemble(self.corr_agents[ensemble_key], verbose=True)
                     else:
                         reward_fractions, step_counts, _ = self.run_ensemble(self.corr_agents[ensemble_key])
@@ -675,7 +766,7 @@ class Experiment():
                     value_writer.writerow((ensemble_key, i, self.corr_agents[ensemble_key][i].get_learned_state_values()))
             if self.states_to_track:
                 q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
-                print(q_value_df)
+                #print(q_value_df)
                 q_value_df.to_csv(q_value_file)
 
         # This chunk runs the detach agents, if that parameter is set
@@ -726,20 +817,26 @@ class Experiment():
                     elif self.detach_points and episode in self.detach_points:
                         do_detach = True
                     if episode > 0 and do_detach:
-                        print('about to detach')
-                        detach_dict = self.detach_ensemble(self.corr_detach_agents[ensemble_key], verbose=True)
+                        detach_dict = self.detach_ensemble(self.corr_detach_agents[ensemble_key], verbose=verbose)
                         for key, value in detach_dict.items():
                             detached_states = []
-                            print('detached states are')
+                            for state in value:
+                                detached_states.append(((state.x, state.y), episode))
+                            """
                             for state in value:
                                 print(state)
                                 if isinstance(detached_states, list):
+                                    print("if, detached_states are", detached_states)
                                     for state in detached_states:
+                                        print('state is', state)
                                         detached_states.append(((state.x, state.y), episode))
                                 else:
                                 #try:
+                                    print("else")
                                     detached_states.append(((state.x, state.y), episode))
                                 #except:
+                            """
+                            print('Detached states to be written to file is', detached_states)
                             detached_state_record[key] += detached_states
                     # If on the last episode, write all the detached states to a file
                     if episode == self.num_episodes - 1:
@@ -775,6 +872,171 @@ class Experiment():
                 q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
                 #print(q_value_df)
                 q_value_df.to_csv(q_value_file)
+
+        # Run online agents
+        if self.online_abstr_agents:
+            if not os.path.exists(os.path.join(self.results_dir, 'online')):
+                os.makedirs(os.path.join(self.results_dir, 'online'))
+            stepfile = open(os.path.join(self.results_dir, "online/step_counts.csv"), 'w', newline='')
+            csvfile = open(os.path.join(self.results_dir, "online/exp_output.csv"), 'w', newline='')
+            policyfile = open(os.path.join(self.results_dir, "online/learned_policies.csv"), 'w', newline='')
+            valuefile = open(os.path.join(self.results_dir, 'online/learned_state_values.csv'), 'w', newline='')
+            detachfile = open(os.path.join(self.results_dir, 'online/detached_states.csv'), 'w', newline='')
+            onlineabstrfile = open(os.path.join(self.results_dir, 'online/starting_s_a.csv'), 'w', newline='')
+            finalSAfile = open(os.path.join(self.results_dir, 'online/final_s_a.csv'), 'w', newline='')
+            reward_writer = csv.writer(csvfile)
+            step_writer = csv.writer(stepfile)
+            policy_writer = csv.writer(policyfile)
+            value_writer = csv.writer(valuefile)
+            detach_writer = csv.writer(detachfile)
+            finalSA_writer = csv.writer(finalSAfile)
+            startingSA_writer = csv.writer(onlineabstrfile)
+
+            for ensemble_key in self.online_abstr_agents.keys():
+                print('online abstraction: ' + str(ensemble_key))
+                avg_reward_fractions = [ensemble_key]
+                avg_step_counts = [ensemble_key]
+                detached_state_record = {}
+                for agent_num in range(self.num_agents):
+                    detached_state_record[agent_num] = []
+                for episode in range(self.num_episodes):
+                    if episode % 1 == 0:
+                        print('On episode', episode)
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.online_abstr_agents[ensemble_key],
+                                                                             verbose=True)
+                    else:
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.online_abstr_agents[ensemble_key])
+                    avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
+                    avg_reward_fractions.append(avg_reward_fraction)
+                    avg_step_count = sum(step_counts) / len(step_counts)
+                    if len(avg_step_counts) > 1:
+                        avg_step_counts.append(avg_step_count + avg_step_counts[-1])
+                    else:
+                        avg_step_counts.append(avg_step_count)
+
+                    # Check if we should do detach
+                    do_detach = False
+                    if self.detach_interval and episode % self.detach_interval == 0:
+                        do_detach = True
+                    elif self.detach_points and episode in self.detach_points:
+                        do_detach = True
+                    if episode > 0 and do_detach:
+                        detach_dict = self.detach_ensemble(self.online_abstr_agents[ensemble_key], verbose=verbose)
+                        for key, value in detach_dict.items():
+                            detached_states = []
+                            for state in value:
+                                detached_states.append(((state.x, state.y), episode))
+                            print('Detached states to be written to file is', detached_states)
+                            detached_state_record[key] += detached_states
+                    # If on the last episode, write all the detached states to a file
+                    if episode == self.num_episodes - 1:
+                        for i in range(len(self.online_abstr_agents[ensemble_key])):
+                            detach_writer.writerow((ensemble_key, i, detached_state_record[i]))
+                    # Write q-values
+                    if self.states_to_track:
+                        for i in range(len(self.online_abstr_agents[ensemble_key])):
+                            q_table = self.online_abstr_agents[ensemble_key][i].get_q_table()
+                            for key, value in q_table.items():
+                                if key[0] in self.states_to_track:
+                                    q_value_lists.append([ensemble_key, i, episode, key[0], key[1], value])
+                    # Check if we are supposed to make an online abstraction:
+                    if episode == self.online_abstraction_training_episodes:
+                        for i in range(len(self.online_abstr_agents[ensemble_key])):
+                            abstr_type = ensemble_key[0]
+                            temp_agent = self.online_abstr_agents[ensemble_key][i]
+                            temp_agent.s_a = make_abstr(temp_agent._q_table,
+                                                        abstr_type,
+                                                        epsilon=self.online_abstraction_epsilon,
+                                                        combine_zeroes=False,
+                                                        seed=None)
+                            startingSA_writer.writerow(
+                                (ensemble_key, i, episode, temp_agent.get_abstraction_as_string())
+                            )
+
+                # Fraction of optimal policy value
+                reward_writer.writerow(avg_reward_fractions)
+                # Average number of step counts per episode
+                step_writer.writerow(avg_step_counts)
+                # Learned policy
+                for i in range(len(self.online_abstr_agents[ensemble_key])):
+                    policy_writer.writerow(
+                        (ensemble_key, i, self.online_abstr_agents[ensemble_key][i].get_learned_policy_as_string())
+                    )
+                # Learned state values
+                for i in range(len(self.online_abstr_agents[ensemble_key])):
+                    value_writer.writerow(
+                        (ensemble_key, i, self.online_abstr_agents[ensemble_key][i].get_learned_state_values())
+                    )
+                # Final state abstractions
+                for i in range(len(self.online_abstr_agents[ensemble_key])):
+                    finalSA_writer.writerow(
+                        (ensemble_key, i, self.online_abstr_agents[ensemble_key][i].get_abstraction_as_string())
+                    )
+            if self.states_to_track:
+                q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
+                q_value_df.to_csv(q_value_file)
+
+        # Run noisy abstraction agents
+        #TODO: this!
+        if self.include_noisy_abstractions:
+            if not os.path.exists(os.path.join(self.results_dir, 'noisy')):
+                os.makedirs(os.path.join(self.results_dir, 'noisy'))
+            stepfile = open(os.path.join(self.results_dir, "noisy/step_counts.csv"), 'w', newline='')
+            csvfile = open(os.path.join(self.results_dir, "noisy/exp_output.csv"), 'w', newline='')
+            policyfile = open(os.path.join(self.results_dir, "noisy/learned_policies.csv"), 'w', newline='')
+            valuefile = open(os.path.join(self.results_dir, 'noisy/learned_state_values.csv'), 'w', newline='')
+            reward_writer = csv.writer(csvfile)
+            step_writer = csv.writer(stepfile)
+            policy_writer = csv.writer(policyfile)
+            value_writer = csv.writer(valuefile)
+            if self.states_to_track:
+                q_value_file = open(os.path.join(self.results_dir, 'noisy/q_values.csv'), 'w', newline='')
+                #q_value_df = pd.DataFrame(columns=['ensemble_key', 'agent_num', 'episode', 'state', 'action', 'q_value'])
+                q_value_lists = [['ensemble_key', 'agent_num', 'episode', 'state', 'action', 'q_value']]
+
+            for ensemble_key in self.noisy_abstr_agents.keys():
+                print(ensemble_key)
+                avg_reward_fractions = [ensemble_key]
+                avg_step_counts = [ensemble_key]
+                for episode in range(self.num_episodes):
+                    if episode % 1 == 0:
+                        print("On episode", episode)
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.noisy_abstr_agents[ensemble_key], verbose=True)
+                    else:
+                        reward_fractions, step_counts, _ = self.run_ensemble(self.noisy_abstr_agents[ensemble_key])
+                    avg_reward_fraction = sum(reward_fractions) / len(reward_fractions)
+                    avg_reward_fractions.append(avg_reward_fraction)
+                    avg_step_count = sum(step_counts) / len(step_counts)
+                    if len(avg_step_counts) > 1:
+                        avg_step_counts.append(avg_step_count + avg_step_counts[-1])
+                    else:
+                        avg_step_counts.append(avg_step_count)
+                    # Write q-values
+                    if self.states_to_track:
+                        for i in range(len(self.noisy_abstr_agents[ensemble_key])):
+                            q_table = self.noisy_abstr_agents[ensemble_key][i].get_q_table()
+                            for key, value in q_table.items():
+                                if key[0] in self.states_to_track:
+                                    q_value_lists.append([ensemble_key, i, episode, key[0], key[1], value])
+                                    #temp_dict = {'ensemble_key': [ensemble_key], 'agent_num': [i], 'episode': [episode],
+                                    #             'state': [key[0]], 'action': [key[1]], 'q_value': [value]}
+                                    #temp_df = pd.DataFrame.from_dict(temp_dict)
+                                    #q_value_df = pd.concat([q_value_df, temp_df], ignore_index=True)
+                # This is the fraction of the optimal policy captured, on average, per agent per episode
+                reward_writer.writerow(avg_reward_fractions)
+                # This is the average number of step counts per agent per episode
+                step_writer.writerow(avg_step_counts)
+                # Write learned policy
+                for i in range(len(self.noisy_abstr_agents[ensemble_key])):
+                    policy_writer.writerow((ensemble_key, i, self.noisy_abstr_agents[ensemble_key][i].get_learned_policy_as_string()))
+                # Write learned state values
+                for i in range(len(self.noisy_abstr_agents[ensemble_key])):
+                    value_writer.writerow((ensemble_key, i, self.noisy_abstr_agents[ensemble_key][i].get_learned_state_values()))
+            if self.states_to_track:
+                q_value_df = pd.DataFrame(q_value_lists[1:], columns=q_value_lists[0])
+                #print(q_value_df)
+                q_value_df.to_csv(q_value_file)
+
 
         # Return files
         if include_corruption and (self.detach_points or self.detach_interval):

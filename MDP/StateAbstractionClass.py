@@ -68,4 +68,16 @@ class StateAbstraction():
                     result += '\n'
         return result
 
+    def make_trivial_abstraction(self, mdp, abstr_type=None):
+        """
+        Make a state abstraction for an MDP where each ground state maps to its own abstract state
+        """
+        if abstr_type:
+            self.abstr_type = abstr_type
+        self.abstr_dict = {}
+        for state in mdp.get_all_possible_states():
+            i = 0
+            self.abstr_dict[state] = State(i, is_terminal = state.is_terminal)
+            i += 1
+
 

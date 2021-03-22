@@ -13,15 +13,16 @@ from GridWorld.ActionEnums import Dir
 from resources.AbstractionTypes import Abstr_type
 from resources.CorruptionTypes import Corr_type
 from Visualizer.GridWorldVisualizer import GridWorldVisualizer
+from util import *
 
 # Set these parameters before running
 # Directory containing the output of an experiment
-DATA_DIR = '../exp_output/hot'
+DATA_DIR = '../exp_output/random_test'
 #DATA_DIR = '../exp_output/final_output/adversarial_cases/pi'
 # True or corrupted MDPs
 MDP_TYPE = 'corrupted'
 # Where to store the visualizations
-OUTPUT_DIR = '../exp_output/hot/visualizations'
+OUTPUT_DIR = '../exp_output/random_test/visualizations'
 #OUTPUT_DIR = '../exp_output/final_output/adversarial_cases/pi/visualizations'
 RANDOM_OR_EXPLICIT = 'random'
 
@@ -195,7 +196,7 @@ if __name__ == '__main__':
         rollout_surface = viz.create_corruption_visualization(key, corr_abstraction_file, error_file)
         rollout_surface = viz.draw_errors(rollout_surface, key, error_file)
         for agent_num in agent_nums:
-            print('key is', key)
+            #print('key is', key)
             # Create generic file string
             abstr_string = viz.get_abstr_name(key[0])
             folder_path = 'corrupted_w_detach'
@@ -273,7 +274,7 @@ if __name__ == '__main__':
             detach_file_name = os.path.join(detach_folder, file_name)
             pygame.image.save(grid, detach_file_name)
 
-            print('Doing summary: mdp', str(key[3]), 'agent', str(agent_num))
+            #print('Doing summary: mdp', str(key[3]), 'agent', str(agent_num))
             # Do summary
             summary_file = os.path.join(data_dir, 'corrupted_w_detach/summary_abstr' + abstr_string + '_corr'
                                         + corr_num + '_mdp' + mdp_num  + '_agent' + str(agent_num) + '.txt')
@@ -284,6 +285,11 @@ if __name__ == '__main__':
                                                error_file,
                                                detached_file,
                                                summary_file)
+
+            # Print out categorization of detached states
+            print('Categorizing detached states for:')
+            print("Abstr type:", abstr_string, "corr num:", corr_num, "mdp:", mdp_num, "agent number:", agent_num)
+            categorize_detached_states(key, agent_num, corr_abstraction_file, error_file, detached_file)
         # Save file with all rollouts
         file_name = 'corr' + str(key[3]) + 'mdp' + str(key[4]) + abstr_string + '_all_rollouts.png'
         pygame.image.save(rollout_surface, os.path.join(ensemble_folder_path, file_name))

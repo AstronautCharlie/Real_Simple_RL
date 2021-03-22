@@ -1,6 +1,5 @@
-# TODO: agent.detach_inconsistent_states. This should, on first call, create a snapshot of the volatility record.
-# TODO:   Starting at rank r=0, get state s with volatility rank == r. Run one-step rollout check on that state.
-# TODO:   Detach it. Increment r.
+# TODO Problem is that 1-step roll-out doesn't reliably split
+#   off error states, as
 
 """
 This extension of AbstractionAgent also tracks the Q-value updates made to each abstract state-action pair and
@@ -14,6 +13,8 @@ from MDP.AbstractMDPClass import AbstractMDP
 from MDP.StateAbstractionClass import StateAbstraction
 from GridWorld.GridWorldStateClass import GridWorldState
 from resources.AbstractionCorrupters import *
+from MDP.StateAbstractionClass import StateAbstraction
+from resources.AbstractionMakers import make_abstr
 from util import *
 
 LIMIT = 10000
@@ -29,6 +30,11 @@ class TrackingAgent(AbstractionAgent):
                  detach_reassignment='group',
                  volatility_threshold=0,
                  seed=1234):
+
+        if s_a is None:
+            s_a = StateAbstraction()
+            s_a.make_trivial_abstraction(mdp)
+
         super().__init__(mdp,
                          s_a=s_a,
                          alpha=alpha,
@@ -51,9 +57,8 @@ class TrackingAgent(AbstractionAgent):
                 for action in self.mdp.actions:
                     self.abstr_update_record[abstr_state][action] = []
 
-        # Record of Q-value updates to each ground-state
+        # Record of Q-value updates to each ground state-action pair
         self.ground_update_record = {}
-
         for ground_state in self.get_all_possible_ground_states():
             if ground_state not in self.ground_update_record.keys():
                 self.ground_update_record[ground_state] = {}
@@ -61,6 +66,11 @@ class TrackingAgent(AbstractionAgent):
                     self.ground_update_record[ground_state][action] = []
 
         self.episode_step_count = 0
+
+        # Create record to hold counts of abstr state occupations
+        self.abstr_state_occupancy_record = {}
+        for abstr_state in abstr_mdp.get_all_abstr_states():
+            self.abstr_state_occupancy_record[abstr_state] = 0
 
         # Create record to hold counts of ground state occupations
         self.state_occupancy_record = {}
@@ -83,16 +93,12 @@ class TrackingAgent(AbstractionAgent):
                 for action in self.mdp.actions:
                     self.abstr_state_action_pair_counts[abstr_state][action] = 0
 
-        # Create record to hold counts of abstr state occupations
-        self.abstr_state_occpancy_record = {}
-        for abstr_state in abstr_mdp.get_all_abstr_states():
-            self.abstr_state_occpancy_record[abstr_state] = 0
-
-        #self.volatility_threshold = volatility_threshold
-
-        # Hold volatility record snapshot
-        self.volatility_snapshot = None
-        self.vol_rec_rank = 0
+        # Record r + gamma * max q-value of next state
+        self.ground_reward_record = {}
+        for state in self.get_all_possible_ground_states():
+            self.ground_reward_record[state] = {}
+            for action in self.mdp.actions:
+                self.ground_reward_record[state][action] = []
 
         # Minimum number of visits a state must have to be considered
         self.volatility_threshold = volatility_threshold
@@ -120,6 +126,7 @@ class TrackingAgent(AbstractionAgent):
         self.ground_update_record[current_state][action].append(td_error)
         self.state_action_pair_counts[current_state][action] += 1
         self.abstr_state_action_pair_counts[current_abstr_state][action] += 1
+        self.ground_reward_record[current_state][action].append(reward + self.mdp.gamma * best_next_action_value)
 
         # Apply Q-value update
         super().update(current_state, action, next_state, reward)
@@ -133,7 +140,7 @@ class TrackingAgent(AbstractionAgent):
         # Update state occupancy record
         self.state_occupancy_record[current_state] += 1
         abstr_state = self.abstr_mdp.get_abstr_from_ground(current_state)
-        self.abstr_state_occpancy_record[abstr_state] += 1
+        self.abstr_state_occupancy_record[abstr_state] += 1
         if next_state.is_terminal():
             self.state_occupancy_record[next_state] += 1
             #self.abstr_state_occpancy_record[self.abstr_mdp.get_abstr_from_ground(next_state)] += 1
@@ -141,7 +148,6 @@ class TrackingAgent(AbstractionAgent):
         self.episode_step_count += 1
 
         return current_state, action, next_state, reward
-
 
     # -----------------
     # Tracking-Specific
@@ -155,9 +161,6 @@ class TrackingAgent(AbstractionAgent):
         """
         # This holds the final result
         volatility_record = {}
-
-        if verbose:
-            print('Inside calculate_normalized_volatility')
 
         abstr_states = np.unique(self.get_all_abstract_states())
         for abstr_state in abstr_states:
@@ -182,7 +185,15 @@ class TrackingAgent(AbstractionAgent):
 
                 # Calculate normalized standard deviation scaled by sqrt population
                 normalized_volatility = np.std(random_samples)
+
+                # Get pair count. If abstr_state is not in the pair count keys, then it is a new
+                #  abstract state so create an entry for it
+                if abstr_state not in self.abstr_state_action_pair_counts.keys():
+                    self.abstr_state_action_pair_counts[abstr_state] = {}
+                    for action in self.mdp.actions:
+                        self.abstr_state_action_pair_counts[abstr_state][action] = 0
                 pair_count = self.abstr_state_action_pair_counts[abstr_state][action]
+
                 volatility_record[abstr_state][action] = np.sqrt(pair_count) * normalized_volatility
                 if verbose:
                     print(str(abstr_state).ljust(3), str(action).ljust(12), str(round(normalized_volatility, 4)).ljust(5), str(round(np.sqrt(pair_count) * normalized_volatility, 4)))
@@ -226,6 +237,7 @@ class TrackingAgent(AbstractionAgent):
                 if temp[abstr_state] < vol:
                     temp[abstr_state] = vol
         final = {k: v for k, v in sorted(temp.items(), key=lambda item: item[1], reverse=True)}
+
         return final
 
     def get_volatile_state_by_rank(self, volatility_record, rank=0):
@@ -234,16 +246,9 @@ class TrackingAgent(AbstractionAgent):
 
         Rank indicates i for fetching the i-th most volatile state (0-indexed, descending order)
         """
-
-        # TODO: Rerank the snapshot in case order has been lost.
-        #ranked_vols = {k: v for k, v in sorted(volatility_record.items(), key=lambda item: item[1], reverse=True)}
-
         vol_state = list(volatility_record.keys())[rank]
         vol_value = list(volatility_record.values())[rank]
-        print('vol state is', vol_state, type(vol_state))
-        print('vol value is', vol_value)
 
-        print('In get_most_volatile_state')
         #for key, val in ranked_vols.items():
         #    print(key, val)
         return vol_state, vol_value
@@ -254,29 +259,228 @@ class TrackingAgent(AbstractionAgent):
                                    reset_q_value=False,
                                    verbose=False):
         """
-
+        Get most volatile state as dictated by volatility snapshot, check it for consistency, and
+        detach inconsistent ground states
         :param variance_threshold: ignore
         :param prevent_cycles: If true, states where action results in cycle is treated as error
         :param reset_q_value: boolean, Reset q-value of detached states to 0
         :param verbose: print stuff
         """
-        if not self.volatility_snapshot:
-            self.volatility_snapshot = self.get_volatility_snapshot()
+        #if not self.volatility_snapshot:
+        #    self.volatility_snapshot = self.get_volatility_snapshot()
+
+        volatility_snapshot = self.get_volatility_snapshot()
+        if verbose:
+            print('Volatility record is')
+            i = 0
+            for state, vol in volatility_snapshot.items():
+                if i > 5:
+                    break
+                print(state, vol)
+                i += 1
 
         # self.get_most_volatile_state returns a tuple of a state and volatility record, so we just grab first element
-        most_volatile_state = self.get_volatile_state_by_rank(self.volatility_snapshot, self.vol_rec_rank)[0]
-        print('most volatile state is', most_volatile_state, type(most_volatile_state))
+        most_volatile_state = self.get_volatile_state_by_rank(volatility_snapshot, 0)[0]
+        if len(self.get_ground_states_from_abstract_state(most_volatile_state)) == 1:
+            if verbose:
+                print('Most volatile state is singleton, skipping detach')
+            self.reset_volatility_record(most_volatile_state)
+            return []
 
+        if verbose:
+            print('most volatile state is', most_volatile_state, type(most_volatile_state))
+            print('Ground state volatilities are')
+            for ground_state in self.get_ground_states_from_abstract_state(most_volatile_state):
+                for action in self.mdp.actions:
+                    if self.state_action_pair_counts[ground_state][action] > 0:
+                        update_mean = np.mean(self.ground_update_record[ground_state][action])
+                        update_stdev = np.std(self.ground_update_record[ground_state][action])
+                        lb, ub = calculate_confidence_interval(self.ground_update_record[ground_state][action],
+                                                               alpha=0.05)
+                        lb_a, ub_a = calculate_confidence_interval(self.ground_update_record[ground_state][action],
+                                                                   alpha=0.1)
+                        lb_b, ub_b = calculate_confidence_interval(self.ground_reward_record[ground_state][action],
+                                                                   alpha=0.05)
+
+                        print(ground_state, action,
+                              'mean:', np.round(update_mean, 4),
+                              'std dev:', np.round(update_stdev, 4),
+                              '90% conf int:', np.round(lb, 4), np.round(ub, 4),
+                              '80% conf int:', np.round(lb_a, 4), np.round(ub_a, 4),
+                              '90% reward conf int:', np.round(lb_b, 4), np.round(ub_b, 4),
+                              'visit count:', self.state_action_pair_counts[ground_state][action])
+                print()
+
+        # Get error groups
         error_groups = self.check_abstract_state_consistency(most_volatile_state,
                                                              prevent_cycles=prevent_cycles,
                                                              verbose=verbose)
-        print('In detach_inconsistent states, error groups are', error_groups)
 
-        self.vol_rec_rank += 1
+        # If no errors, return immediately
+        if error_groups == []:
+            if verbose:
+                print('No errors, returning')
+            return error_groups
 
-        return error_groups
+        # Print if applicable
+        if verbose:
+            print('In detach_inconsistent states, error groups are ',end=' ')
+            if isinstance(error_groups[0], list):
+                for group in error_groups:
+                    print('[', end='')
+                    for state in group:
+                        print(state, end='')
+                    print('] ', end=' ')
+                print()
+            else:
+                for state in error_groups:
+                    print(state, end=' ')
 
+        # Do the actual detachment
+        detached_states = []
+        if self.detach_reassignment == 'individual':
+            if verbose:
+                print('Doing individual state detachment')
+            if error_groups is not None and error_groups != []:
+                for group in error_groups:
+                    for state in group:
+                        result = self.detach_state(state, reset_q_value=reset_q_value)
+                        if verbose:
+                            print('Result of detaching state', state, 'is', result)
+        elif self.detach_reassignment == 'group':
+            if verbose:
+                print('Doing group detachment')
+                print('Error states are', end=' ')
+                if isinstance(error_groups[0], list):
+                    for group in error_groups:
+                        print('[', end='')
+                        for state in group:
+                            print(state, end=' ')
+                        print(']')
+                else:
+                    for state in error_groups:
+                        print(state, end=' ')
+            for error_group in error_groups:
+                detached_states += error_group
+                self.detach_group(error_group, reset_q_value=reset_q_value)
 
+        # Create entries in volatility records for newly created abstract states
+        for detached_state in detached_states:
+            new_abstr_state = self.get_abstr_from_ground(detached_state)
+            # Only checking if it's a key in this one record
+            if new_abstr_state not in self.abstr_update_record.keys():
+                self.abstr_update_record[new_abstr_state] = {}
+                self.abstr_state_action_pair_counts[new_abstr_state] = {}
+                self.abstr_state_occupancy_record[new_abstr_state] = 0
+                for action in self.mdp.actions:
+                    self.abstr_update_record[new_abstr_state][action] = []
+                    self.abstr_state_action_pair_counts[new_abstr_state][action] = 0
+
+        # Reset records for abstract state
+        self.reset_volatility_record(most_volatile_state)
+
+        # If applicable, reset q-values for each detached state-action pair to the result
+        #  of a 1-step rollout
+        if reset_q_value:
+            for d_state in detached_states:
+                cycle_actions = []
+                non_cycle_values = []
+                # Take 1-step roll-out for each action and reassign Q-value to result
+                for action in self.mdp.actions:
+                    self.mdp.set_current_state(d_state)
+                    next_state = self.mdp.transition(d_state, action)
+                    reward = self.mdp.reward(d_state, action, next_state)
+                    next_state_q_value = self.get_best_action_value(next_state)
+                    next_val = reward + self.mdp.gamma * next_state_q_value
+                    if next_state == d_state:
+                        cycle_actions.append(action)
+                    else:
+                        non_cycle_values.append(next_val)
+                        self._set_q_value(d_state, action, next_val)
+                # For any actions that kept agent in current state, set Q-value to
+                #  gamma * max Q-value of non-cycle actions
+                if len(non_cycle_values) == 0:
+                    for action in self.mdp.actions:
+                        self._set_q_value(d_state, action, 0)
+                for action in cycle_actions:
+                    if len(non_cycle_values) > 0:
+                        self._set_q_value(d_state, action, self.mdp.gamma * max(non_cycle_values))
+                    else:
+                        print('No non-cycle action for', d_state)
+                    '''    
+                    try:
+                        self._set_q_value(d_state, action, self.mdp.gamma * max(non_cycle_values))
+                    except:
+                        raise ValueError('No non-cycle actions available in state', state)
+                    '''
+            # Reset to initial state
+            self.mdp.reset_to_init()
+
+        # Print if applicable
+        if verbose:
+            print('Finished detaching states, new abstraction dicts are:')
+            for key, value in self.group_dict.items():
+                print(key, end=' ')
+                for val in value:
+                    print(val, end=' ')
+                print()
+            for key, value in self.s_a.abstr_dict.items():
+                print(key, value, end = '     ')
+
+        return detached_states
+
+    def reset_volatility_record(self, abstr_state):
+        """
+        Reset the record of q-value updates for the given abstract state and all its constituent states to
+        an empty list
+        """
+        # Abstr state occupancy record
+        self.abstr_state_occupancy_record[abstr_state] = 0
+
+        for action in self.mdp.actions:
+            # TD error record for abstract state
+            self.abstr_update_record[abstr_state][action] = []
+
+            # State-action pair counts
+            self.abstr_state_action_pair_counts[abstr_state][action] = 0
+
+        ground_states = self.get_ground_states_from_abstract_state(abstr_state)
+        for ground_state in ground_states:
+
+            # Ground state occupancy record
+            self.state_occupancy_record[ground_state] = 0
+            for action in self.mdp.actions:
+                # TD error record for ground state
+                self.ground_update_record[ground_state][action] = []
+
+                # State-action pair counts
+                self.state_action_pair_counts[ground_state][action] = 0
+
+    # -----------------------
+    # Make online abstraction
+    # -----------------------
+    def make_online_abstraction(self,
+                                abstr_type,
+                                epsilon=1e-12,
+                                combine_zeroes=False,
+                                threshold=None,
+                                seed=None):
+        """
+        Convert the existing Q-table into the given type of abstraction
+        :param abstr_type: type of abstraction to make
+        :param epsilon: approximation epsilon for making abstraction
+        :param combine_zeroes: if true, all states with value 0 are combined
+        :param threshold: minimum threshold for what counts as a 0 state
+        :param seed: ignore
+        """
+        approx_s_a = make_abstr(self._q_table,
+                                abstr_type,
+                                epsilon=epsilon,
+                                combine_zeroes=combine_zeroes,
+                                threshold=threshold,
+                                seed=seed)
+
+        self.s_a = approx_s_a
 
 # Testing use only
 if __name__ == '__main__':
@@ -485,7 +689,7 @@ if __name__ == '__main__':
     for key, value in agent.state_occupancy_record.items():
         print(key, value)
 
-    for key, value in agent.abstr_state_occpancy_record.items():
+    for key, value in agent.abstr_state_occupancy_record.items():
         print(key, value)
 
     print('\nNormalized volatility')
