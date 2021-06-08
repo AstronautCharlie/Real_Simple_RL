@@ -21,7 +21,8 @@ class AbstractionAgent(Agent):
                  decay_exploration=True,
                  consistency_check='abstr',
                  detach_reassignment='individual',
-                 seed=None):
+                 seed=None,
+                 ground_states=None):
         """
         Create an agent with a state abstraction mapping
         :param mdp: an MDP environment
@@ -32,7 +33,10 @@ class AbstractionAgent(Agent):
         """
         Agent.__init__(self, mdp, alpha, epsilon, decay_exploration=decay_exploration, seed=seed)
         self.s_a = s_a
-        self.all_possible_states = mdp.get_all_possible_states()
+        if ground_states is not None:
+            self.all_possible_states = ground_states
+        else:
+            self.all_possible_states = mdp.get_all_possible_states()
         if consistency_check not in ('abstr', 'vote'):
             raise ValueError('Consistency Check type must be \'abstr\' or \'vote\'')
         if detach_reassignment not in ('individual', 'group'):
@@ -57,7 +61,11 @@ class AbstractionAgent(Agent):
         """
         abstr_to_ground = {}
         for state in self.all_possible_states:
-            abstr_state = self.s_a.abstr_dict[state]
+            try:
+                abstr_state = self.s_a.abstr_dict[state]
+            except:
+                print(state)
+                quit()
             if abstr_state not in abstr_to_ground.keys():
                 abstr_to_ground[abstr_state] = [state]
             else:
@@ -388,23 +396,19 @@ class AbstractionAgent(Agent):
             # Check the optimal action of each constituent state. If it differs from the best abstract action (or keeps
             #   agent in current state if prevent_cycles == True), then add it to error states
             for state in constituent_states:
-                #print('\nGetting best value for', state)
                 best_action, best_action_value, next_state = self.check_for_optimal_action_value_next_state(state,
                                                                                                             verbose=verbose)
-                #print('Best action, value for ground state', state, 'is', best_action, round(best_action_value, 3))
                 constituent_state_dict[state] = (best_action, best_action_value, next_state)
                 if best_action != best_abstr_action:
-                    #print('Mismatch!')
                     error_states.append(state)
                 elif prevent_cycles and next_state == state:
-                    #print('Causes cycle!')
                     error_states.append(state)
                 else:
                     best_action_values.append(best_action_value)
             print()
         # In this case, vote; any state whose abstract action differs from majority is detached, ties broken
         #  randomly
-        else:
+        elif self.consistency_check == 'vote':
             # Count number of constituent states for which each action is optimal
             best_action_counter = {}
             for action in self.mdp.actions:
@@ -429,6 +433,8 @@ class AbstractionAgent(Agent):
             for state in constituent_states:
                 if constituent_state_dict[state][0] != elected_action:
                     error_states.append(state)
+        else:
+            raise ValueError('Consistency check method ' + str(self.consistency_check) + ' is not supported')
 
         # If detach_reassignment is individual, we just return the list of individual error states
 
@@ -544,14 +550,24 @@ class AbstractionAgent(Agent):
         :return: list of ground states
         """
         ground_states = []
+
         for ground, abstr in self.s_a.abstr_dict.items():
             try:
                 if abstr == abstr_state:
                     ground_states.append(ground)
 
             except:
-                if abstr == abstr_state.data:
-                    ground_states.append(ground)
+                try:
+                    if abstr_state.data.data == abstr:
+                        ground_states.append(ground)
+                except:
+                    try:
+                        if abstr == abstr_state.data:
+                            ground_states.append(ground)
+                    except:
+                        data = abstr.data
+                        if data == abstr_state:
+                            ground_states.append(ground)
         return ground_states
 
     def get_all_abstract_states(self):

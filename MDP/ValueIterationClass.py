@@ -149,6 +149,8 @@ class ValueIteration():
                         Q_i[(state, action)] = q_value
                         stop = stop and (abs(q_value - self.get_q_value(state, action)) < self.delta)
                 self.update_q_table(Q_i)
+        for key, value in self._q_table.items():
+            print(key[0], key[1], value)
 
     def get_all_optimal_actions(self, state):
         '''

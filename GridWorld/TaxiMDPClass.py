@@ -34,7 +34,9 @@ class TaxiMDP(MDP):
                  goal=None,
                  passenger_init=None,
                  gamma=0.99,
-                 slip_prob=0.0):
+                 slip_prob=0.0,
+                 same_goal=False):
+        self.same_goal = same_goal
         # Create initial state, randomly selecting valid passenger
         # and goal locations if none are provided
         rgby = [(1,1), (1,5), (4,1), (5,5)]
@@ -43,9 +45,13 @@ class TaxiMDP(MDP):
         taxi_x = random.randint(1,5)
         taxi_y = random.randint(1,5)
 
+
         # Random passenger location (if none provided)
         if goal is None:
-            goal = random.choice(rgby)
+            if not self.same_goal:
+                goal = random.choice(rgby)
+            else:
+                goal = (5,5)
 
         if passenger_init is None:
             passenger_init = random.choice(rgby)
@@ -62,8 +68,10 @@ class TaxiMDP(MDP):
 
         # These are the states where there is a wall to the right
         self.blocked_right = [(1,1), (1,2), (3,1), (3,2), (2,5), (2,4)]
+        #self.blocked_right = []
         # These are the states where there is a wall to the left
         self.blocked_left = [(2,1), (2,2), (4,1), (4,2), (3,5), (3,4)]
+        #self.blocked_left = []
 
     # -----------------
     # Getters & setters
@@ -100,6 +108,8 @@ class TaxiMDP(MDP):
         :param action: Enum
         :return: next_state: GridWorldState
         '''
+        #print('in TaxiMDP: calling transition with state, action', state, action)
+
         # Get state info for easier access
         taxi_loc = state.get_taxi_loc()
         passenger_loc = state.get_passenger_loc()
@@ -222,8 +232,10 @@ class TaxiMDP(MDP):
             # If passenger is aboard, the taxi is in the goal location, and the passenger gets to the
             # the goal, return +20. Otherwise, -10 for illegal drop off
             if passenger_loc == (0, 0) and taxi_loc == goal_loc and next_passenger == next_goal:
+                #return 1
                 return 20.0
             else:
+                #return 0
                 return -10.0
 
         # Handle case of pick-up
@@ -231,12 +243,15 @@ class TaxiMDP(MDP):
             # If taxi is in the same location as passenger, return
             # normal -1. Otherwise, -10 for illegal pickup
             if passenger_loc == taxi_loc:
+                #return 0
                 return -1.0
             else:
+                #return 0
                 return -10.0
 
         # In all other cases, normal -1.0
         else:
+            #return 0
             return -1.0
 
 
@@ -395,16 +410,22 @@ class TaxiMDP(MDP):
         """
         possible_states = []
         rgby = [(1, 1), (1, 5), (4, 1), (5, 5)]
+        goals = rgby
+        if self.same_goal:
+            goals = [(5,5)]
         for x in range(1, 6):
             for y in range(1, 6):
                 for passenger in rgby + [(0, 0)]:
-                    for goal in rgby:
+                    for goal in goals:
                         state = TaxiState((x, y),
                                           passenger,
                                           goal)
                         possible_states.append(state)
+                        # Add possible goal state
+                        if (x,y) == goal and (x,y) == passenger:
+                            goal_state = TaxiState((x,y), passenger, goal, is_terminal=True)
+                            possible_states.append(goal_state)
         return possible_states
-
 
 
     # -------
@@ -438,7 +459,10 @@ class TaxiMDP(MDP):
     def reset_to_init(self):
         rgby = [(1,1), (1,5), (4,1), (5,5)]
         passenger_init = random.choice(rgby)
-        goal = random.choice(rgby)
+        if not self.same_goal:
+            goal = random.choice(rgby)
+        else:
+            goal = (5,5)
         taxi_x = random.randint(1,5)
         taxi_y = random.randint(1,5)
         self.set_current_state(TaxiState((taxi_x, taxi_y),
@@ -449,7 +473,8 @@ class TaxiMDP(MDP):
         copy = TaxiMDP(self.goal,
                        self.passenger_init,
                        self.gamma,
-                       self.slip_prob)
+                       self.slip_prob,
+                       self.same_goal)
 
         return copy
 

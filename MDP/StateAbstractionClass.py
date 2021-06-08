@@ -39,6 +39,9 @@ class StateAbstraction():
 
         else:
             print('No Abstract state corresponding to', state, 'Returning state.')
+            print('Abstr dict is')
+            for key, value in self.abstr_dict.items():
+                print(key, value)
             return state
 
     def get_all_abstr_states(self):
@@ -49,6 +52,22 @@ class StateAbstraction():
         for state in self.abstr_dict.keys():
             abstr_states.append(self.get_abstr_from_ground(state))
         return abstr_states
+
+    def get_ground_from_abstr(self, abstr_state):
+        """
+        Returns a list of all ground states associated with the given abstr_state
+        """
+        result = []
+        for ground in self.abstr_dict.keys():
+            try:
+                if self.abstr_dict[ground] == abstr_state.data:
+                    result.append(ground)
+            except:
+                print(self.abstr_dict[ground], type(self.abstr_dict[ground]),
+                      abstr_state, type(abstr_state))
+                print('failed in get_ground_from_abstr')
+                quit()
+        return result
 
     def __str__(self):
         abstr_states_temp = list(self.abstr_dict.values())
@@ -68,6 +87,7 @@ class StateAbstraction():
                     result += '\n'
         return result
 
+    # TODO Make compatible with gym environments
     def make_trivial_abstraction(self, mdp, abstr_type=None):
         """
         Make a state abstraction for an MDP where each ground state maps to its own abstract state

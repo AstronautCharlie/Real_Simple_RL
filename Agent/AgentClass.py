@@ -34,8 +34,7 @@ class Agent():
 			dictionaries; similar to what David used
 		'''
 		self.mdp = mdp
-		self._q_table = defaultdict(lambda : 0.0)
-		#self._q_table = {}
+		self._q_table = defaultdict(lambda: 0.0)
 		self._alpha = alpha
 		self._init_alpha = alpha 
 		self._epsilon = epsilon
@@ -64,9 +63,9 @@ class Agent():
 		# Flip a 'coin'. If it comes up less than epsilon, take
 		# random action. Otherwise pick best action 
 		if np.random.uniform() < self._epsilon:
-			action = random.choice(self.mdp.actions)
+			action = random.choice(list(self.mdp.actions))
+			#print('randomly selected action is', action)
 		else:
-
 			action = self.get_best_action(state)
 			# if(state.__eq__(GridWorldState(1,1))):
 			# 	print(action)

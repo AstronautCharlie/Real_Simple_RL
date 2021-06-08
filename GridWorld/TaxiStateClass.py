@@ -21,10 +21,12 @@ class TaxiState(State):
     '''
 
     def __init__(self,
-                 taxi_loc=None,
+                 taxi_loc,
                  passenger_loc=None,
                  goal_loc=None,
-                 is_terminal=False):
+                 is_terminal=False,
+                 goals=None,
+                 passenger_locs=None):
         '''
         taxi_loc, passenger_loc, goal_loc are assumed to be tuples if
         they are not None. If any one is None, initialize a random
@@ -34,7 +36,12 @@ class TaxiState(State):
         :param goal_loc: array-like
         :param is_terminal: boolean
         '''
-        rgby = [(1, 1), (1, 5), (4, 1), (5, 5)]
+
+        if goals is None:
+            goals = [(1, 1), (1, 5), (4, 1), (5, 5)]
+        if passenger_locs is None:
+            passenger_locs = goals
+        '''  
         if taxi_loc is None:
             taxi_x = random.randint(1, 5)
             taxi_y = random.randint(1, 5)
@@ -42,24 +49,29 @@ class TaxiState(State):
         else:
             if taxi_loc[0] not in range(1, 6) or taxi_loc[1] not in range(1, 6):
                 raise ValueError('Taxi location ' + str(taxi_loc) + ' not in valid range')
+            
             self._taxi_loc = (taxi_loc[0], taxi_loc[1])
+        '''
+        self._taxi_loc = (taxi_loc[0], taxi_loc[1])
 
         # Check passenger location validity, picking a random valid
         # choice if no input is given
         if passenger_loc is None:
-            passenger_loc = random.choice(rgby)
+            passenger_loc = random.choice(passenger_locs)
 
-        if passenger_loc not in rgby and (passenger_loc[0] != 0 or passenger_loc[1] != 0):
+        '''
+        if passenger_loc not in goals and (passenger_loc[0] != 0 or passenger_loc[1] != 0):
             raise ValueError('Passenger location ' + str(passenger_loc) + ' is an invalid passenger location')
         else:
-            self._passenger_loc = passenger_loc
+        '''
+        self._passenger_loc = passenger_loc
 
         # Check goal location validity, picking a random valid choice
         # if no input is given
         if goal_loc is None:
-            goal_loc = random.choice(rgby)
+            goal_loc = random.choice(goals)
 
-        if goal_loc not in rgby:
+        if goal_loc not in goals:
             raise ValueError('Goal location ' + str(goal_loc) + ' is not a valid goal location')
         else:
             self._goal_loc = goal_loc
@@ -86,9 +98,10 @@ class TaxiState(State):
         :param other: TaxiState
         :return: boolean
         '''
-        return self.get_taxi_loc() == other.get_taxi_loc() and \
-               self.get_passenger_loc() == other.get_passenger_loc() and \
-               self.get_goal_loc() == other.get_goal_loc() and self.is_terminal() == other.is_terminal()
+        #return self.get_taxi_loc() == other.get_taxi_loc() and \
+        #       self.get_passenger_loc() == other.get_passenger_loc() and \
+        #       self.get_goal_loc() == other.get_goal_loc() and self.is_terminal() == other.is_terminal()
+        return self.data == other.data and self.is_terminal() == other.is_terminal()
 
     def __hash__(self):
         return hash(tuple(self.data))

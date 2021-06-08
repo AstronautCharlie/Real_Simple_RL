@@ -50,10 +50,18 @@ def make_abstr(q_table, abstr_type, epsilon=1e-10, combine_zeroes=False, thresho
 	for state in states:
 		is_zero = True
 		for action in actions:
-			if abs(q_table[(state, action)]) > threshold:
-				is_zero = False
+			if (state, action) not in q_table.keys():
+				q_table[(state, action)] = 0
+			try:
+				if abs(q_table[(state, action)]) > threshold:
+					is_zero = False
+			except:
+				print(state, action)
+				print('failed in make_abstr')
+				print(threshold, type(threshold))
+				quit()
 		if is_zero:
-			print('Found zero state', state)
+			#print('Found zero state', state)
 			zero_states.append(state)
 
 	for state in zero_states:
@@ -97,6 +105,10 @@ def make_abstr(q_table, abstr_type, epsilon=1e-10, combine_zeroes=False, thresho
 			# across all actions. If all are within epsilon 
 			# of each other, the two states are mapped together
 			if abstr_type == Abstr_type.Q_STAR:
+				state_action, _ = get_best_action_value_pair(q_table, state, actions)
+				other_action, _ = get_best_action_value_pair(q_table, other_state, actions)
+				if state_action != other_action:
+					is_match = False
 				for action in actions: 
 					if abs(q_table[(state, action)] - q_table[(other_state, action)]) > epsilon:
 						is_match = False 
@@ -127,7 +139,7 @@ def make_abstr(q_table, abstr_type, epsilon=1e-10, combine_zeroes=False, thresho
 			#  unique abstract stated, identified by a
 			#  number
 			if is_match:
-				print('Match!', state, other_state)
+				#print('Match!', state, other_state)
 				abstr_dict[other_state] = abstr_counter
 		
 		# If at least two states got mapped together, 
@@ -137,15 +149,15 @@ def make_abstr(q_table, abstr_type, epsilon=1e-10, combine_zeroes=False, thresho
 
 	# Handle zero states
 	for state in zero_states:
-		print('fixing zero state', state)
+		#print('fixing zero state', state)
 		abstr_dict[state] = abstr_counter #State(abstr_counter)
 		if not combine_zeroes:
 			abstr_counter += 1
 
 	abstr = StateAbstraction(abstr_dict, abstr_type, epsilon)
 	print('State abstraction is', str(abstr))
-	for key, value in q_table.items():
-		print(key[0], key[1], value)
+	#for key, value in q_table.items():
+#		print(key[0], key[1], value)
 	return abstr
 
 def get_best_action_value_pair(q_table, state, actions):

@@ -29,8 +29,6 @@ WIDTH = 11
 HEIGHT = 11
 class GridWorldVisualizer():
     def __init__(self, agent=None, screen_width=600, screen_height=600, cell_size=50, margin=1):
-        #self.mdp = mdp
-        #self.agent = agent
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.cell_size = cell_size
@@ -201,9 +199,7 @@ class GridWorldVisualizer():
                 #if (col, row) not in mdp.mdp.compute_walls():
                 if mdp.mdp.is_inside_rooms(GridWorldState(col, row)):
                     ground_state = GridWorldState(col, row)
-                    #print(ground_state)
                     abstr_state_class = mdp.get_abstr_from_ground(ground_state)
-                    #print(abstr_state_class)
                     abstr_state = abstr_state_class.data
                     if isinstance(abstr_state, list):
                         print('List abstr_state', abstr_state)
@@ -221,7 +217,6 @@ class GridWorldVisualizer():
                                        self.cell_size)
                     pygame.draw.rect(screen, color, cell)
                     if err_list and (col, row) in list(err_dict.keys()):
-                        #print("Split coloring", (col, row))
                         cell = pygame.Rect((self.margin + self.cell_size) * col_idx + self.margin,
                                            (self.margin + self.cell_size) * row_idx + self.margin,
                                            self.cell_size,
@@ -1047,9 +1042,6 @@ class GridWorldVisualizer():
             else:
                 detach_counter['non-error'] += 1
 
-        #print('Detach counter', detach_counter)
-        #print('Error states', error_states)
-        #print('Corrupted states', corrupted_states)
         writer.write('\nDetach Counter ' + str(detach_counter) + '\n')
         writer.write('Error states ' + str(error_states) + '\n')
         writer.write('Corrupted states ' + str(corrupted_states) + '\n')

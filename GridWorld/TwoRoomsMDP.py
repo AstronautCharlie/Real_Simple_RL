@@ -161,34 +161,56 @@ class TwoRoomsMDP(MDP):
         if action == Dir.UP:
             # If in lower room not against wall, or in lower room under hallway state, or in upper room
             #  not against wall, or in hallway
+            '''
             if state.y < self.lower_height \
                     or (state.y == self.lower_height and state.x in self.hallway_states) \
                     or (self.upper_start_height <= state.y < self.total_height) \
                     or (self.lower_height < state.y < self.upper_start_height and state.x in self.hallway_states):
                 next_state = GridWorldState(state.x, state.y + 1)
+            '''
+            next_state = GridWorldState(state.x, state.y + 1)
+            if not self.is_inside_rooms(next_state):
+                next_state = GridWorldState(state.x, state.y)
+
         elif action == Dir.DOWN:
             # In upper room not against wall, in upper room above hallway, or in lower room not against wall, or in
             #  hallway
+            '''
             if (state.y > self.upper_start_height) \
                     or (state.y == self.upper_start_height and state.x in self.hallway_states) \
                     or (1 < state.y <= self.lower_height) \
                     or (self.lower_height < state.y < self.upper_start_height and state.x in self.hallway_states):
                 next_state = GridWorldState(state.x, state.y - 1)
+            '''
+            next_state = GridWorldState(state.x, state.y - 1)
+            if not self.is_inside_rooms(next_state):
+                next_state = GridWorldState(state.x, state.y)
+
         elif action == Dir.LEFT:
             # In lower room not against wall, or upper room not against wall
+            '''
             if (state.y <= self.lower_height and state.x > max(self.lower_offset + 1, 1)) \
                     or (state.y >= self.upper_start_height and state.x > max(self.upper_offset + 1, 1)):
                 next_state = GridWorldState(state.x - 1, state.y)
+            '''
+            next_state = GridWorldState(state.x - 1, state.y)
+            if not self.is_inside_rooms(next_state):
+                next_state = GridWorldState(state.x, state.y)
+
         elif action == Dir.RIGHT:
             # In lower room not against wall, or upper room not against wall
+            '''
             if (state.y <= self.lower_height and state.x < self.lower_width + self.lower_offset) \
                     or (state.y >= self.upper_start_height and state.x < self.upper_width + self.upper_offset):
                 next_state = GridWorldState(state.x + 1, state.y)
+            '''
+            next_state = GridWorldState(state.x + 1, state.y)
+            if not self.is_inside_rooms(next_state):
+                next_state = GridWorldState(state.x, state.y)
 
         # If agent enters goal state, make next state terminal
         if (next_state.x, next_state.y) in self.goal_location:
             next_state.set_terminal(True)
-            #print('Got to goal location', (next_state.x, next_state.y), next_state.is_terminal())
         return next_state
 
     def reward(self, state, action, next_state):

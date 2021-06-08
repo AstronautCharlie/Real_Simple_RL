@@ -117,7 +117,7 @@ def apply_noise_from_distribution(ground_mdp,
         # Otherwise apply mdp-wide distribution
         else:
             noise = distribution.rvs(**distribution_parameters)
-            print(noise)
+            #print(noise)
             q_table[(state, action)] += noise
         #print('New value:', q_table[(state, action)],'\n')
 

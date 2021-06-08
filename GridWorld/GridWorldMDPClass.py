@@ -37,6 +37,9 @@ class GridWorldMDP(MDP):
         if build_walls:
             self.walls = self.compute_walls()
 
+        self.hallway_states = [(3,6), (6,3), (6,8), (8,5)]
+        self.int_rewards_received = []
+
     # -----------------
     # Getters & setters
     # -----------------
@@ -105,6 +108,7 @@ class GridWorldMDP(MDP):
         Reset current state to initial state
         '''
         self.set_current_state(self.get_init_state())
+        self.int_rewards_received = []
 
     def copy(self):
         build_walls = False
@@ -301,8 +305,13 @@ class GridWorldMDP(MDP):
         # If agent moves from non-goal state to the goal state, return reward
         elif (next_state.x, next_state.y) in self.goal_location:
             return self.goal_value
+            #return 0
+        #elif (next_state.x, next_state.y) in self.hallway_states and (next_state.x, next_state.y) not in self.int_rewards_received:
+        #    self.int_rewards_received.append((next_state.x, next_state.y))
+        #    return 0.25
         else:
             return 0.0
+            #return -1
 
     # -----------------
     # Main act function

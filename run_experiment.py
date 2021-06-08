@@ -16,6 +16,7 @@ from Experiment.ExperimentClass import Experiment
 from GridWorld.GridWorldMDPClass import GridWorldMDP
 from GridWorld.GridWorldStateClass import GridWorldState
 from GridWorld.TaxiMDPClass import TaxiMDP
+from GridWorld.LargeTaxiMDPClass import LargeTaxiMDP
 from GridWorld.TwoRoomsMDP import TwoRoomsMDP
 from Agent.AgentClass import Agent
 from resources.AbstractionTypes import Abstr_type
@@ -23,72 +24,89 @@ from resources.AbstractionCorrupters import *
 from util import *
 from Visualizer.QValueVisualizer import QValueVisualizer
 import scipy.stats
-#random.seed(1234)
 
 # MDP details
 MDP = GridWorldMDP()
-mdp_sum = 'FourRooms MDP'
+MDP = TaxiMDP(same_goal=True)
+#MDP = LargeTaxiMDP(same_goal=True, gamma=0.9)
+mdp_sum = 'Taxi MDP'
 '''
 MDP = TwoRoomsMDP(upper_height=3,
                   upper_width=3,
                   lower_height=3,
                   lower_width=3,
                   hallway_states=[3], goal_location=[(1,5)])
-#MDP = TwoRoomsMDP()
+
+MDP = TwoRoomsMDP(lower_width=1,
+                  lower_height=1,
+                  hallway_states=[1],
+                  upper_height=0,
+                  upper_width=0,
+                  goal_location=[(1,5)],
+                  hallway_height=5,
+                  init_state=(1,1))
 mdp_sum = 'TwoRooms MDP'
 '''
 
+
 # Experiment parameters
-NUM_EPISODES = 11
+NUM_EPISODES = 300
 NUM_CORR_MDPS = 1
-NUM_AGENTS = 3
+NUM_AGENTS = 10
 EPS = 0.0
 EXPLORATION_EPSILON = 0.1
 AGENT_TYPE = 'tracking'
 STEP_LIMIT = float("inf")
 DECAY_EXPLORATION = False
 EXPLORING_STARTS = False
-NOTES = 'heck'
-DETACH_ONLY = False
 VERBOSE = True
-
 
 # Detach-related
 DETACH_INTERVAL = None #1000
-DETACH_POINTS = [i for i in range(20,30)] #[99]
+DETACH_POINTS = [i for i in range(21, NUM_EPISODES)] #[99]
 PREVENT_CYCLES = True
-RESET_Q_VALUE = True
+RESET_Q_VALUE = 'neighbor'
 VARIANCE_THRESHOLD = None
 AGENT_DETACH_METHOD = 'abstr'
 DETACH_REASSIGNMENT = 'group'
+STATES_PER_DETACH = 1
 
 # State-tracking
-STATES_TO_TRACK = None
+STATES_TO_TRACK = None#[s for s in MDP.get_all_possible_states()]
 
 # Online abstraction
-INCLUDE_ONLINE_ABSTR = False
-ONLINE_TRAINING_EPS = 10
-ONLINE_EPSILON = 0.5
+INCLUDE_ONLINE_ABSTR = True
+ONLINE_TRAINING_EPS = 20
+ONLINE_EPSILON = 0.05
 
 # Noisy error distributions
-ABSTR_ERROR_DIST = stats.norm
-ABST_ERROR_PARAM = {'loc': 0, 'scale': 0.05}
-ABSTR_ERROR_DISTRIBUTION = stats.norm
-ABSTR_ERROR_PARAMS = {'loc': 0, 'scale': 0.05}
+ABSTR_ERROR_DISTRIBUTION = None#stats.norm
+ABSTR_ERROR_PARAMS = None#{'loc': 0, 'scale': 0.1}
 PER_STATE_ERROR_DISTRIBUTIONS = None
 PER_STATE_ERROR_PARAMS = None
-NOISY_ABSTR_TYPES = [Abstr_type.Q_STAR]
-NOISY_ABSTR_EPSILON = 0.01
+NOISY_ABSTR_TYPES = [Abstr_type.Q_STAR, Abstr_type.A_STAR, Abstr_type.PI_STAR]
+NOISY_ABSTR_EPSILON = 0.05
 
 # Per-run
-ABSTR_EPSILON_LIST = [(Abstr_type.Q_STAR, 0.0)]
+ABSTR_EPSILON_LIST = []#[(Abstr_type.Q_STAR, 0.0)]#, (Abstr_type.A_STAR, 0.0), (Abstr_type.PI_STAR, 0.0)]
 CORRUPTION_LIST = None
-ERROR_DICTS = None
+ERROR_DICTS = None #[{GridWorldState(1,2): GridWorldState(1,4)}]
+GROUND_ONLY = True
+SKIP_TRUE = False
+DETACH_ONLY = False
+NEIGHBOR_FACTOR = 1
+
+# Create notes
+NOTES = str(NUM_EPISODES) + ' episodes, ' + str(ONLINE_TRAINING_EPS) + ' training episodes, '\
+        + str(min(DETACH_POINTS)) + ' to ' + str(max(DETACH_POINTS)) + ', ' + str(NUM_AGENTS) + ' agents, ' \
+        + ', neighbor factor = ' + str(NEIGHBOR_FACTOR)
+#+ str(MDP.width) + 'x' + str(MDP.height) + ', neighbor factor = ' + str(NEIGHBOR_FACTOR)
 
 
 
 def run_experiment():
     start_time = time.time()
+    print('Total number of states:', len(MDP.get_all_possible_states()))
 
 
 
@@ -111,7 +129,7 @@ def run_experiment():
                      agent_detach=AGENT_DETACH_METHOD,
                      detach_reassignment=DETACH_REASSIGNMENT,
                      detach_points=DETACH_POINTS,
-                     #seed=SEED,
+                     states_to_track=STATES_TO_TRACK,
                      detach_only=DETACH_ONLY,
                      track_error_states=True,
                      include_online_abstraction=INCLUDE_ONLINE_ABSTR,
@@ -122,11 +140,20 @@ def run_experiment():
                      noisy_abstr_types=NOISY_ABSTR_TYPES,
                      per_state_abstr_error_distribution=PER_STATE_ERROR_DISTRIBUTIONS,
                      per_state_abstr_error_parameters=PER_STATE_ERROR_PARAMS,
-                     noisy_abstr_epsilon=NOISY_ABSTR_EPSILON)
+                     noisy_abstr_epsilon=NOISY_ABSTR_EPSILON,
+                     ground_only=GROUND_ONLY,
+                     skip_true=SKIP_TRUE,
+                     neighbor_factor=NEIGHBOR_FACTOR,
+                     states_per_detach=STATES_PER_DETACH)
 
     # Run experiment. This will write results to files
     # Commented out for testing visualization
     include_corruption = not exp.detach_only
+
+    data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=include_corruption,
+                                                                                                    skip_ground=True,
+                                                                                                    verbose=VERBOSE)
+    '''
     if (DETACH_INTERVAL is not None or DETACH_POINTS is not None) and include_corruption:
         print('fail1')
         data, steps, corr_data, corr_steps, corr_detach_data, corr_detach_steps = exp.run_all_ensembles(include_corruption=include_corruption,
@@ -147,6 +174,7 @@ def run_experiment():
         data, steps = exp.run_all_ensembles(include_corruption=include_corruption,
                                             skip_ground=True,
                                             verbose=VERBOSE)
+    '''
 
     # Record volatilities
     if exp.agent_type == 'tracking':
@@ -285,8 +313,9 @@ def run_experiment():
                 categorize_detached_states(key, num, corrupted_abstr_file, error_file, detached_state_file)
 
     # run Q-value visualizer
-    v = QValueVisualizer(exp, exp.states_to_track)
-    v.graph_q_values(aggregate=False)
+    if exp.states_to_track:
+        v = QValueVisualizer(exp, exp.states_to_track)
+        v.graph_q_values(aggregate=False)
 
 
 if __name__ == '__main__':
