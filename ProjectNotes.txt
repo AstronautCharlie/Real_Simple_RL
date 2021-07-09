@@ -1,0 +1,9 @@
+TODO: 
+- make get_abstr_from_ground deal go from finest mesh to current mesh, not observation to current mesh 
+
+- Make sure q-value updates are actually applied to all cells mapped to the same abstract state 
+-- add group_dict functionality 
+
+Discretization: 
+- get_most_visited_abstr_state doesn't include exclude_singleton - this may be necessary, but shouldn't be with fine enough mesh 
+- Grid mapping makes assumption about state space - see TODO in DiscretizationAbstraction 

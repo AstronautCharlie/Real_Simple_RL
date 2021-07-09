@@ -5,12 +5,11 @@ Major changes:
 - group_dict moved from Agent to StateAbstraction
 - Assumes all ground states have abstract states, even if just singletons
 
-# TODO: add support for non-Discrete environments
 """
 
 from collections import defaultdict
 from gym.spaces.discrete import Discrete
-from gym.spaces.box import Box
+
 
 # Helper methods
 def reverse_abstr_dict(mapping):
@@ -20,7 +19,7 @@ def reverse_abstr_dict(mapping):
     :param mapping: dictionary(ground state: abstr state)
     :return: dictionary(abstr state : List(ground states))
     """
-    abstr_to_ground = defaultdict(lambda x: [])
+    abstr_to_ground = defaultdict(lambda: [])
     for ground, abstr in mapping.items():
         abstr_to_ground[abstr].append(ground)
     return abstr_to_ground
@@ -82,14 +81,35 @@ class StateAbstraction:
         state.
         :param env: environment supporting OpenAI Gym interface
         """
-        if isinstance(env, Discrete):
-            for i in range(env.n):
+        if isinstance(env.observation_space, Discrete):
+            for i in range(env.observation_space.n):
                 self.abstr_dict[i] = i
                 self.group_dict = reverse_abstr_dict(self.abstr_dict)
         else:
             raise ValueError('StateAbstraction.make_trivial_abstraction'
-                             ' is currently only supported for Discrete'
+                             ' is only supported for Discrete'
                              ' environments')
 
+    def is_singleton(self, state, state_type='ground'):
+        """
+        Return boolean indicating whether state is a singleton state
+        state_type can be 'ground' or 'abstract'
+        :param state
+        :param state_type: str ('ground' or 'abstract')
+        :return: boolean
+        """
+        # Check if state is not in abstract mapping - if so, then it is a singleton
+        if state_type == 'ground' and state not in self.abstr_dict.keys():
+            return True
+        if state_type == 'abstract' and state not in self.group_dict.keys():
+            return True
 
-
+        if state_type not in ['ground', 'abstract']:
+            raise ValueError('TrackingAgent.is_singleton called with '
+                             'state_type = {}; needs to be "ground"'
+                             ' or "abstract"')
+        if state_type == 'abstract':
+            temp = state
+        else:
+            temp = self.abstr_dict[state]
+        return len(self.group_dict[temp]) == 1

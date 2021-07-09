@@ -2,6 +2,10 @@
   <dictionary name="trevo">
     <words>
       <w>abstr</w>
+      <w>difs</w>
+      <w>discretization</w>
+      <w>gridworld</w>
+      <w>hypercells</w>
       <w>rollout</w>
       <w>vals</w>
     </words>
